@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日语单词记忆练习</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#64748B',
+                        light: '#F8FAFC',
+                        dark: '#1E293B'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-custom {
+                transition: all 0.3s ease;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-light to-gray-100 min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 页面标题 -->
+        <header class="mb-8 text-center">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-primary mb-2 text-shadow">日语单词记忆练习</h1>
+            <p class="text-neutral text-base md:text-lg">输入中文意思与纯假名，系统自动生成练习表格</p>
+        </header>
+        
+        <!-- 输入区域 -->
+        <section class="bg-white rounded-xl shadow-lg p-6 mb-6 transform hover:shadow-xl transition-custom">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa fa-pencil-square-o text-primary mr-2"></i>输入单词信息
+            </h2>
+            <div class="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <p class="text-neutral text-sm font-medium mb-1">支持两种输入格式（任选一种）：</p>
+                <p class="text-neutral text-sm mb-1">1. 文本格式：<span class="text-dark">中文意思,纯假名</span>（每行一个）</p>
+                <p class="text-neutral text-sm">2. Markdown表格格式：</p>
+                <pre class="text-xs text-neutral bg-gray-100 p-2 rounded mt-1 mb-0">|中文意思|纯假名|
+| ---- | ---- |
+|照旧；仍然|あいかわらず|
+|你好|こんにちは|</pre>
+            </div>
+            
+            <div class="mb-4">
+                <textarea 
+                    id="vocabInput" 
+                    class="w-full h-52 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom resize-none"
+                    placeholder="请输入单词信息...">|中文意思|纯假名|
+| ---- | ---- |
+|照旧；仍然|あいかわらず|
+|你好|こんにちは|
+|谢谢|ありがとう|
+|再见|さようなら|
+|对不起|すみません|</textarea>
+            </div>
+            
+            <button 
+                id="formatBtn" 
+                class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg"
+            >
+                <i class="fa fa-table mr-2"></i>生成练习表格
+            </button>
+        </section>
+        
+        <!-- 表格区域 -->
+        <section id="tableSection" class="hidden bg-white rounded-xl shadow-lg p-6 transform hover:shadow-xl transition-custom">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 class="text-xl font-semibold flex items-center">
+                    <i class="fa fa-list-alt text-primary mr-2"></i>单词练习表
+                </h2>
+                <div class="flex space-x-2">
+                    <button id="shuffleBtn" class="bg-neutral hover:bg-neutral/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-random mr-1"></i>打乱顺序
+                    </button>
+                    <button id="hideBtn" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-eye-slash mr-1"></i>隐藏假名
+                    </button>
+                    <button id="clearBtn" class="bg-gray-200 hover:bg-gray-300 text-dark px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-trash mr-1"></i>清空
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table id="vocabTable" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">序号</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">中文意思</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">纯假名</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">练习（输入假名）</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">检查</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vocabTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格内容将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="resultMessage" class="mt-4 text-center hidden"></div>
+        </section>
+        
+        <!-- 统计信息 -->
+        <section id="statsSection" class="hidden mt-6 bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa fa-bar-chart text-primary mr-2"></i>学习统计
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-light p-4 rounded-lg border border-gray-200">
+                    <p class="text-neutral text-sm">总单词数</p>
+                    <p id="totalWords" class="text-2xl font-bold text-primary">0</p>
+                </div>
+                <div class="bg-light p-4 rounded-lg border border-gray-200">
+                    <p class="text-neutral text-sm">已练习</p>
+                    <p id="practicedWords" class="text-2xl font-bold text-primary">0</p>
+                </div>
+                <div class="bg-light p-4 rounded-lg border border-gray-200">
+                    <p class="text-neutral text-sm">正确率</p>
+                    <p id="accuracyRate" class="text-2xl font-bold text-primary">0%</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 页脚 -->
+        <footer class="mt-10 text-center text-neutral text-sm">
+            <p>日语单词记忆练习工具 &copy; 2023</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量存储单词数据
+        let vocabularyList = [];
+        let stats = {
+            total: 0,
+            practiced: 0,
+            correct: 0
+        };
+        let假名隐藏状态 = false;
+        
+        // DOM元素
+        const vocabInput = document.getElementById('vocabInput');
+        const formatBtn = document.getElementById('formatBtn');
+        const tableSection = document.getElementById('tableSection');
+        const vocabTableBody = document.getElementById('vocabTableBody');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const hideBtn = document.getElementById('hideBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultMessage = document.getElementById('resultMessage');
+        const statsSection = document.getElementById('statsSection');
+        const totalWordsEl = document.getElementById('totalWords');
+        const practicedWordsEl = document.getElementById('practicedWords');
+        const accuracyRateEl = document.getElementById('accuracyRate');
+        
+        // 解析输入内容（支持文本和Markdown表格）
+        function parseInput(input) {
+            const parsedList = [];
+            const lines = input.trim().split('\n').filter(line => line.trim() !== '');
+            
+            // 检查是否为Markdown表格格式（判断是否包含"| ---- | ---- |"分隔行）
+            const hasMarkdownSeparator = lines.some(line => 
+                line.trim().includes('| ---- |') || line.trim().includes('| --- |')
+            );
+            
+            if (hasMarkdownSeparator) {
+                // 解析Markdown表格
+                let isHeaderPassed = false;
+                lines.forEach((line) => {
+                    const trimmedLine = line.trim();
+                    // 跳过表头和分隔行
+                    if (trimmedLine.startsWith('|中文意思|') || trimmedLine.includes('| ---- |')) {
+                        if (trimmedLine.includes('| ---- |')) isHeaderPassed = true;
+                        return;
+                    }
+                    // 只处理分隔行之后的内容
+                    if (isHeaderPassed && trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+                        // 分割表格单元格（去除首尾的|，再按|分割）
+                        const cells = trimmedLine.slice(1, -1).split('|').map(cell => cell.trim());
+                        if (cells.length >= 2) {
+                            const chineseMeaning = cells[0];
+                            const kana = cells[1];
+                            if (chineseMeaning && kana) {
+                                parsedList.push({
+                                    chinese: chineseMeaning,
+                                    kana: kana
+                                });
+                            }
+                        }
+                    }
+                });
+            } else {
+                // 解析文本格式（中文意思,纯假名）
+                lines.forEach((line, index) => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine) {
+                        const parts = trimmedLine.split(',').map(part => part.trim());
+                        if (parts.length >= 2) {
+                            const chineseMeaning = parts[0];
+                            const kana = parts[1];
+                            if (chineseMeaning && kana) {
+                                parsedList.push({
+                                    chinese: chineseMeaning,
+                                    kana: kana
+                                });
+                            } else {
+                                showMessage(`第 ${index + 1} 行格式错误：中文意思或纯假名不能为空`, 'error');
+                            }
+                        } else {
+                            showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,纯假名"格式`, 'error');
+                        }
+                    }
+                });
+            }
+            
+            return parsedList;
+        }
+        
+        // 生成单词表格
+        function generateTable() {
+            // 清空表格
+            vocabTableBody.innerHTML = '';
+            
+            // 遍历单词列表生成表格行
+            vocabularyList.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-custom';
+                row.dataset.index = index;
+                
+                const kanaClass = 假名隐藏状态 ? 'hidden' : '';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-dark">${index + 1}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-dark">${item.chinese}</div>
+                    </td>
+                    <td class="px-6 py-4 ${kanaClass}">
+                        <div class="text-sm font-semibold text-primary">${item.kana}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom" placeholder="请输入纯假名...">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom" data-index="${index}">
+                            <i class="fa fa-check mr-1"></i>检查
+                        </button>
+                    </td>
+                `;
+                
+                vocabTableBody.appendChild(row);
+            });
+            
+            // 添加检查按钮事件监听
+            document.querySelectorAll('.check-btn').forEach(btn => {
+                btn.addEventListener('click', checkAnswer);
+            });
+            
+            // 显示表格和统计区域
+            tableSection.classList.remove('hidden');
+            statsSection.classList.remove('hidden');
+            
+            // 更新统计信息
+            updateStats();
+        }
+        
+        // 格式化输入并生成单词列表
+        function formatInput() {
+            const input = vocabInput.value.trim();
+            if (!input) {
+                showMessage('请输入单词信息（支持文本或Markdown表格格式）', 'error');
+                return;
+            }
+            
+            // 清空现有数据
+            vocabularyList = [];
+            stats = { total: 0, practiced: 0, correct: 0 };
+            假名隐藏状态 = false;
+            hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+            
+            // 解析输入内容
+            vocabularyList = parseInput(input);
+            
+            if (vocabularyList.length > 0) {
+                stats.total = vocabularyList.length;
+                generateTable();
+                showMessage(`成功生成 ${vocabularyList.length} 个单词的练习表格`, 'success');
+            } else {
+                showMessage('未识别到有效单词数据，请检查输入格式', 'error');
+            }
+        }
+        
+        // 检查答案
+        function checkAnswer(e) {
+            const index = parseInt(e.currentTarget.dataset.index);
+            const wordData = vocabularyList[index];
+            const inputElement = e.currentTarget.closest('tr').querySelector('.practice-input');
+            const userAnswer = inputElement.value.trim();
+            
+            // 禁用输入框和按钮，防止重复提交
+            inputElement.disabled = true;
+            e.currentTarget.disabled = true;
+            e.currentTarget.classList.add('opacity-70', 'cursor-not-allowed');
+            
+            // 检查答案（日语假名严格匹配）
+            if (userAnswer === wordData.kana) {
+                inputElement.classList.add('border-secondary', 'bg-green-50');
+                showMessage('回答正确！', 'success');
+                stats.correct++;
+            } else {
+                inputElement.classList.add('border-red-500', 'bg-red-50');
+                // 显示正确答案
+                setTimeout(() => {
+                    inputElement.value = `正确答案：${wordData.kana}`;
+                    inputElement.classList.add('text-red-500');
+                }, 500);
+                showMessage(`回答错误，正确答案是：${wordData.kana}`, 'error');
+            }
+            
+            // 更新统计
+            stats.practiced++;
+            updateStats();
+        }
+        
+        // 打乱单词顺序
+        function shuffleWords() {
+            // Fisher-Yates 洗牌算法
+            for (let i = vocabularyList.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [vocabularyList[i], vocabularyList[j]] = [vocabularyList[j], vocabularyList[i]];
+            }
+            
+            generateTable();
+            showMessage('单词顺序已打乱', 'info');
+        }
+        
+        // 切换假名显示/隐藏状态
+        function toggleKanaVisibility() {
+            假名隐藏状态 = !假名隐藏状态;
+            
+            if (假名隐藏状态) {
+                hideBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+                showMessage('已隐藏假名列，适合自我测试', 'info');
+            } else {
+                hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+                showMessage('已显示假名列', 'info');
+            }
+            
+            generateTable(); // 重新生成表格以应用状态变化
+        }
+        
+        // 清空所有内容
+        function clearAll() {
+            vocabInput.value = '';
+            vocabularyList = [];
+            stats = { total: 0, practiced: 0, correct: 0 };
+            假名隐藏状态 = false;
+            hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+            vocabTableBody.innerHTML = '';
+            tableSection.classList.add('hidden');
+            statsSection.classList.add('hidden');
+            showMessage('已清空所有内容', 'info');
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            resultMessage.textContent = text;
+            resultMessage.className = 'mt-4 text-center font-medium px-4 py-2 rounded-lg transition-custom';
+            
+            switch(type) {
+                case 'success':
+                    resultMessage.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+                    break;
+                case 'error':
+                    resultMessage.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+                    break;
+                case 'info':
+                    resultMessage.classList.add('bg-blue-50', 'text-blue-700', 'border', 'border-blue-200');
+                    break;
+            }
+            
+            resultMessage.classList.remove('hidden');
+            
+            // 3秒后自动隐藏消息，错误消息保留更长时间
+            const timeout = type === 'error' ? 5000 : 3000;
+            setTimeout(() => {
+                resultMessage.classList.add('hidden');
+            }, timeout);
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            totalWordsEl.textContent = stats.total;
+            practicedWordsEl.textContent = stats.practiced;
+            
+            const accuracy = stats.practiced > 0 
+                ? Math.round((stats.correct / stats.practiced) * 100) 
+                : 0;
+            accuracyRateEl.textContent = `${accuracy}%`;
+            
+            // 添加数字变化动画
+            [totalWordsEl, practicedWordsEl, accuracyRateEl].forEach(el => {
+                el.classList.add('scale-110');
+                setTimeout(() => el.classList.remove('scale-110'), 300);
+            });
+        }
+        
+        // 事件监听
+        formatBtn.addEventListener('click', formatInput);
+        shuffleBtn.addEventListener('click', shuffleWords);
+        hideBtn.addEventListener('click', toggleKanaVisibility);
+        clearBtn.addEventListener('click', clearAll);
+        
+        // 支持按Ctrl+Enter键提交
+        vocabInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                formatInput();
+            }
+        });
+        
+        // 页面加载时自动聚焦到输入框
+        window.addEventListener('load', () => {
+            vocabInput.focus();
+        });
+    </script>
+</body>
+</html>
