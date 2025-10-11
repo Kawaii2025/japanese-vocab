@@ -141,8 +141,8 @@
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日语原文</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">纯假名</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider original-header">日语原文</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider kana-header">纯假名</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
@@ -153,6 +153,40 @@
                         <!-- 表格内容将通过JavaScript动态生成 -->
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- 不熟悉单词总结区域 -->
+            <div id="unfamiliarWordsSection" class="mt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-amber flex items-center">
+                        <i class="fa fa-question-circle mr-2"></i>不熟悉的单词
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button id="reviewUnfamiliarBtn" class="text-amber hover:text-amber/80 text-sm transition-custom flex items-center">
+                            <i class="fa fa-repeat mr-1"></i>集中复习
+                        </button>
+                        <button id="clearUnfamiliarBtn" class="text-amber hover:text-amber/80 text-sm transition-custom flex items-center">
+                            <i class="fa fa-trash-o mr-1"></i>清空记录
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 border border-amber/20">
+                        <thead class="bg-amber/10">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">序号</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">日语原文</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">纯假名</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">不熟悉项</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">朗读</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unfamiliarWordsTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- 不熟悉单词内容将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- 解析信息提示 -->
@@ -208,7 +242,7 @@
             <h2 class="text-xl font-semibold mb-4 flex items-center">
                 <i class="fa fa-bar-chart text-primary mr-2"></i>学习统计
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div class="bg-light p-4 rounded-lg border border-gray-200">
                     <p class="text-gray-600 text-sm">总单词数</p>
                     <p id="totalWords" class="text-2xl font-bold text-primary">0</p>
@@ -225,6 +259,10 @@
                     <p class="text-gray-600 text-sm">错题数</p>
                     <p id="mistakesCountStat" class="text-2xl font-bold text-error">0</p>
                 </div>
+                <div class="bg-light p-4 rounded-lg border border-gray-200">
+                    <p class="text-gray-600 text-sm">不熟悉</p>
+                    <p id="unfamiliarCountStat" class="text-2xl font-bold text-amber">0</p>
+                </div>
             </div>
         </section>
         
@@ -240,13 +278,15 @@
         let userInputs = []; // 使用数组保存用户输入，与单词列表索引严格对应
         let lastInputIndex = -1; // 记录最后有输入内容的索引
         let mistakesList = [];
+        // 不熟悉的单词记录：记录需要显示单词或假名的单词
+        let unfamiliarWords = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
         let 假名隐藏状态 = false;
         let 原文隐藏状态 = false;
         let hasOriginalText = false; // 是否有日语原文
         let showingMistakes = true; // 默认显示错题
         let speechSynthesis = window.speechSynthesis;
-        // 新增：存储每行的显示状态，用于单独控制
+        // 存储每行的显示状态，用于单独控制
         let rowVisibility = {
             original: [], // 存储每行日语原文的显示状态
             kana: []      // 存储每行假名的显示状态
@@ -277,6 +317,15 @@
         const goToLastInputBtn = document.getElementById('goToLastInputBtn');
         const parseInfo = document.getElementById('parseInfo');
         const parseInfoText = document.getElementById('parseInfoText');
+        // 不熟悉单词相关元素
+        const unfamiliarWordsSection = document.getElementById('unfamiliarWordsSection');
+        const unfamiliarWordsTableBody = document.getElementById('unfamiliarWordsTableBody');
+        const reviewUnfamiliarBtn = document.getElementById('reviewUnfamiliarBtn');
+        const clearUnfamiliarBtn = document.getElementById('clearUnfamiliarBtn');
+        const unfamiliarCountStat = document.getElementById('unfamiliarCountStat');
+        // 表头元素
+        const originalHeader = document.querySelector('.original-header');
+        const kanaHeader = document.querySelector('.kana-header');
 
         // 初始化页面
         function init() {
@@ -291,6 +340,9 @@
             clearMistakesBtn.addEventListener('click', clearMistakes);
             copyMistakesBtn.addEventListener('click', copyMistakesToClipboard);
             goToLastInputBtn.addEventListener('click', goToLastInputPosition);
+            // 不熟悉单词相关事件
+            reviewUnfamiliarBtn.addEventListener('click', reviewUnfamiliarWords);
+            clearUnfamiliarBtn.addEventListener('click', clearUnfamiliarWords);
             
             // 支持Ctrl+Enter提交
             vocabInput.addEventListener('keydown', (e) => {
@@ -616,6 +668,174 @@
             }
         }
 
+        // 记录不熟悉的单词
+        function recordUnfamiliarWord(index, type) {
+            const wordData = vocabularyList[index];
+            // 检查该单词是否已在记录中
+            const existingIndex = unfamiliarWords.findIndex(item => 
+                item.chinese === wordData.chinese && item.kana === wordData.kana
+            );
+            
+            if (existingIndex === -1) {
+                // 新增记录
+                unfamiliarWords.push({
+                    ...wordData,
+                    unfamiliarTypes: [type] // 记录不熟悉的类型：'original' 或 'kana'
+                });
+            } else {
+                // 更新现有记录
+                if (!unfamiliarWords[existingIndex].unfamiliarTypes.includes(type)) {
+                    unfamiliarWords[existingIndex].unfamiliarTypes.push(type);
+                }
+            }
+            
+            // 更新不熟悉单词表格
+            updateUnfamiliarWordsTable();
+            // 更新统计
+            updateStats();
+        }
+
+        // 从记录中移除不熟悉的单词（当用户再次隐藏时）
+        function removeUnfamiliarWord(index, type) {
+            const wordData = vocabularyList[index];
+            const existingIndex = unfamiliarWords.findIndex(item => 
+                item.chinese === wordData.chinese && item.kana === wordData.kana
+            );
+            
+            if (existingIndex !== -1) {
+                // 移除该类型
+                unfamiliarWords[existingIndex].unfamiliarTypes = 
+                    unfamiliarWords[existingIndex].unfamiliarTypes.filter(t => t !== type);
+                
+                // 如果没有其他不熟悉的类型，移除整个记录
+                if (unfamiliarWords[existingIndex].unfamiliarTypes.length === 0) {
+                    unfamiliarWords.splice(existingIndex, 1);
+                }
+                
+                // 更新不熟悉单词表格
+                updateUnfamiliarWordsTable();
+                // 更新统计
+                updateStats();
+            }
+        }
+
+        // 更新不熟悉单词表格
+        function updateUnfamiliarWordsTable() {
+            unfamiliarWordsTableBody.innerHTML = '';
+            
+            if (unfamiliarWords.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        暂无需要特别复习的单词
+                    </td>
+                `;
+                unfamiliarWordsTableBody.appendChild(row);
+                return;
+            }
+            
+            unfamiliarWords.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-amber-50 transition-custom';
+                
+                // 转换不熟悉类型为显示文本
+                const unfamiliarText = item.unfamiliarTypes.map(type => 
+                    type === 'original' ? '单词' : '假名'
+                ).join('、');
+                
+                // 构建不熟悉单词行内容
+                let rowContent = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-amber">${index + 1}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-dark">${item.chinese}</div>
+                    </td>
+                `;
+                
+                // 添加日语原文（如果有）
+                if (item.original && item.original.trim() !== '') {
+                    rowContent += `
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-800">${item.original}</div>
+                        </td>
+                    `;
+                } else {
+                    rowContent += `
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-400">-</div>
+                        </td>
+                    `;
+                }
+                
+                // 继续添加其他列
+                rowContent += `
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-semibold text-primary">${item.kana}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-amber font-medium">${unfamiliarText}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="read-unfamiliar-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
+                            <i class="fa fa-volume-up mr-1"></i>朗读
+                        </button>
+                    </td>
+                `;
+                
+                row.innerHTML = rowContent;
+                unfamiliarWordsTableBody.appendChild(row);
+            });
+            
+            // 添加不熟悉单词朗读事件
+            document.querySelectorAll('.read-unfamiliar-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    const kana = unfamiliarWords[index].kana;
+                    readJapanese(kana);
+                    this.classList.add('btn-pulse');
+                    setTimeout(() => this.classList.remove('btn-pulse'), 500);
+                });
+            });
+        }
+
+        // 集中复习不熟悉的单词
+        function reviewUnfamiliarWords() {
+            if (unfamiliarWords.length === 0) {
+                showMessage('没有需要复习的不熟悉单词', 'info');
+                return;
+            }
+            
+            // 滚动到单词表
+            document.getElementById('vocabTable').scrollIntoView({ behavior: 'smooth' });
+            
+            // 高亮显示所有不熟悉的单词
+            document.querySelectorAll('#vocabTableBody tr').forEach((row, index) => {
+                const wordData = vocabularyList[index];
+                const isUnfamiliar = unfamiliarWords.some(item => 
+                    item.chinese === wordData.chinese && item.kana === wordData.kana
+                );
+                
+                if (isUnfamiliar) {
+                    row.classList.add('bg-amber-50');
+                    // 3秒后移除高亮
+                    setTimeout(() => {
+                        row.classList.remove('bg-amber-50');
+                    }, 3000);
+                }
+            });
+            
+            showMessage(`已定位到 ${unfamiliarWords.length} 个需要复习的单词`, 'info');
+        }
+
+        // 清空不熟悉单词记录
+        function clearUnfamiliarWords() {
+            unfamiliarWords = [];
+            updateUnfamiliarWordsTable();
+            updateStats();
+            showMessage('已清空所有不熟悉单词记录', 'info');
+        }
+
         // 生成单词表格
         function generateTable() {
             // 保存当前输入内容
@@ -638,6 +858,9 @@
             } else {
                 hideOriginalBtn.classList.add('hidden');
             }
+            
+            // 更新表头显示状态
+            updateHeadersVisibility();
             
             vocabularyList.forEach((item, index) => {
                 const row = document.createElement('tr');
@@ -665,7 +888,7 @@
                 // 只有当有日语原文时才显示该列
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="px-6 py-4 ${originalClass}">
+                        <td class="px-6 py-4 ${originalClass} original-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
@@ -673,7 +896,7 @@
                     // 如果没有原文且原文未隐藏，显示空单元格；否则不显示该列
                     if (!原文隐藏状态) {
                         rowContent += `
-                            <td class="px-6 py-4 ${originalClass}">
+                            <td class="px-6 py-4 ${originalClass} original-cell">
                                 <div class="text-sm text-gray-400">-</div>
                             </td>
                         `;
@@ -682,7 +905,7 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="px-6 py-4 ${kanaClass}">
+                    <td class="px-6 py-4 ${kanaClass} kana-cell">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -740,21 +963,29 @@
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
                     // 切换该行的日语原文显示状态
-                    rowVisibility.original[index] = !rowVisibility.original[index];
+                    const newState = !rowVisibility.original[index];
+                    rowVisibility.original[index] = newState;
                     
                     // 更新按钮文本和图标
-                    if (rowVisibility.original[index]) {
+                    if (newState) {
                         this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+                        // 如果显示单词，记录为不熟悉
+                        recordUnfamiliarWord(index, 'original');
                     } else {
                         this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
+                        // 如果隐藏单词，从记录中移除
+                        removeUnfamiliarWord(index, 'original');
                     }
                     
                     // 更新该行的显示状态
                     const row = this.closest('tr');
-                    const originalCell = row.querySelector('td:nth-child(3)');
+                    const originalCell = row.querySelector('.original-cell');
                     if (originalCell) {
-                        originalCell.classList.toggle('hidden', !rowVisibility.original[index]);
+                        originalCell.classList.toggle('hidden', !newState);
                     }
+                    
+                    // 检查是否需要更新表头显示
+                    updateHeadersVisibility();
                 });
             });
             
@@ -762,26 +993,35 @@
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
                     // 切换该行的假名显示状态
-                    rowVisibility.kana[index] = !rowVisibility.kana[index];
+                    const newState = !rowVisibility.kana[index];
+                    rowVisibility.kana[index] = newState;
                     
                     // 更新按钮文本和图标
-                    if (rowVisibility.kana[index]) {
+                    if (newState) {
                         this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+                        // 如果显示假名，记录为不熟悉
+                        recordUnfamiliarWord(index, 'kana');
                     } else {
                         this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+                        // 如果隐藏假名，从记录中移除
+                        removeUnfamiliarWord(index, 'kana');
                     }
                     
                     // 更新该行的显示状态
                     const row = this.closest('tr');
-                    const kanaCell = row.querySelector('td:nth-child(4)');
+                    const kanaCell = row.querySelector('.kana-cell');
                     if (kanaCell) {
-                        kanaCell.classList.toggle('hidden', !rowVisibility.kana[index]);
+                        kanaCell.classList.toggle('hidden', !newState);
                     }
+                    
+                    // 检查是否需要更新表头显示
+                    updateHeadersVisibility();
                 });
             });
             
-            // 更新错题表格
+            // 更新错题表格和不熟悉单词表格
             updateMistakesTable();
+            updateUnfamiliarWordsTable();
             
             // 显示表格和统计区域
             tableSection.classList.remove('hidden');
@@ -789,6 +1029,22 @@
             
             // 更新统计信息
             updateStats();
+        }
+
+        // 更新表头显示状态
+        function updateHeadersVisibility() {
+            // 检查是否所有行的日语原文都隐藏了
+            const allOriginalHidden = rowVisibility.original.every(visible => !visible);
+            // 检查是否所有行的假名都隐藏了
+            const allKanaHidden = rowVisibility.kana.every(visible => !visible);
+            
+            // 更新表头显示
+            if (originalHeader) {
+                originalHeader.classList.toggle('hidden', allOriginalHidden);
+            }
+            if (kanaHeader) {
+                kanaHeader.classList.toggle('hidden', allKanaHidden);
+            }
         }
 
         // 格式化输入并生成单词列表
@@ -804,6 +1060,7 @@
             userInputs = new Array(vocabularyList.length).fill(''); // 初始化与单词列表长度相同的输入数组
             lastInputIndex = -1; // 重置最后输入索引
             mistakesList = [];
+            unfamiliarWords = []; // 重置不熟悉单词记录
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
             原文隐藏状态 = false;
@@ -1096,7 +1353,15 @@
             假名隐藏状态 = !假名隐藏状态;
             
             // 更新所有行的假名显示状态
-            rowVisibility.kana = rowVisibility.kana.map(() => !假名隐藏状态);
+            rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
+            
+            // 清除所有假名相关的不熟悉记录，因为这是全局操作而非个人不熟悉
+            unfamiliarWords = unfamiliarWords.map(word => {
+                return {
+                    ...word,
+                    unfamiliarTypes: word.unfamiliarTypes.filter(type => type !== 'kana')
+                };
+            }).filter(word => word.unfamiliarTypes.length > 0);
             
             if (假名隐藏状态) {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
@@ -1106,6 +1371,8 @@
                 showMessage('已显示所有假名列，保留了您的输入内容', 'info');
             }
             
+            // 更新表头显示
+            updateHeadersVisibility();
             generateTable();
         }
 
@@ -1117,7 +1384,15 @@
             原文隐藏状态 = !原文隐藏状态;
             
             // 更新所有行的日语原文显示状态
-            rowVisibility.original = rowVisibility.original.map(() => !原文隐藏状态);
+            rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
+            
+            // 清除所有单词相关的不熟悉记录，因为这是全局操作而非个人不熟悉
+            unfamiliarWords = unfamiliarWords.map(word => {
+                return {
+                    ...word,
+                    unfamiliarTypes: word.unfamiliarTypes.filter(type => type !== 'original')
+                };
+            }).filter(word => word.unfamiliarTypes.length > 0);
             
             if (原文隐藏状态) {
                 hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
@@ -1127,6 +1402,8 @@
                 showMessage('已显示所有日语原文列', 'info');
             }
             
+            // 更新表头显示
+            updateHeadersVisibility();
             generateTable();
         }
 
@@ -1185,6 +1462,7 @@
             userInputs = [];
             lastInputIndex = -1;
             mistakesList = [];
+            unfamiliarWords = []; // 清空不熟悉单词记录
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
             原文隐藏状态 = false;
@@ -1202,6 +1480,11 @@
             parseInfo.classList.add('hidden');
             updateMistakesCount();
             updateLastInputButtonState();
+            
+            // 重置表头显示
+            if (originalHeader) originalHeader.classList.remove('hidden');
+            if (kanaHeader) kanaHeader.classList.remove('hidden');
+            
             showMessage('已清空所有内容', 'info');
             
             // 聚焦到输入框
@@ -1239,6 +1522,7 @@
             totalWordsEl.textContent = stats.total;
             practicedWordsEl.textContent = stats.practiced;
             mistakesCountStat.textContent = mistakesList.length;
+            unfamiliarCountStat.textContent = unfamiliarWords.length;
             
             const accuracy = stats.practiced > 0 
                 ? Math.round((stats.correct / stats.practiced) * 100) 
@@ -1246,7 +1530,7 @@
             accuracyRateEl.textContent = `${accuracy}%`;
             
             // 添加数字变化动画
-            [totalWordsEl, practicedWordsEl, accuracyRateEl, mistakesCountStat].forEach(el => {
+            [totalWordsEl, practicedWordsEl, accuracyRateEl, mistakesCountStat, unfamiliarCountStat].forEach(el => {
                 el.classList.add('scale-110');
                 setTimeout(() => el.classList.remove('scale-110'), 300);
             });
