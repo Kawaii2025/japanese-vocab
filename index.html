@@ -148,6 +148,13 @@
                         <i class="fa fa-exclamation-circle mr-1"></i>错题复习
                         <span id="mistakesCount" class="ml-1 bg-white text-error text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
                     </button>
+                    <!-- 新增导出按钮 -->
+                    <button id="exportUnfinishedBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-file-text-o mr-1"></i>导出未完成
+                    </button>
+                    <button id="exportCombinedBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-files-o mr-1"></i>合并导出
+                    </button>
                     <button id="clearBtn" class="bg-gray-200 hover:bg-gray-300 text-dark px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-trash mr-1"></i>清空
                     </button>
@@ -342,6 +349,9 @@
         const reviewUnfamiliarBtn = document.getElementById('reviewUnfamiliarBtn');
         const clearUnfamiliarBtn = document.getElementById('clearUnfamiliarBtn');
         const unfamiliarCountStat = document.getElementById('unfamiliarCountStat');
+        // 新增导出按钮
+        const exportUnfinishedBtn = document.getElementById('exportUnfinishedBtn');
+        const exportCombinedBtn = document.getElementById('exportCombinedBtn');
         // 表头元素
         const originalHeader = document.querySelector('.original-header');
         const kanaHeader = document.querySelector('.kana-header');
@@ -362,6 +372,9 @@
             // 不熟悉单词相关事件
             reviewUnfamiliarBtn.addEventListener('click', reviewUnfamiliarWords);
             clearUnfamiliarBtn.addEventListener('click', clearUnfamiliarWords);
+            // 新增导出事件
+            exportUnfinishedBtn.addEventListener('click', exportUnfinishedWords);
+            exportCombinedBtn.addEventListener('click', exportCombinedWords);
             
             // 支持Ctrl+Enter提交
             vocabInput.addEventListener('keydown', (e) => {
@@ -1294,6 +1307,112 @@
                 copyMistakesBtn.classList.add('btn-pulse');
                 setTimeout(() => {
                     copyMistakesBtn.classList.remove('btn-pulse');
+                }, 500);
+            }).catch(err => {
+                showMessage('复制失败，请手动复制', 'error');
+                console.error('复制失败:', err);
+            });
+        }
+
+        // 导出未完成的单词为Markdown
+        function exportUnfinishedWords() {
+            if (vocabularyList.length === 0) {
+                showMessage('没有单词可导出，请先生成表格', 'info');
+                return;
+            }
+            
+            // 收集未完成的单词（未检查的单词）
+            const unfinishedWords = [];
+            const checkButtons = document.querySelectorAll('.check-btn');
+            
+            checkButtons.forEach((btn, index) => {
+                if (!btn.disabled) { // 按钮未禁用表示未检查
+                    unfinishedWords.push(vocabularyList[index]);
+                }
+            });
+            
+            if (unfinishedWords.length === 0) {
+                showMessage('所有单词都已完成练习', 'info');
+                return;
+            }
+            
+            // 构建Markdown表格
+            let markdown = "| 中文意思 | 日语原文 | 假名 |\n";
+            markdown += "| ---- | ---- | ---- |\n";
+            
+            unfinishedWords.forEach(item => {
+                markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} |\n`;
+            });
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(markdown).then(() => {
+                showMessage(`已将 ${unfinishedWords.length} 个未完成单词以Markdown格式复制到剪贴板`, 'success');
+                
+                // 按钮动画反馈
+                exportUnfinishedBtn.classList.add('btn-pulse');
+                setTimeout(() => {
+                    exportUnfinishedBtn.classList.remove('btn-pulse');
+                }, 500);
+            }).catch(err => {
+                showMessage('复制失败，请手动复制', 'error');
+                console.error('复制失败:', err);
+            });
+        }
+
+        // 合并导出不熟悉和背错的单词为Markdown
+        function exportCombinedWords() {
+            if (unfamiliarWords.length === 0 && mistakesList.length === 0) {
+                showMessage('没有不熟悉或背错的单词可导出', 'info');
+                return;
+            }
+            
+            // 创建一个集合用于去重
+            const uniqueWords = new Map();
+            
+            // 添加不熟悉的单词
+            unfamiliarWords.forEach(word => {
+                const key = `${word.chinese}-${word.kana}`;
+                if (!uniqueWords.has(key)) {
+                    uniqueWords.set(key, {
+                        ...word,
+                        type: '不熟悉'
+                    });
+                }
+            });
+            
+            // 添加背错的单词（去重）
+            mistakesList.forEach(word => {
+                const key = `${word.chinese}-${word.kana}`;
+                if (uniqueWords.has(key)) {
+                    // 如果已存在，更新类型为"不熟悉+背错"
+                    uniqueWords.set(key, {
+                        ...uniqueWords.get(key),
+                        type: '不熟悉+背错'
+                    });
+                } else {
+                    uniqueWords.set(key, {
+                        ...word,
+                        type: '背错'
+                    });
+                }
+            });
+            
+            // 构建Markdown表格
+            let markdown = "| 中文意思 | 日语原文 | 假名 | 类型 |\n";
+            markdown += "| ---- | ---- | ---- | ---- |\n";
+            
+            Array.from(uniqueWords.values()).forEach(item => {
+                markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} | ${item.type} |\n`;
+            });
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(markdown).then(() => {
+                showMessage(`已将 ${uniqueWords.size} 个合并单词（去重）以Markdown格式复制到剪贴板`, 'success');
+                
+                // 按钮动画反馈
+                exportCombinedBtn.classList.add('btn-pulse');
+                setTimeout(() => {
+                    exportCombinedBtn.classList.remove('btn-pulse');
                 }, 500);
             }).catch(err => {
                 showMessage('复制失败，请手动复制', 'error');
