@@ -146,6 +146,7 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
                         </tr>
                     </thead>
                     <tbody id="vocabTableBody" class="bg-white divide-y divide-gray-200">
@@ -245,6 +246,11 @@
         let hasOriginalText = false; // 是否有日语原文
         let showingMistakes = true; // 默认显示错题
         let speechSynthesis = window.speechSynthesis;
+        // 新增：存储每行的显示状态，用于单独控制
+        let rowVisibility = {
+            original: [], // 存储每行日语原文的显示状态
+            kana: []      // 存储每行假名的显示状态
+        };
         
         // DOM元素
         const vocabInput = document.getElementById('vocabInput');
@@ -532,15 +538,13 @@
         function saveUserInput() {
             const inputElements = document.querySelectorAll('.practice-input');
             inputElements.forEach((el, index) => {
-                // 只保存未禁用的输入框内容（已检查的不再保存）
-                if (!el.disabled) {
-                    userInputs[index] = el.value;
-                    
-                    // 如果输入内容不为空，更新最后输入索引
-                    if (el.value.trim() !== '') {
-                        lastInputIndex = index;
-                        updateLastInputButtonState();
-                    }
+                // 保存所有输入框内容，包括已禁用的（已检查的）
+                userInputs[index] = el.value;
+                
+                // 如果输入内容不为空且未禁用，更新最后输入索引
+                if (!el.disabled && el.value.trim() !== '') {
+                    lastInputIndex = index;
+                    updateLastInputButtonState();
                 }
             });
         }
@@ -557,7 +561,7 @@
                     }
                 });
                 
-                if (userInputs[index] !== undefined && !el.disabled) {
+                if (userInputs[index] !== undefined) {
                     el.value = userInputs[index];
                 }
             });
@@ -622,6 +626,12 @@
             // 检查是否有日语原文
             hasOriginalText = vocabularyList.some(item => item.original && item.original.trim() !== '');
             
+            // 初始化或更新行显示状态
+            if (rowVisibility.original.length !== vocabularyList.length) {
+                rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
+                rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
+            }
+            
             // 显示或隐藏"隐藏单词"按钮
             if (hasOriginalText) {
                 hideOriginalBtn.classList.remove('hidden');
@@ -634,8 +644,10 @@
                 row.className = 'hover:bg-gray-50 transition-custom';
                 row.dataset.index = index;
                 
-                const kanaClass = 假名隐藏状态 ? 'hidden' : '';
-                const originalClass = 原文隐藏状态 ? 'hidden' : '';
+                // 行内显示状态优先于全局状态
+                const kanaClass = rowVisibility.kana[index] ? '' : 'hidden';
+                const originalClass = rowVisibility.original[index] ? '' : 'hidden';
+                
                 // 检查是否已禁用（已检查过）
                 const isDisabled = stats.practiced > 0 && 
                                   document.querySelector(`.check-btn[data-index="${index}"]`)?.disabled;
@@ -688,6 +700,16 @@
                             <i class="fa fa-check mr-1"></i>检查
                         </button>
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-1">
+                            <button class="toggle-original-btn bg-gray-200 hover:bg-gray-300 text-dark px-2 py-1 rounded transition-custom text-xs" data-index="${index}">
+                                <i class="fa ${rowVisibility.original[index] ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>${rowVisibility.original[index] ? '隐藏单词' : '显示单词'}
+                            </button>
+                            <button class="toggle-kana-btn bg-gray-200 hover:bg-gray-300 text-dark px-2 py-1 rounded transition-custom text-xs" data-index="${index}">
+                                <i class="fa ${rowVisibility.kana[index] ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>${rowVisibility.kana[index] ? '隐藏假名' : '显示假名'}
+                            </button>
+                        </div>
+                    </td>
                 `;
                 
                 row.innerHTML = rowContent;
@@ -710,6 +732,51 @@
                     readJapanese(kana);
                     this.classList.add('btn-pulse');
                     setTimeout(() => this.classList.remove('btn-pulse'), 500);
+                });
+            });
+            
+            // 添加行内显示控制按钮事件
+            document.querySelectorAll('.toggle-original-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    // 切换该行的日语原文显示状态
+                    rowVisibility.original[index] = !rowVisibility.original[index];
+                    
+                    // 更新按钮文本和图标
+                    if (rowVisibility.original[index]) {
+                        this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+                    } else {
+                        this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
+                    }
+                    
+                    // 更新该行的显示状态
+                    const row = this.closest('tr');
+                    const originalCell = row.querySelector('td:nth-child(3)');
+                    if (originalCell) {
+                        originalCell.classList.toggle('hidden', !rowVisibility.original[index]);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.toggle-kana-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    // 切换该行的假名显示状态
+                    rowVisibility.kana[index] = !rowVisibility.kana[index];
+                    
+                    // 更新按钮文本和图标
+                    if (rowVisibility.kana[index]) {
+                        this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+                    } else {
+                        this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+                    }
+                    
+                    // 更新该行的显示状态
+                    const row = this.closest('tr');
+                    const kanaCell = row.querySelector('td:nth-child(4)');
+                    if (kanaCell) {
+                        kanaCell.classList.toggle('hidden', !rowVisibility.kana[index]);
+                    }
                 });
             });
             
@@ -740,6 +807,10 @@
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
             原文隐藏状态 = false;
+            // 初始化行显示状态
+            rowVisibility.original = vocabularyList.map(() => true);
+            rowVisibility.kana = vocabularyList.map(() => true);
+            
             hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
             hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
             showingMistakes = true; // 默认显示错题
@@ -809,6 +880,9 @@
                 // 添加到错题列表（去重）
                 addToMistakes(wordData, userAnswer);
             }
+            
+            // 保存当前输入
+            userInputs[index] = inputElement.value;
             
             // 更新统计
             stats.practiced++;
@@ -996,6 +1070,10 @@
                 // 同步交换用户输入内容，确保输入跟随单词移动
                 [userInputs[i], userInputs[j]] = [userInputs[j], userInputs[i]];
                 
+                // 同步交换行显示状态
+                [rowVisibility.original[i], rowVisibility.original[j]] = [rowVisibility.original[j], rowVisibility.original[i]];
+                [rowVisibility.kana[i], rowVisibility.kana[j]] = [rowVisibility.kana[j], rowVisibility.kana[i]];
+                
                 // 更新最后输入索引（如果被交换）
                 if (lastInputIndex === i) {
                     lastInputIndex = j;
@@ -1010,37 +1088,43 @@
             showMessage('单词顺序已打乱，输入内容已同步调整', 'info');
         }
 
-        // 切换假名显示/隐藏状态
+        // 切换假名显示/隐藏状态（全局）
         function toggleKanaVisibility() {
             // 保存当前输入
             saveUserInput();
             
             假名隐藏状态 = !假名隐藏状态;
             
+            // 更新所有行的假名显示状态
+            rowVisibility.kana = rowVisibility.kana.map(() => !假名隐藏状态);
+            
             if (假名隐藏状态) {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
-                showMessage('已隐藏假名列，保留了您的输入内容', 'info');
+                showMessage('已隐藏所有假名列，保留了您的输入内容', 'info');
             } else {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-                showMessage('已显示假名列，保留了您的输入内容', 'info');
+                showMessage('已显示所有假名列，保留了您的输入内容', 'info');
             }
             
             generateTable();
         }
 
-        // 切换日语原文显示/隐藏状态
+        // 切换日语原文显示/隐藏状态（全局）
         function toggleOriginalVisibility() {
             // 保存当前输入
             saveUserInput();
             
             原文隐藏状态 = !原文隐藏状态;
             
+            // 更新所有行的日语原文显示状态
+            rowVisibility.original = rowVisibility.original.map(() => !原文隐藏状态);
+            
             if (原文隐藏状态) {
                 hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
-                showMessage('已隐藏日语原文列', 'info');
+                showMessage('已隐藏所有日语原文列', 'info');
             } else {
                 hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
-                showMessage('已显示日语原文列', 'info');
+                showMessage('已显示所有日语原文列', 'info');
             }
             
             generateTable();
@@ -1104,6 +1188,8 @@
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
             原文隐藏状态 = false;
+            rowVisibility.original = [];
+            rowVisibility.kana = [];
             hasOriginalText = false;
             hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
             hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
