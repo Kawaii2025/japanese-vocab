@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日语单词记忆练习（优化版）</title>
+    <title>日语单词记忆练习</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     
@@ -14,9 +14,9 @@
                     colors: {
                         primary: '#3B82F6',
                         secondary: '#10B981',
-                        accent: '#EC4899', // 朗读功能颜色（粉色系）
-                        amber: '#F59E0B', // 隐藏/显示按钮颜色（保留黄色）
-                        error: '#EF4444',  // 错误/错题颜色
+                        accent: '#2563EB',
+                        amber: '#F59E0B',
+                        error: '#EF4444',
                         light: '#F8FAFC',
                         dark: '#1E293B'
                     },
@@ -107,7 +107,7 @@
                 </h2>
                 <div class="flex flex-wrap gap-2">
                     <button id="readAllBtn" class="bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
-                        <i class="fa fa-volume-up mr-1"></i>朗读全部假名
+                        <i class="fa fa-volume-up mr-1"></i>朗读全部
                     </button>
                     <button id="shuffleBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-random mr-1"></i>打乱顺序
@@ -143,18 +143,24 @@
                 </table>
             </div>
             
-            <!-- 错题表格 -->
-            <div id="mistakesSection" class="hidden mt-8">
-                <h3 class="text-lg font-semibold text-error mb-4 flex items-center">
-                    <i class="fa fa-exclamation-circle mr-2"></i>错题复习列表
-                </h3>
+            <!-- 错题表格 - 默认显示 -->
+            <div id="mistakesSection" class="mt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-error flex items-center">
+                        <i class="fa fa-exclamation-circle mr-2"></i>错题复习列表
+                    </h3>
+                    <button id="copyMistakesBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center">
+                        <i class="fa fa-copy mr-1"></i>复制为Markdown
+                    </button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 border border-error/20">
                         <thead class="bg-error/10">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确假名</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
@@ -205,11 +211,12 @@
     <script>
         // 全局变量
         let vocabularyList = [];
-        let originalVocabularyList = []; // 保存原始列表，用于错题引用
-        let mistakesList = []; // 错题记录列表
+        let originalVocabularyList = [];
+        let userInputs = []; // 使用数组保存用户输入，与单词列表索引对应
+        let mistakesList = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
         let 假名隐藏状态 = false;
-        let showingMistakes = false; // 是否在显示错题模式
+        let showingMistakes = true; // 默认显示错题
         let speechSynthesis = window.speechSynthesis;
         
         // DOM元素
@@ -232,6 +239,7 @@
         const mistakesSection = document.getElementById('mistakesSection');
         const mistakesTableBody = document.getElementById('mistakesTableBody');
         const clearMistakesBtn = document.getElementById('clearMistakesBtn');
+        const copyMistakesBtn = document.getElementById('copyMistakesBtn');
 
         // 初始化页面
         function init() {
@@ -243,6 +251,7 @@
             readAllBtn.addEventListener('click', readAllWords);
             mistakesBtn.addEventListener('click', toggleMistakesView);
             clearMistakesBtn.addEventListener('click', clearMistakes);
+            copyMistakesBtn.addEventListener('click', copyMistakesToClipboard);
             
             // 支持Ctrl+Enter提交
             vocabInput.addEventListener('keydown', (e) => {
@@ -256,7 +265,7 @@
             vocabInput.focus();
         }
 
-        // 日语朗读函数（只保留日语朗读）
+        // 日语朗读函数
         function readJapanese(text) {
             // 停止当前朗读
             if (speechSynthesis.speaking) {
@@ -333,8 +342,32 @@
             return parsedList;
         }
 
+        // 保存用户输入内容
+        function saveUserInput() {
+            const inputElements = document.querySelectorAll('.practice-input');
+            inputElements.forEach((el, index) => {
+                // 只保存未禁用的输入框内容（已检查的不再保存）
+                if (!el.disabled) {
+                    userInputs[index] = el.value;
+                }
+            });
+        }
+
+        // 恢复用户输入内容
+        function restoreUserInput() {
+            const inputElements = document.querySelectorAll('.practice-input');
+            inputElements.forEach((el, index) => {
+                if (userInputs[index] !== undefined && !el.disabled) {
+                    el.value = userInputs[index];
+                }
+            });
+        }
+
         // 生成单词表格
         function generateTable() {
+            // 保存当前输入内容
+            saveUserInput();
+            
             vocabTableBody.innerHTML = '';
             
             vocabularyList.forEach((item, index) => {
@@ -343,6 +376,9 @@
                 row.dataset.index = index;
                 
                 const kanaClass = 假名隐藏状态 ? 'hidden' : '';
+                // 检查是否已禁用（已检查过）
+                const isDisabled = stats.practiced > 0 && 
+                                  document.querySelector(`.check-btn[data-index="${index}"]`)?.disabled;
                 
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -356,14 +392,16 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <button class="read-kana-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
-                            <i class="fa fa-volume-up mr-1"></i>朗读假名
+                            <i class="fa fa-volume-up mr-1"></i>朗读
                         </button>
                     </td>
                     <td class="px-6 py-4">
-                        <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none" placeholder="请输入纯假名...">
+                        <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none ${isDisabled ? 'border-error bg-red-50' : ''}" 
+                               placeholder="请输入纯假名..." ${isDisabled ? 'disabled' : ''}>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom" data-index="${index}">
+                        <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom ${isDisabled ? 'opacity-70 cursor-not-allowed' : ''}" 
+                                data-index="${index}" ${isDisabled ? 'disabled' : ''}>
                             <i class="fa fa-check mr-1"></i>检查
                         </button>
                     </td>
@@ -372,9 +410,14 @@
                 vocabTableBody.appendChild(row);
             });
             
+            // 恢复用户输入内容
+            restoreUserInput();
+            
             // 添加事件监听
             document.querySelectorAll('.check-btn').forEach(btn => {
-                btn.addEventListener('click', checkAnswer);
+                if (!btn.disabled) {
+                    btn.addEventListener('click', checkAnswer);
+                }
             });
             document.querySelectorAll('.read-kana-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -407,13 +450,14 @@
             
             // 重置状态
             vocabularyList = parseInput(input);
-            originalVocabularyList = [...vocabularyList]; // 保存原始列表
-            mistakesList = []; // 清空错题
+            originalVocabularyList = [...vocabularyList];
+            userInputs = new Array(vocabularyList.length).fill(''); // 初始化与单词列表长度相同的输入数组
+            mistakesList = [];
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
-            showingMistakes = false;
+            showingMistakes = true; // 默认显示错题
             hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-            mistakesSection.classList.add('hidden');
+            mistakesSection.classList.remove('hidden');
             
             if (vocabularyList.length > 0) {
                 generateTable();
@@ -442,18 +486,18 @@
                 stats.correct++;
                 
                 // 如果是错题且现在答对了，从错题列表移除
-                removeFromMistakes(wordData);
+                removeFromMistakes(wordData, userAnswer);
             } else {
                 inputElement.classList.add('border-error', 'bg-red-50');
                 // 显示正确答案
                 setTimeout(() => {
-                    inputElement.value = `正确答案：${wordData.kana}`;
+                    inputElement.value = `你的答案：${userAnswer} → 正确答案：${wordData.kana}`;
                     inputElement.classList.add('text-error');
                 }, 500);
                 showMessage(`回答错误，正确答案是：${wordData.kana}`, 'error');
                 
                 // 添加到错题列表（去重）
-                addToMistakes(wordData);
+                addToMistakes(wordData, userAnswer);
             }
             
             // 更新统计
@@ -463,13 +507,18 @@
         }
 
         // 添加到错题列表（去重）
-        function addToMistakes(wordData) {
+        function addToMistakes(wordData, userAnswer) {
             const isAlreadyInMistakes = mistakesList.some(item => 
-                item.chinese === wordData.chinese && item.kana === wordData.kana
+                item.chinese === wordData.chinese && 
+                item.kana === wordData.kana &&
+                item.userAnswer === userAnswer
             );
             
             if (!isAlreadyInMistakes) {
-                mistakesList.push({...wordData});
+                mistakesList.push({
+                    ...wordData,
+                    userAnswer: userAnswer // 保存用户输入的错误答案
+                });
                 updateMistakesCount();
             }
         }
@@ -495,7 +544,7 @@
             if (mistakesList.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
                         暂无错题记录
                     </td>
                 `;
@@ -513,6 +562,9 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-sm text-dark">${item.chinese}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-error font-medium">${item.userAnswer || '未输入'}</div>
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-sm font-semibold text-error">${item.kana}</div>
@@ -539,19 +591,47 @@
             });
         }
 
+        // 复制错题为Markdown格式
+        function copyMistakesToClipboard() {
+            if (mistakesList.length === 0) {
+                showMessage('没有错题可复制', 'info');
+                return;
+            }
+            
+            // 构建Markdown表格
+            let markdown = "| 中文意思 | 你的答案 | 正确答案 |\n";
+            markdown += "| ---- | ---- | ---- |\n";
+            
+            mistakesList.forEach(item => {
+                markdown += `| ${item.chinese} | ${item.userAnswer || '未输入'} | ${item.kana} |\n`;
+            });
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(markdown).then(() => {
+                showMessage('错题已以Markdown格式复制到剪贴板', 'success');
+                
+                // 按钮动画反馈
+                copyMistakesBtn.classList.add('btn-pulse');
+                setTimeout(() => {
+                    copyMistakesBtn.classList.remove('btn-pulse');
+                }, 500);
+            }).catch(err => {
+                showMessage('复制失败，请手动复制', 'error');
+                console.error('复制失败:', err);
+            });
+        }
+
         // 切换错题视图
         function toggleMistakesView() {
             showingMistakes = !showingMistakes;
             
             if (showingMistakes) {
                 mistakesSection.classList.remove('hidden');
-                mistakesBtn.innerHTML = '<i class="fa fa-list mr-1"></i>返回列表';
-                if (mistakesList.length === 0) {
-                    showMessage('暂无错题记录，继续练习吧！', 'info');
-                }
+                mistakesBtn.innerHTML = '<i class="fa fa-list mr-1"></i>隐藏错题';
+                mistakesBtn.appendChild(mistakesCount);
             } else {
                 mistakesSection.classList.add('hidden');
-                mistakesBtn.innerHTML = '<i class="fa fa-exclamation-circle mr-1"></i>错题复习';
+                mistakesBtn.innerHTML = '<i class="fa fa-exclamation-circle mr-1"></i>显示错题';
                 mistakesBtn.appendChild(mistakesCount);
             }
         }
@@ -564,28 +644,44 @@
             showMessage('已清空所有错题记录', 'info');
         }
 
-        // 打乱单词顺序
+        // 打乱单词顺序（文本框同步变化）
         function shuffleWords() {
-            // Fisher-Yates 洗牌算法
+            if (vocabularyList.length <= 1) {
+                showMessage('单词数量太少，无需打乱', 'info');
+                return;
+            }
+            
+            // 保存当前输入到数组
+            saveUserInput();
+            
+            // Fisher-Yates 洗牌算法 - 同时打乱单词和对应的用户输入
             for (let i = vocabularyList.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
+                
+                // 交换单词
                 [vocabularyList[i], vocabularyList[j]] = [vocabularyList[j], vocabularyList[i]];
+                
+                // 同步交换用户输入
+                [userInputs[i], userInputs[j]] = [userInputs[j], userInputs[i]];
             }
             
             generateTable();
-            showMessage('单词顺序已打乱', 'info');
+            showMessage('单词顺序已打乱，输入内容已同步调整', 'info');
         }
 
-        // 切换假名显示/隐藏状态
+        // 切换假名显示/隐藏状态（保留用户输入）
         function toggleKanaVisibility() {
+            // 保存当前输入
+            saveUserInput();
+            
             假名隐藏状态 = !假名隐藏状态;
             
             if (假名隐藏状态) {
                 hideBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
-                showMessage('已隐藏假名列，适合自我测试', 'info');
+                showMessage('已隐藏假名列，保留了您的输入内容', 'info');
             } else {
                 hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-                showMessage('已显示假名列', 'info');
+                showMessage('已显示假名列，保留了您的输入内容', 'info');
             }
             
             generateTable();
@@ -613,8 +709,8 @@
                 setTimeout(() => {
                     // 高亮当前朗读的行
                     const rows = document.querySelectorAll('#vocabTableBody tr');
-                    rows.forEach(row => row.classList.remove('bg-pink-50'));
-                    if (rows[index]) rows[index].classList.add('bg-pink-50');
+                    rows.forEach(row => row.classList.remove('bg-blue-50'));
+                    if (rows[index]) rows[index].classList.add('bg-blue-50');
                     
                     // 朗读假名
                     const utterance = readJapanese(item.kana);
@@ -623,7 +719,7 @@
                     if (index === vocabularyList.length - 1) {
                         utterance.onend = () => {
                             setTimeout(() => {
-                                rows.forEach(row => row.classList.remove('bg-pink-50'));
+                                rows.forEach(row => row.classList.remove('bg-blue-50'));
                                 showMessage('所有假名朗读完毕', 'success');
                             }, 500);
                         };
@@ -644,12 +740,13 @@
             vocabInput.value = '';
             vocabularyList = [];
             originalVocabularyList = [];
+            userInputs = [];
             mistakesList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
-            showingMistakes = false;
+            showingMistakes = true;
             hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-            mistakesSection.classList.add('hidden');
+            mistakesSection.classList.remove('hidden');
             vocabTableBody.innerHTML = '';
             tableSection.classList.add('hidden');
             statsSection.classList.add('hidden');
