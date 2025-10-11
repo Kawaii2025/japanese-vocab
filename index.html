@@ -47,6 +47,13 @@
                 50% { transform: scale(1.1); }
                 100% { transform: scale(1); }
             }
+            .highlight-transition {
+                animation: highlight 1.5s ease;
+            }
+            @keyframes highlight {
+                0% { background-color: rgba(255, 217, 0, 0.3); }
+                100% { background-color: transparent; }
+            }
         }
     </style>
 </head>
@@ -149,9 +156,14 @@
                     <h3 class="text-lg font-semibold text-error flex items-center">
                         <i class="fa fa-exclamation-circle mr-2"></i>错题复习列表
                     </h3>
-                    <button id="copyMistakesBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center">
-                        <i class="fa fa-copy mr-1"></i>复制为Markdown
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="goToLastInputBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center" disabled>
+                            <i class="fa fa-arrow-up mr-1"></i>返回最后输入
+                        </button>
+                        <button id="copyMistakesBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center">
+                            <i class="fa fa-copy mr-1"></i>复制为Markdown
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 border border-error/20">
@@ -212,6 +224,7 @@
         // 全局变量
         let vocabularyList = [];
         let userInputs = []; // 使用数组保存用户输入，与单词列表索引严格对应
+        let lastInputIndex = -1; // 记录最后有输入内容的索引
         let mistakesList = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
         let 假名隐藏状态 = false;
@@ -239,6 +252,7 @@
         const mistakesTableBody = document.getElementById('mistakesTableBody');
         const clearMistakesBtn = document.getElementById('clearMistakesBtn');
         const copyMistakesBtn = document.getElementById('copyMistakesBtn');
+        const goToLastInputBtn = document.getElementById('goToLastInputBtn');
 
         // 初始化页面
         function init() {
@@ -251,6 +265,7 @@
             mistakesBtn.addEventListener('click', toggleMistakesView);
             clearMistakesBtn.addEventListener('click', clearMistakes);
             copyMistakesBtn.addEventListener('click', copyMistakesToClipboard);
+            goToLastInputBtn.addEventListener('click', goToLastInputPosition);
             
             // 支持Ctrl+Enter提交
             vocabInput.addEventListener('keydown', (e) => {
@@ -341,13 +356,19 @@
             return parsedList;
         }
 
-        // 保存用户输入内容
+        // 保存用户输入内容并更新最后输入索引
         function saveUserInput() {
             const inputElements = document.querySelectorAll('.practice-input');
             inputElements.forEach((el, index) => {
                 // 只保存未禁用的输入框内容（已检查的不再保存）
                 if (!el.disabled) {
                     userInputs[index] = el.value;
+                    
+                    // 如果输入内容不为空，更新最后输入索引
+                    if (el.value.trim() !== '') {
+                        lastInputIndex = index;
+                        updateLastInputButtonState();
+                    }
                 }
             });
         }
@@ -356,10 +377,67 @@
         function restoreUserInput() {
             const inputElements = document.querySelectorAll('.practice-input');
             inputElements.forEach((el, index) => {
+                // 为每个输入框添加输入事件监听，用于跟踪最后输入位置
+                el.addEventListener('input', function() {
+                    if (!this.disabled && this.value.trim() !== '') {
+                        lastInputIndex = index;
+                        updateLastInputButtonState();
+                    }
+                });
+                
                 if (userInputs[index] !== undefined && !el.disabled) {
                     el.value = userInputs[index];
                 }
             });
+            
+            updateLastInputButtonState();
+        }
+
+        // 更新"返回最后输入"按钮状态
+        function updateLastInputButtonState() {
+            if (lastInputIndex !== -1 && lastInputIndex < vocabularyList.length) {
+                goToLastInputBtn.disabled = false;
+                goToLastInputBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                goToLastInputBtn.classList.add('hover:text-primary');
+            } else {
+                goToLastInputBtn.disabled = true;
+                goToLastInputBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                goToLastInputBtn.classList.remove('hover:text-primary');
+            }
+        }
+
+        // 跳转到最后输入位置
+        function goToLastInputPosition() {
+            if (lastInputIndex === -1 || lastInputIndex >= vocabularyList.length) {
+                showMessage('没有找到最近的输入位置', 'info');
+                return;
+            }
+            
+            // 显示单词列表（如果处于隐藏状态）
+            if (!showingMistakes) {
+                toggleMistakesView();
+            }
+            
+            // 找到对应的行并滚动到视图
+            const rows = document.querySelectorAll('#vocabTableBody tr');
+            if (rows[lastInputIndex]) {
+                const row = rows[lastInputIndex];
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // 添加高亮动画
+                row.classList.add('highlight-transition');
+                setTimeout(() => {
+                    row.classList.remove('highlight-transition');
+                }, 1500);
+                
+                // 聚焦到输入框
+                const input = row.querySelector('.practice-input');
+                if (input && !input.disabled) {
+                    input.focus();
+                }
+                
+                showMessage(`已跳转到最后输入位置（第 ${lastInputIndex + 1} 项）`, 'info');
+            }
         }
 
         // 生成单词表格
@@ -450,6 +528,7 @@
             // 重置状态
             vocabularyList = parseInput(input);
             userInputs = new Array(vocabularyList.length).fill(''); // 初始化与单词列表长度相同的输入数组
+            lastInputIndex = -1; // 重置最后输入索引
             mistakesList = [];
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
@@ -487,9 +566,9 @@
                 removeFromMistakes(wordData, userAnswer);
             } else {
                 inputElement.classList.add('border-error', 'bg-red-50');
-                // 显示正确答案
+                // 显示正确答案，简化格式为"你的答案 → 正确答案"
                 setTimeout(() => {
-                    inputElement.value = `你的答案：${userAnswer} → 正确答案：${wordData.kana}`;
+                    inputElement.value = `${userAnswer || '未输入'} → ${wordData.kana}`;
                     inputElement.classList.add('text-error');
                 }, 500);
                 showMessage(`回答错误，正确答案是：${wordData.kana}`, 'error');
@@ -662,6 +741,13 @@
                 
                 // 同步交换用户输入内容，确保输入跟随单词移动
                 [userInputs[i], userInputs[j]] = [userInputs[j], userInputs[i]];
+                
+                // 更新最后输入索引（如果被交换）
+                if (lastInputIndex === i) {
+                    lastInputIndex = j;
+                } else if (lastInputIndex === j) {
+                    lastInputIndex = i;
+                }
             }
             
             // 3. 重新生成表格，此时会恢复已同步打乱的用户输入
@@ -741,6 +827,7 @@
             vocabInput.value = '';
             vocabularyList = [];
             userInputs = [];
+            lastInputIndex = -1;
             mistakesList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
@@ -751,6 +838,7 @@
             tableSection.classList.add('hidden');
             statsSection.classList.add('hidden');
             updateMistakesCount();
+            updateLastInputButtonState();
             showMessage('已清空所有内容', 'info');
             
             // 聚焦到输入框
@@ -806,4 +894,3 @@
     </script>
 </body>
 </html>
-    
