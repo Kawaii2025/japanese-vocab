@@ -159,8 +159,8 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
@@ -211,8 +211,7 @@
     <script>
         // 全局变量
         let vocabularyList = [];
-        let originalVocabularyList = [];
-        let userInputs = []; // 使用数组保存用户输入，与单词列表索引对应
+        let userInputs = []; // 使用数组保存用户输入，与单词列表索引严格对应
         let mistakesList = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
         let 假名隐藏状态 = false;
@@ -450,7 +449,6 @@
             
             // 重置状态
             vocabularyList = parseInput(input);
-            originalVocabularyList = [...vocabularyList];
             userInputs = new Array(vocabularyList.length).fill(''); // 初始化与单词列表长度相同的输入数组
             mistakesList = [];
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
@@ -564,10 +562,10 @@
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="text-sm text-error font-medium">${item.userAnswer || '未输入'}</div>
+                        <div class="text-sm font-semibold text-error">${item.kana}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="text-sm font-semibold text-error">${item.kana}</div>
+                        <div class="text-sm text-error font-medium">${item.userAnswer || '未输入'}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <button class="read-mistake-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
@@ -598,12 +596,12 @@
                 return;
             }
             
-            // 构建Markdown表格
-            let markdown = "| 中文意思 | 你的答案 | 正确答案 |\n";
+            // 构建Markdown表格（正确答案在前，你的答案在后）
+            let markdown = "| 中文意思 | 正确答案 | 你的答案 |\n";
             markdown += "| ---- | ---- | ---- |\n";
             
             mistakesList.forEach(item => {
-                markdown += `| ${item.chinese} | ${item.userAnswer || '未输入'} | ${item.kana} |\n`;
+                markdown += `| ${item.chinese} | ${item.kana} | ${item.userAnswer || '未输入'} |\n`;
             });
             
             // 复制到剪贴板
@@ -644,28 +642,31 @@
             showMessage('已清空所有错题记录', 'info');
         }
 
-        // 打乱单词顺序（文本框同步变化）
+        // 打乱单词顺序（确保文本框内容跟随对应单词）
         function shuffleWords() {
             if (vocabularyList.length <= 1) {
                 showMessage('单词数量太少，无需打乱', 'info');
                 return;
             }
             
-            // 保存当前输入到数组
+            // 1. 先保存当前所有输入到数组
             saveUserInput();
             
-            // Fisher-Yates 洗牌算法 - 同时打乱单词和对应的用户输入
+            // 2. Fisher-Yates 洗牌算法 - 同时打乱单词和对应的用户输入
             for (let i = vocabularyList.length - 1; i > 0; i--) {
+                // 生成0到i之间的随机索引
                 const j = Math.floor(Math.random() * (i + 1));
                 
-                // 交换单词
+                // 交换单词数据
                 [vocabularyList[i], vocabularyList[j]] = [vocabularyList[j], vocabularyList[i]];
                 
-                // 同步交换用户输入
+                // 同步交换用户输入内容，确保输入跟随单词移动
                 [userInputs[i], userInputs[j]] = [userInputs[j], userInputs[i]];
             }
             
+            // 3. 重新生成表格，此时会恢复已同步打乱的用户输入
             generateTable();
+            
             showMessage('单词顺序已打乱，输入内容已同步调整', 'info');
         }
 
@@ -739,7 +740,6 @@
             
             vocabInput.value = '';
             vocabularyList = [];
-            originalVocabularyList = [];
             userInputs = [];
             mistakesList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
@@ -806,3 +806,4 @@
     </script>
 </body>
 </html>
+    
