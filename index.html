@@ -54,6 +54,25 @@
                 0% { background-color: rgba(255, 217, 0, 0.3); }
                 100% { background-color: transparent; }
             }
+            /* 表格列宽固定样式 */
+            .vocab-table {
+                table-layout: fixed;
+                width: 100%;
+            }
+            .col-index { width: 5%; }
+            .col-chinese { width: 15%; }
+            .col-original { width: 20%; }
+            .col-kana { width: 15%; }
+            .col-read { width: 10%; }
+            .col-input { width: 15%; }
+            .col-check { width: 10%; }
+            .col-control { width: 10%; }
+            /* 单元格内容溢出处理 */
+            .table-cell {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
         }
     </style>
 </head>
@@ -120,10 +139,10 @@
                         <i class="fa fa-random mr-1"></i>打乱顺序
                     </button>
                     <button id="hideKanaBtn" class="bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
-                        <i class="fa fa-eye-slash mr-1"></i>隐藏假名
+                        <i class="fa fa-eye mr-1"></i>显示假名
                     </button>
-                    <button id="hideOriginalBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center hidden" id="hideOriginalBtn">
-                        <i class="fa fa-eye-slash mr-1"></i>隐藏单词
+                    <button id="hideOriginalBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center" id="hideOriginalBtn">
+                        <i class="fa fa-eye mr-1"></i>显示单词
                     </button>
                     <button id="mistakesBtn" class="bg-error hover:bg-error/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-exclamation-circle mr-1"></i>错题复习
@@ -136,17 +155,17 @@
             </div>
             
             <div class="overflow-x-auto">
-                <table id="vocabTable" class="min-w-full divide-y divide-gray-200">
+                <table id="vocabTable" class="vocab-table min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider original-header">日语原文</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider kana-header">纯假名</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
+                            <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                            <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
+                            <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider original-header hidden">日语原文</th>
+                            <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider kana-header hidden">纯假名</th>
+                            <th scope="col" class="col-read px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
+                            <th scope="col" class="col-input px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
+                            <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
+                            <th scope="col" class="col-control px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
                         </tr>
                     </thead>
                     <tbody id="vocabTableBody" class="bg-white divide-y divide-gray-200">
@@ -171,15 +190,15 @@
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 border border-amber/20">
+                    <table class="vocab-table min-w-full divide-y divide-gray-200 border border-amber/20">
                         <thead class="bg-amber/10">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">序号</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">日语原文</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">纯假名</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">不熟悉项</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">朗读</th>
+                                <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">序号</th>
+                                <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">日语原文</th>
+                                <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">纯假名</th>
+                                <th scope="col" class="col-read px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">不熟悉项</th>
+                                <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
                         <tbody id="unfamiliarWordsTableBody" class="bg-white divide-y divide-gray-200">
@@ -213,15 +232,15 @@
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 border border-error/20">
+                    <table class="vocab-table min-w-full divide-y divide-gray-200 border border-error/20">
                         <thead class="bg-error/10">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
+                                <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
+                                <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
+                                <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
+                                <th scope="col" class="col-input px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
+                                <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
                         <tbody id="mistakesTableBody" class="bg-white divide-y divide-gray-200">
@@ -281,8 +300,8 @@
         // 不熟悉的单词记录：记录需要显示单词或假名的单词
         let unfamiliarWords = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
-        let 假名隐藏状态 = false;
-        let 原文隐藏状态 = false;
+        let 假名隐藏状态 = true; // 默认隐藏假名
+        let 原文隐藏状态 = true; // 默认隐藏日语原文
         let hasOriginalText = false; // 是否有日语原文
         let showingMistakes = true; // 默认显示错题
         let speechSynthesis = window.speechSynthesis;
@@ -745,10 +764,10 @@
                 
                 // 构建不熟悉单词行内容
                 let rowContent = `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-amber">${index + 1}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-chinese px-6 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -756,13 +775,13 @@
                 // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="px-6 py-4">
+                        <td class="col-original px-6 py-4 table-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
                 } else {
                     rowContent += `
-                        <td class="px-6 py-4">
+                        <td class="col-original px-6 py-4 table-cell">
                             <div class="text-sm text-gray-400">-</div>
                         </td>
                     `;
@@ -770,13 +789,13 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="px-6 py-4">
+                    <td class="col-kana px-6 py-4 table-cell">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-read px-6 py-4 table-cell">
                         <div class="text-sm text-amber font-medium">${unfamiliarText}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-check px-6 py-4 whitespace-nowrap table-cell">
                         <button class="read-unfamiliar-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
                             <i class="fa fa-volume-up mr-1"></i>朗读
                         </button>
@@ -877,10 +896,10 @@
                 
                 // 构建表格行内容
                 let rowContent = `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-dark">${index + 1}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-chinese px-6 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -888,7 +907,7 @@
                 // 只有当有日语原文时才显示该列
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="px-6 py-4 ${originalClass} original-cell">
+                        <td class="col-original px-6 py-4 ${originalClass} original-cell table-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
@@ -896,7 +915,7 @@
                     // 如果没有原文且原文未隐藏，显示空单元格；否则不显示该列
                     if (!原文隐藏状态) {
                         rowContent += `
-                            <td class="px-6 py-4 ${originalClass} original-cell">
+                            <td class="col-original px-6 py-4 ${originalClass} original-cell table-cell">
                                 <div class="text-sm text-gray-400">-</div>
                             </td>
                         `;
@@ -905,25 +924,25 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="px-6 py-4 ${kanaClass} kana-cell">
+                    <td class="col-kana px-6 py-4 ${kanaClass} kana-cell table-cell">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-read px-6 py-4 whitespace-nowrap table-cell">
                         <button class="read-kana-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
                             <i class="fa fa-volume-up mr-1"></i>朗读
                         </button>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-input px-6 py-4 table-cell">
                         <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none ${isDisabled ? 'border-error bg-red-50' : ''}" 
                                placeholder="请输入纯假名..." ${isDisabled ? 'disabled' : ''}>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <td class="col-check px-6 py-4 whitespace-nowrap text-sm table-cell">
                         <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom ${isDisabled ? 'opacity-70 cursor-not-allowed' : ''}" 
                                 data-index="${index}" ${isDisabled ? 'disabled' : ''}>
                             <i class="fa fa-check mr-1"></i>检查
                         </button>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-control px-6 py-4 whitespace-nowrap table-cell">
                         <div class="flex gap-1">
                             <button class="toggle-original-btn bg-gray-200 hover:bg-gray-300 text-dark px-2 py-1 rounded transition-custom text-xs" data-index="${index}">
                                 <i class="fa ${rowVisibility.original[index] ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>${rowVisibility.original[index] ? '隐藏单词' : '显示单词'}
@@ -1062,20 +1081,19 @@
             mistakesList = [];
             unfamiliarWords = []; // 重置不熟悉单词记录
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
-            假名隐藏状态 = false;
-            原文隐藏状态 = false;
-            // 初始化行显示状态
-            rowVisibility.original = vocabularyList.map(() => true);
-            rowVisibility.kana = vocabularyList.map(() => true);
+            // 保持默认隐藏状态
+            rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
+            rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
             
-            hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-            hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+            // 按钮文本显示为"显示"而非"隐藏"
+            hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+            hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
             showingMistakes = true; // 默认显示错题
             mistakesSection.classList.remove('hidden');
             
             if (vocabularyList.length > 0) {
                 generateTable();
-                showMessage(`成功生成 ${vocabularyList.length} 个单词的练习表格`, 'success');
+                showMessage(`成功生成 ${vocabularyList.length} 个单词的练习表格，默认隐藏了日文单词和假名`, 'success');
             } else {
                 showMessage('未识别到有效单词数据，请检查输入格式', 'error');
                 parseInfo.classList.add('hidden');
@@ -1199,10 +1217,10 @@
                 
                 // 构建错题行内容，包含日语原文
                 let rowContent = `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-error">${index + 1}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-chinese px-6 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -1210,13 +1228,13 @@
                 // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="px-6 py-4">
+                        <td class="col-original px-6 py-4 table-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
                 } else {
                     rowContent += `
-                        <td class="px-6 py-4">
+                        <td class="col-original px-6 py-4 table-cell">
                             <div class="text-sm text-gray-400">-</div>
                         </td>
                     `;
@@ -1224,13 +1242,13 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="px-6 py-4">
+                    <td class="col-kana px-6 py-4 table-cell">
                         <div class="text-sm font-semibold text-error">${item.kana}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="col-input px-6 py-4 table-cell">
                         <div class="text-sm text-error font-medium">${item.userAnswer || '未输入'}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="col-check px-6 py-4 whitespace-nowrap table-cell">
                         <button class="read-mistake-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
                             <i class="fa fa-volume-up mr-1"></i>朗读
                         </button>
@@ -1365,10 +1383,10 @@
             
             if (假名隐藏状态) {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
-                showMessage('已隐藏所有假名列，保留了您的输入内容', 'info');
+                showMessage('已隐藏所有假名列', 'info');
             } else {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-                showMessage('已显示所有假名列，保留了您的输入内容', 'info');
+                showMessage('已显示所有假名列', 'info');
             }
             
             // 更新表头显示
@@ -1464,13 +1482,13 @@
             mistakesList = [];
             unfamiliarWords = []; // 清空不熟悉单词记录
             stats = { total: 0, practiced: 0, correct: 0 };
-            假名隐藏状态 = false;
-            原文隐藏状态 = false;
+            假名隐藏状态 = true; // 重置为默认隐藏
+            原文隐藏状态 = true; // 重置为默认隐藏
             rowVisibility.original = [];
             rowVisibility.kana = [];
             hasOriginalText = false;
-            hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-            hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+            hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+            hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
             hideOriginalBtn.classList.add('hidden');
             showingMistakes = true;
             mistakesSection.classList.remove('hidden');
@@ -1482,8 +1500,8 @@
             updateLastInputButtonState();
             
             // 重置表头显示
-            if (originalHeader) originalHeader.classList.remove('hidden');
-            if (kanaHeader) kanaHeader.classList.remove('hidden');
+            if (originalHeader) originalHeader.classList.add('hidden');
+            if (kanaHeader) kanaHeader.classList.add('hidden');
             
             showMessage('已清空所有内容', 'info');
             
@@ -1541,4 +1559,3 @@
     </script>
 </body>
 </html>
-    
