@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日语单词记忆练习</title>
+    <title>日语单词记忆练习（完整功能版）</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     
@@ -14,6 +14,7 @@
                     colors: {
                         primary: '#3B82F6',
                         secondary: '#10B981',
+                        accent: '#F59E0B',
                         neutral: '#64748B',
                         light: '#F8FAFC',
                         dark: '#1E293B'
@@ -37,6 +38,14 @@
             .transition-custom {
                 transition: all 0.3s ease;
             }
+            .btn-pulse {
+                animation: pulse 0.5s ease;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+            }
         }
     </style>
 </head>
@@ -45,7 +54,7 @@
         <!-- 页面标题 -->
         <header class="mb-8 text-center">
             <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-primary mb-2 text-shadow">日语单词记忆练习</h1>
-            <p class="text-neutral text-base md:text-lg">输入中文意思与纯假名，系统自动生成练习表格</p>
+            <p class="text-neutral text-base md:text-lg">支持日语朗读 | 输入中文意思与纯假名，自动生成练习表格</p>
         </header>
         
         <!-- 输入区域 -->
@@ -73,7 +82,12 @@
 |你好|こんにちは|
 |谢谢|ありがとう|
 |再见|さようなら|
-|对不起|すみません|</textarea>
+|对不起|すみません|
+|早上好|おはよう|
+|晚上好|こんばんは|
+|是的|はい|
+|不是|いいえ|
+|请|ください|</textarea>
             </div>
             
             <button 
@@ -90,7 +104,10 @@
                 <h2 class="text-xl font-semibold flex items-center">
                     <i class="fa fa-list-alt text-primary mr-2"></i>单词练习表
                 </h2>
-                <div class="flex space-x-2">
+                <div class="flex flex-wrap gap-2">
+                    <button id="readAllBtn" class="bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                        <i class="fa fa-volume-up mr-1"></i>朗读全部
+                    </button>
                     <button id="shuffleBtn" class="bg-neutral hover:bg-neutral/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-random mr-1"></i>打乱顺序
                     </button>
@@ -110,6 +127,7 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">序号</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">中文意思</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">纯假名</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">朗读</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">练习（输入假名）</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral uppercase tracking-wider">检查</th>
                         </tr>
@@ -146,19 +164,16 @@
         
         <!-- 页脚 -->
         <footer class="mt-10 text-center text-neutral text-sm">
-            <p>日语单词记忆练习工具 &copy; 2023</p>
+            <p>日语单词记忆练习工具（带朗读功能）</p>
         </footer>
     </div>
 
     <script>
-        // 全局变量存储单词数据
+        // 全局变量
         let vocabularyList = [];
-        let stats = {
-            total: 0,
-            practiced: 0,
-            correct: 0
-        };
-        let假名隐藏状态 = false;
+        let stats = { total: 0, practiced: 0, correct: 0 };
+        let 假名隐藏状态 = false;
+        let speechSynthesis = window.speechSynthesis;
         
         // DOM元素
         const vocabInput = document.getElementById('vocabInput');
@@ -173,13 +188,58 @@
         const totalWordsEl = document.getElementById('totalWords');
         const practicedWordsEl = document.getElementById('practicedWords');
         const accuracyRateEl = document.getElementById('accuracyRate');
-        
-        // 解析输入内容（支持文本和Markdown表格）
+        const readAllBtn = document.getElementById('readAllBtn');
+
+        // 初始化页面
+        function init() {
+            // 绑定事件监听器
+            formatBtn.addEventListener('click', formatInput);
+            shuffleBtn.addEventListener('click', shuffleWords);
+            hideBtn.addEventListener('click', toggleKanaVisibility);
+            clearBtn.addEventListener('click', clearAll);
+            readAllBtn.addEventListener('click', readAllWords);
+            
+            // 支持Ctrl+Enter提交
+            vocabInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    formatInput();
+                }
+            });
+            
+            // 页面加载时聚焦输入框
+            vocabInput.focus();
+        }
+
+        // 日语朗读函数
+        function readJapanese(text, isKana = true) {
+            // 停止当前朗读
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            // 创建语音合成实例
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // 设置语言
+            utterance.lang = isKana ? 'ja-JP' : 'zh-CN';
+            
+            // 设置语音参数
+            utterance.rate = 0.9;
+            utterance.pitch = 1.1;
+            utterance.volume = 1;
+
+            // 开始朗读
+            speechSynthesis.speak(utterance);
+            return utterance;
+        }
+
+        // 解析输入内容
         function parseInput(input) {
             const parsedList = [];
             const lines = input.trim().split('\n').filter(line => line.trim() !== '');
             
-            // 检查是否为Markdown表格格式（判断是否包含"| ---- | ---- |"分隔行）
+            // 检查是否为Markdown表格
             const hasMarkdownSeparator = lines.some(line => 
                 line.trim().includes('| ---- |') || line.trim().includes('| --- |')
             );
@@ -189,29 +249,23 @@
                 let isHeaderPassed = false;
                 lines.forEach((line) => {
                     const trimmedLine = line.trim();
-                    // 跳过表头和分隔行
                     if (trimmedLine.startsWith('|中文意思|') || trimmedLine.includes('| ---- |')) {
                         if (trimmedLine.includes('| ---- |')) isHeaderPassed = true;
                         return;
                     }
-                    // 只处理分隔行之后的内容
                     if (isHeaderPassed && trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
-                        // 分割表格单元格（去除首尾的|，再按|分割）
                         const cells = trimmedLine.slice(1, -1).split('|').map(cell => cell.trim());
                         if (cells.length >= 2) {
                             const chineseMeaning = cells[0];
                             const kana = cells[1];
                             if (chineseMeaning && kana) {
-                                parsedList.push({
-                                    chinese: chineseMeaning,
-                                    kana: kana
-                                });
+                                parsedList.push({ chinese: chineseMeaning, kana: kana });
                             }
                         }
                     }
                 });
             } else {
-                // 解析文本格式（中文意思,纯假名）
+                // 解析文本格式
                 lines.forEach((line, index) => {
                     const trimmedLine = line.trim();
                     if (trimmedLine) {
@@ -220,10 +274,7 @@
                             const chineseMeaning = parts[0];
                             const kana = parts[1];
                             if (chineseMeaning && kana) {
-                                parsedList.push({
-                                    chinese: chineseMeaning,
-                                    kana: kana
-                                });
+                                parsedList.push({ chinese: chineseMeaning, kana: kana });
                             } else {
                                 showMessage(`第 ${index + 1} 行格式错误：中文意思或纯假名不能为空`, 'error');
                             }
@@ -236,13 +287,11 @@
             
             return parsedList;
         }
-        
+
         // 生成单词表格
         function generateTable() {
-            // 清空表格
             vocabTableBody.innerHTML = '';
             
-            // 遍历单词列表生成表格行
             vocabularyList.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition-custom';
@@ -260,6 +309,16 @@
                     <td class="px-6 py-4 ${kanaClass}">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-2">
+                            <button class="read-kana-btn bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded transition-custom" data-index="${index}">
+                                <i class="fa fa-volume-up mr-1"></i>假名
+                            </button>
+                            <button class="read-chinese-btn bg-primary/10 hover:bg-primary/20 text-primary px-2 py-1 rounded transition-custom" data-index="${index}">
+                                <i class="fa fa-volume-up mr-1"></i>中文
+                            </button>
+                        </div>
+                    </td>
                     <td class="px-6 py-4">
                         <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom" placeholder="请输入纯假名...">
                     </td>
@@ -273,9 +332,27 @@
                 vocabTableBody.appendChild(row);
             });
             
-            // 添加检查按钮事件监听
+            // 添加事件监听
             document.querySelectorAll('.check-btn').forEach(btn => {
                 btn.addEventListener('click', checkAnswer);
+            });
+            document.querySelectorAll('.read-kana-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    const kana = vocabularyList[index].kana;
+                    readJapanese(kana, true);
+                    this.classList.add('btn-pulse');
+                    setTimeout(() => this.classList.remove('btn-pulse'), 500);
+                });
+            });
+            document.querySelectorAll('.read-chinese-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    const chinese = vocabularyList[index].chinese;
+                    readJapanese(chinese, false);
+                    this.classList.add('btn-pulse');
+                    setTimeout(() => this.classList.remove('btn-pulse'), 500);
+                });
             });
             
             // 显示表格和统计区域
@@ -285,7 +362,7 @@
             // 更新统计信息
             updateStats();
         }
-        
+
         // 格式化输入并生成单词列表
         function formatInput() {
             const input = vocabInput.value.trim();
@@ -294,7 +371,7 @@
                 return;
             }
             
-            // 清空现有数据
+            // 重置状态
             vocabularyList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
@@ -311,7 +388,7 @@
                 showMessage('未识别到有效单词数据，请检查输入格式', 'error');
             }
         }
-        
+
         // 检查答案
         function checkAnswer(e) {
             const index = parseInt(e.currentTarget.dataset.index);
@@ -319,12 +396,12 @@
             const inputElement = e.currentTarget.closest('tr').querySelector('.practice-input');
             const userAnswer = inputElement.value.trim();
             
-            // 禁用输入框和按钮，防止重复提交
+            // 禁用输入框和按钮
             inputElement.disabled = true;
             e.currentTarget.disabled = true;
             e.currentTarget.classList.add('opacity-70', 'cursor-not-allowed');
             
-            // 检查答案（日语假名严格匹配）
+            // 检查答案
             if (userAnswer === wordData.kana) {
                 inputElement.classList.add('border-secondary', 'bg-green-50');
                 showMessage('回答正确！', 'success');
@@ -343,7 +420,7 @@
             stats.practiced++;
             updateStats();
         }
-        
+
         // 打乱单词顺序
         function shuffleWords() {
             // Fisher-Yates 洗牌算法
@@ -355,7 +432,7 @@
             generateTable();
             showMessage('单词顺序已打乱', 'info');
         }
-        
+
         // 切换假名显示/隐藏状态
         function toggleKanaVisibility() {
             假名隐藏状态 = !假名隐藏状态;
@@ -368,11 +445,69 @@
                 showMessage('已显示假名列', 'info');
             }
             
-            generateTable(); // 重新生成表格以应用状态变化
+            generateTable();
         }
-        
+
+        // 朗读所有单词
+        function readAllWords() {
+            if (vocabularyList.length === 0) {
+                showMessage('没有可朗读的单词，请先生成表格', 'error');
+                return;
+            }
+            
+            // 停止当前朗读
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                showMessage('已停止朗读', 'info');
+                return;
+            }
+            
+            showMessage('开始朗读所有单词...', 'info');
+            
+            // 依次朗读每个单词
+            let delay = 0;
+            vocabularyList.forEach((item, index) => {
+                setTimeout(() => {
+                    // 高亮当前朗读的行
+                    const rows = document.querySelectorAll('#vocabTableBody tr');
+                    rows.forEach(row => row.classList.remove('bg-blue-50'));
+                    if (rows[index]) rows[index].classList.add('bg-blue-50');
+                    
+                    // 先读中文，再读假名
+                    const chineseUtterance = readJapanese(item.chinese, false);
+                    chineseUtterance.onend = () => {
+                        setTimeout(() => {
+                            readJapanese(item.kana, true);
+                        }, 500);
+                    };
+                    
+                    // 最后一个单词朗读完毕
+                    if (index === vocabularyList.length - 1) {
+                        chineseUtterance.onend = function() {
+                            setTimeout(() => {
+                                const kanaUtterance = readJapanese(item.kana, true);
+                                kanaUtterance.onend = () => {
+                                    setTimeout(() => {
+                                        rows.forEach(row => row.classList.remove('bg-blue-50'));
+                                        showMessage('所有单词朗读完毕', 'success');
+                                    }, 500);
+                                };
+                            }, 500);
+                        };
+                    }
+                }, delay);
+                
+                delay += 3000; // 每个单词间隔3秒
+            });
+        }
+
         // 清空所有内容
         function clearAll() {
+            // 停止可能的朗读
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+            
             vocabInput.value = '';
             vocabularyList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
@@ -382,8 +517,11 @@
             tableSection.classList.add('hidden');
             statsSection.classList.add('hidden');
             showMessage('已清空所有内容', 'info');
+            
+            // 聚焦到输入框
+            vocabInput.focus();
         }
-        
+
         // 显示消息
         function showMessage(text, type) {
             resultMessage.textContent = text;
@@ -403,13 +541,13 @@
             
             resultMessage.classList.remove('hidden');
             
-            // 3秒后自动隐藏消息，错误消息保留更长时间
+            // 自动隐藏消息
             const timeout = type === 'error' ? 5000 : 3000;
             setTimeout(() => {
                 resultMessage.classList.add('hidden');
             }, timeout);
         }
-        
+
         // 更新统计信息
         function updateStats() {
             totalWordsEl.textContent = stats.total;
@@ -426,25 +564,9 @@
                 setTimeout(() => el.classList.remove('scale-110'), 300);
             });
         }
-        
-        // 事件监听
-        formatBtn.addEventListener('click', formatInput);
-        shuffleBtn.addEventListener('click', shuffleWords);
-        hideBtn.addEventListener('click', toggleKanaVisibility);
-        clearBtn.addEventListener('click', clearAll);
-        
-        // 支持按Ctrl+Enter键提交
-        vocabInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                formatInput();
-            }
-        });
-        
-        // 页面加载时自动聚焦到输入框
-        window.addEventListener('load', () => {
-            vocabInput.focus();
-        });
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
