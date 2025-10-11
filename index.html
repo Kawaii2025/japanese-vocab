@@ -58,11 +58,11 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-light to-gray-100 min-h-screen font-sans text-dark">
-    <div class="container mx-auto px-4 py-8 max-w-5xl">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- 页面标题 -->
         <header class="mb-8 text-center">
             <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-primary mb-2 text-shadow">日语单词记忆练习</h1>
-            <p class="text-gray-600 text-base md:text-lg">专注日语假名记忆 | 支持错题记录与复习</p>
+            <p class="text-gray-600 text-base md:text-lg">专注日语假名记忆 | 支持智能解析表格</p>
         </header>
         
         <!-- 输入区域 -->
@@ -72,30 +72,30 @@
             </h2>
             <div class="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <p class="text-gray-600 text-sm font-medium mb-1">支持两种输入格式（任选一种）：</p>
-                <p class="text-gray-600 text-sm mb-1">1. 文本格式：<span class="text-dark">中文意思,纯假名</span>（每行一个）</p>
-                <p class="text-gray-600 text-sm">2. Markdown表格格式：</p>
-                <pre class="text-xs text-gray-600 bg-gray-100 p-2 rounded mt-1 mb-0">|中文意思|纯假名|
-| ---- | ---- |
-|照旧；仍然|あいかわらず|
-|你好|こんにちは|</pre>
+                <p class="text-gray-600 text-sm mb-1">1. 文本格式：<span class="text-dark">中文意思,日语原文,纯假名</span>（每行一个，日语原文可选）</p>
+                <p class="text-gray-600 text-sm">2. Markdown表格格式（智能识别各列）：</p>
+                <pre class="text-xs text-gray-600 bg-gray-100 p-2 rounded mt-1 mb-0">|日文|中文|假名|
+| ---- | ---- | ---- |
+|相変わらず|照旧；仍然|あいかわらず|
+|こんにちは|你好|こんにちは|</pre>
             </div>
             
             <div class="mb-4">
                 <textarea 
                     id="vocabInput" 
                     class="w-full h-52 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom resize-none outline-none"
-                    placeholder="请输入单词信息...">|中文意思|纯假名|
-| ---- | ---- |
-|照旧；仍然|あいかわらず|
-|你好|こんにちは|
-|谢谢|ありがとう|
-|再见|さようなら|
-|对不起|すみません|
-|早上好|おはよう|
-|晚上好|こんばんは|
-|是的|はい|
-|不是|いいえ|
-|请|ください|</textarea>
+                    placeholder="请输入单词信息...">|日文|中文|假名|
+| ---- | ---- | ---- |
+|相変わらず|照旧；仍然|あいかわらず|
+|こんにちは|你好|こんにちは|
+|ありがとう|谢谢|ありがとう|
+|さようなら|再见|さようなら|
+|すみません|对不起|すみません|
+|おはよう|早上好|おはよう|
+|こんばんは|晚上好|こんばんは|
+|はい|是的|はい|
+|いいえ|不是|いいえ|
+|ください|请|ください|</textarea>
             </div>
             
             <button 
@@ -119,8 +119,11 @@
                     <button id="shuffleBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-random mr-1"></i>打乱顺序
                     </button>
-                    <button id="hideBtn" class="bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                    <button id="hideKanaBtn" class="bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-eye-slash mr-1"></i>隐藏假名
+                    </button>
+                    <button id="hideOriginalBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center hidden" id="hideOriginalBtn">
+                        <i class="fa fa-eye-slash mr-1"></i>隐藏单词
                     </button>
                     <button id="mistakesBtn" class="bg-error hover:bg-error/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-exclamation-circle mr-1"></i>错题复习
@@ -138,6 +141,7 @@
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日语原文</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">纯假名</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
@@ -148,6 +152,14 @@
                         <!-- 表格内容将通过JavaScript动态生成 -->
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- 解析信息提示 -->
+            <div id="parseInfo" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg hidden">
+                <p class="text-sm text-blue-700 flex items-center">
+                    <i class="fa fa-info-circle mr-2"></i>
+                    <span id="parseInfoText"></span>
+                </p>
             </div>
             
             <!-- 错题表格 - 默认显示 -->
@@ -171,6 +183,7 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
@@ -216,7 +229,7 @@
         
         <!-- 页脚 -->
         <footer class="mt-10 text-center text-gray-500 text-sm">
-            <p>日语单词记忆练习工具 | 专注假名记忆</p>
+            <p>日语单词记忆练习工具 | 支持智能表格解析</p>
         </footer>
     </div>
 
@@ -228,6 +241,8 @@
         let mistakesList = [];
         let stats = { total: 0, practiced: 0, correct: 0 };
         let 假名隐藏状态 = false;
+        let 原文隐藏状态 = false;
+        let hasOriginalText = false; // 是否有日语原文
         let showingMistakes = true; // 默认显示错题
         let speechSynthesis = window.speechSynthesis;
         
@@ -237,7 +252,8 @@
         const tableSection = document.getElementById('tableSection');
         const vocabTableBody = document.getElementById('vocabTableBody');
         const shuffleBtn = document.getElementById('shuffleBtn');
-        const hideBtn = document.getElementById('hideBtn');
+        const hideKanaBtn = document.getElementById('hideKanaBtn');
+        const hideOriginalBtn = document.getElementById('hideOriginalBtn');
         const clearBtn = document.getElementById('clearBtn');
         const resultMessage = document.getElementById('resultMessage');
         const statsSection = document.getElementById('statsSection');
@@ -253,13 +269,16 @@
         const clearMistakesBtn = document.getElementById('clearMistakesBtn');
         const copyMistakesBtn = document.getElementById('copyMistakesBtn');
         const goToLastInputBtn = document.getElementById('goToLastInputBtn');
+        const parseInfo = document.getElementById('parseInfo');
+        const parseInfoText = document.getElementById('parseInfoText');
 
         // 初始化页面
         function init() {
             // 绑定事件监听器
             formatBtn.addEventListener('click', formatInput);
             shuffleBtn.addEventListener('click', shuffleWords);
-            hideBtn.addEventListener('click', toggleKanaVisibility);
+            hideKanaBtn.addEventListener('click', toggleKanaVisibility);
+            hideOriginalBtn.addEventListener('click', toggleOriginalVisibility);
             clearBtn.addEventListener('click', clearAll);
             readAllBtn.addEventListener('click', readAllWords);
             mistakesBtn.addEventListener('click', toggleMistakesView);
@@ -279,56 +298,179 @@
             vocabInput.focus();
         }
 
-        // 日语朗读函数
-        function readJapanese(text) {
-            // 停止当前朗读
-            if (speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-            }
-
-            // 创建语音合成实例
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // 设置日语
-            utterance.lang = 'ja-JP';
-            
-            // 设置语音参数
-            utterance.rate = 0.9;
-            utterance.pitch = 1.1;
-            utterance.volume = 1;
-
-            // 开始朗读
-            speechSynthesis.speak(utterance);
-            return utterance;
+        // 判断文本是否为中文
+        function isChinese(text) {
+            if (!text) return false;
+            // 匹配中文字符的正则表达式
+            const chineseRegex = /[\u4e00-\u9fa5]/;
+            return chineseRegex.test(text);
         }
 
-        // 解析输入内容
+        // 判断文本是否为日语假名（平假名或片假名）
+        function isKana(text) {
+            if (!text) return false;
+            // 匹配平假名和片假名的正则表达式
+            const kanaRegex = /^[\u3040-\u309F\u30A0-\u30FF]+$/;
+            return kanaRegex.test(text);
+        }
+
+        // 判断文本是否为日语原文（可能包含汉字和假名）
+        function isJapaneseOriginal(text) {
+            if (!text) return false;
+            // 匹配日语（包含汉字、平假名、片假名）但不是纯假名
+            const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/;
+            return japaneseRegex.test(text) && !isKana(text);
+        }
+
+        // 智能分析表格列，确定中文意思列、日语原文列和假名列
+        function analyzeTableColumns(headers) {
+            let chineseColIndex = -1;
+            let originalColIndex = -1;
+            let kanaColIndex = -1;
+            let analysisDetails = [];
+            
+            // 1. 先通过表头文字判断
+            headers.forEach((header, index) => {
+                const lowerHeader = header.toLowerCase().trim();
+                
+                // 检查中文意思相关表头
+                if (chineseColIndex === -1 && 
+                    (lowerHeader.includes('中文') || lowerHeader.includes('意思') || 
+                     lowerHeader.includes('汉语') || lowerHeader.includes('翻译'))) {
+                    chineseColIndex = index;
+                    analysisDetails.push(`通过表头"${header}"识别为中文意思列`);
+                }
+                
+                // 检查日语原文相关表头
+                if (originalColIndex === -1 && 
+                    (lowerHeader.includes('日文') || lowerHeader.includes('原文') ||
+                     lowerHeader.includes('日语') || lowerHeader.includes('日本語'))) {
+                    originalColIndex = index;
+                    analysisDetails.push(`通过表头"${header}"识别为日语原文列`);
+                }
+                
+                // 检查假名相关表头
+                if (kanaColIndex === -1 && 
+                    (lowerHeader.includes('假名') || lowerHeader.includes('kana') ||
+                     lowerHeader.includes('平假名') || lowerHeader.includes('片假名'))) {
+                    kanaColIndex = index;
+                    analysisDetails.push(`通过表头"${header}"识别为假名列`);
+                }
+            });
+            
+            // 2. 如果表头无法确定，尝试通过内容特征判断
+            if (chineseColIndex === -1 || originalColIndex === -1 || kanaColIndex === -1) {
+                analysisDetails.push("表头信息不足，尝试通过内容特征识别...");
+            }
+            
+            return {
+                chineseColIndex,
+                originalColIndex,
+                kanaColIndex,
+                analysisDetails
+            };
+        }
+
+        // 解析输入内容（智能匹配列）
         function parseInput(input) {
             const parsedList = [];
             const lines = input.trim().split('\n').filter(line => line.trim() !== '');
+            let analysisDetails = [];
             
             // 检查是否为Markdown表格
             const hasMarkdownSeparator = lines.some(line => 
-                line.trim().includes('| ---- |') || line.trim().includes('| --- |')
+                line.trim().includes('| ----') || line.trim().includes('| ---')
             );
             
             if (hasMarkdownSeparator) {
                 // 解析Markdown表格
+                let headers = [];
                 let isHeaderPassed = false;
-                lines.forEach((line) => {
+                let columnAnalysis = { chineseColIndex: -1, originalColIndex: -1, kanaColIndex: -1 };
+                
+                lines.forEach((line, lineIndex) => {
                     const trimmedLine = line.trim();
-                    if (trimmedLine.startsWith('|中文意思|') || trimmedLine.includes('| ---- |')) {
-                        if (trimmedLine.includes('| ---- |')) isHeaderPassed = true;
+                    
+                    // 提取表头
+                    if (!isHeaderPassed && !trimmedLine.includes('| ----') && !trimmedLine.includes('| ---')) {
+                        if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+                            headers = trimmedLine.slice(1, -1).split('|').map(cell => cell.trim());
+                        }
+                    }
+                    
+                    // 遇到分隔线，确定表头已处理
+                    if (trimmedLine.includes('| ----') || trimmedLine.includes('| ---')) {
+                        isHeaderPassed = true;
+                        // 分析表头，确定各列
+                        columnAnalysis = analyzeTableColumns(headers);
+                        analysisDetails = [...columnAnalysis.analysisDetails];
+                        
+                        // 如果无法识别必要的列，记录提示
+                        if (columnAnalysis.chineseColIndex === -1 || columnAnalysis.kanaColIndex === -1) {
+                            analysisDetails.push("警告：未能自动识别中文意思列或假名列，将尝试逐行分析");
+                        }
                         return;
                     }
+                    
+                    // 处理表格内容行
                     if (isHeaderPassed && trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
                         const cells = trimmedLine.slice(1, -1).split('|').map(cell => cell.trim());
-                        if (cells.length >= 2) {
-                            const chineseMeaning = cells[0];
-                            const kana = cells[1];
-                            if (chineseMeaning && kana) {
-                                parsedList.push({ chinese: chineseMeaning, kana: kana });
+                        
+                        let chineseMeaning = '';
+                        let originalText = '';
+                        let kana = '';
+                        
+                        // 如果已经通过表头确定了列索引
+                        if (columnAnalysis.chineseColIndex !== -1 && columnAnalysis.kanaColIndex !== -1) {
+                            chineseMeaning = cells[columnAnalysis.chineseColIndex] || '';
+                            kana = cells[columnAnalysis.kanaColIndex] || '';
+                            // 日语原文可选
+                            if (columnAnalysis.originalColIndex !== -1) {
+                                originalText = cells[columnAnalysis.originalColIndex] || '';
                             }
+                        } else {
+                            // 逐行分析，寻找最可能的中文、日语原文和假名
+                            cells.forEach(cell => {
+                                if (!chineseMeaning && isChinese(cell)) {
+                                    chineseMeaning = cell;
+                                } else if (!originalText && isJapaneseOriginal(cell)) {
+                                    originalText = cell;
+                                } else if (!kana && isKana(cell)) {
+                                    kana = cell;
+                                }
+                            });
+                            
+                            // 如果仍未找到，尝试其他方式
+                            if (!chineseMeaning && cells.length > 0) {
+                                chineseMeaning = cells[0]; // 默认第一列为中文
+                                analysisDetails.push(`第${lineIndex+1}行：默认第一列"${chineseMeaning}"为中文意思`);
+                            }
+                            if (!kana && cells.length > 1) {
+                                kana = cells[cells.length - 1]; // 默认最后一列为假名
+                                analysisDetails.push(`第${lineIndex+1}行：默认最后一列"${kana}"为假名`);
+                            }
+                            // 尝试从剩余列中找日语原文
+                            if (!originalText) {
+                                for (let i = 0; i < cells.length; i++) {
+                                    if (i !== cells.indexOf(chineseMeaning) && i !== cells.indexOf(kana) && cells[i]) {
+                                        originalText = cells[i];
+                                        analysisDetails.push(`第${lineIndex+1}行：默认第${i+1}列"${originalText}"为日语原文`);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (chineseMeaning && kana) {
+                            parsedList.push({ 
+                                chinese: chineseMeaning, 
+                                original: originalText, 
+                                kana: kana 
+                            });
+                        } else {
+                            const errorMsg = `第 ${lineIndex + 1} 行无法识别有效的中文意思和假名`;
+                            showMessage(errorMsg, 'error');
+                            analysisDetails.push(errorMsg);
                         }
                     }
                 });
@@ -339,18 +481,48 @@
                     if (trimmedLine) {
                         const parts = trimmedLine.split(',').map(part => part.trim());
                         if (parts.length >= 2) {
-                            const chineseMeaning = parts[0];
-                            const kana = parts[1];
+                            // 智能判断各部分
+                            let chineseMeaning = '';
+                            let originalText = '';
+                            let kana = '';
+                            
+                            parts.forEach(part => {
+                                if (isChinese(part) && !chineseMeaning) {
+                                    chineseMeaning = part;
+                                } else if (isJapaneseOriginal(part) && !originalText) {
+                                    originalText = part;
+                                } else if (isKana(part) && !kana) {
+                                    kana = part;
+                                }
+                            });
+                            
+                            // 如果智能判断失败，使用默认顺序
+                            if (!chineseMeaning) chineseMeaning = parts[0];
+                            if (!kana) kana = parts[parts.length > 2 ? 2 : 1];
+                            // 如果有第三部分且未识别为假名，则作为日语原文
+                            if (!originalText && parts.length > 2 && parts[1] !== kana) {
+                                originalText = parts[1];
+                            }
+                            
                             if (chineseMeaning && kana) {
-                                parsedList.push({ chinese: chineseMeaning, kana: kana });
+                                parsedList.push({ chinese: chineseMeaning, original: originalText, kana: kana });
                             } else {
-                                showMessage(`第 ${index + 1} 行格式错误：中文意思或纯假名不能为空`, 'error');
+                                showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式（日语原文可选）`, 'error');
                             }
                         } else {
-                            showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,纯假名"格式`, 'error');
+                            showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式（日语原文可选）`, 'error');
                         }
                     }
                 });
+                analysisDetails.push("使用文本格式解析，识别中文、日语原文和假名成功");
+            }
+            
+            // 显示解析信息
+            if (analysisDetails.length > 0) {
+                parseInfoText.textContent = analysisDetails.join('；');
+                parseInfo.classList.remove('hidden');
+            } else {
+                parseInfo.classList.add('hidden');
             }
             
             return parsedList;
@@ -447,23 +619,57 @@
             
             vocabTableBody.innerHTML = '';
             
+            // 检查是否有日语原文
+            hasOriginalText = vocabularyList.some(item => item.original && item.original.trim() !== '');
+            
+            // 显示或隐藏"隐藏单词"按钮
+            if (hasOriginalText) {
+                hideOriginalBtn.classList.remove('hidden');
+            } else {
+                hideOriginalBtn.classList.add('hidden');
+            }
+            
             vocabularyList.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition-custom';
                 row.dataset.index = index;
                 
                 const kanaClass = 假名隐藏状态 ? 'hidden' : '';
+                const originalClass = 原文隐藏状态 ? 'hidden' : '';
                 // 检查是否已禁用（已检查过）
                 const isDisabled = stats.practiced > 0 && 
                                   document.querySelector(`.check-btn[data-index="${index}"]`)?.disabled;
                 
-                row.innerHTML = `
+                // 构建表格行内容
+                let rowContent = `
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-dark">${index + 1}</div>
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
+                `;
+                
+                // 只有当有日语原文时才显示该列
+                if (item.original && item.original.trim() !== '') {
+                    rowContent += `
+                        <td class="px-6 py-4 ${originalClass}">
+                            <div class="text-sm font-medium text-gray-800">${item.original}</div>
+                        </td>
+                    `;
+                } else {
+                    // 如果没有原文且原文未隐藏，显示空单元格；否则不显示该列
+                    if (!原文隐藏状态) {
+                        rowContent += `
+                            <td class="px-6 py-4 ${originalClass}">
+                                <div class="text-sm text-gray-400">-</div>
+                            </td>
+                        `;
+                    }
+                }
+                
+                // 继续添加其他列
+                rowContent += `
                     <td class="px-6 py-4 ${kanaClass}">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
@@ -484,6 +690,7 @@
                     </td>
                 `;
                 
+                row.innerHTML = rowContent;
                 vocabTableBody.appendChild(row);
             });
             
@@ -532,8 +739,10 @@
             mistakesList = [];
             stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
+            原文隐藏状态 = false;
+            hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+            hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
             showingMistakes = true; // 默认显示错题
-            hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
             mistakesSection.classList.remove('hidden');
             
             if (vocabularyList.length > 0) {
@@ -541,7 +750,31 @@
                 showMessage(`成功生成 ${vocabularyList.length} 个单词的练习表格`, 'success');
             } else {
                 showMessage('未识别到有效单词数据，请检查输入格式', 'error');
+                parseInfo.classList.add('hidden');
             }
+        }
+
+        // 日语朗读函数
+        function readJapanese(text) {
+            // 停止当前朗读
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            // 创建语音合成实例
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // 设置日语
+            utterance.lang = 'ja-JP';
+            
+            // 设置语音参数
+            utterance.rate = 0.9;
+            utterance.pitch = 1.1;
+            utterance.volume = 1;
+
+            // 开始朗读
+            speechSynthesis.speak(utterance);
+            return utterance;
         }
 
         // 检查答案并处理错题
@@ -566,7 +799,7 @@
                 removeFromMistakes(wordData, userAnswer);
             } else {
                 inputElement.classList.add('border-error', 'bg-red-50');
-                // 显示正确答案，简化格式为"你的答案 → 正确答案"
+                // 显示正确答案
                 setTimeout(() => {
                     inputElement.value = `${userAnswer || '未输入'} → ${wordData.kana}`;
                     inputElement.classList.add('text-error');
@@ -621,7 +854,7 @@
             if (mistakesList.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                         暂无错题记录
                     </td>
                 `;
@@ -633,13 +866,33 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-red-50 transition-custom';
                 
-                row.innerHTML = `
+                // 构建错题行内容，包含日语原文
+                let rowContent = `
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-error">${index + 1}</div>
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
+                `;
+                
+                // 添加日语原文（如果有）
+                if (item.original && item.original.trim() !== '') {
+                    rowContent += `
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-800">${item.original}</div>
+                        </td>
+                    `;
+                } else {
+                    rowContent += `
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-400">-</div>
+                        </td>
+                    `;
+                }
+                
+                // 继续添加其他列
+                rowContent += `
                     <td class="px-6 py-4">
                         <div class="text-sm font-semibold text-error">${item.kana}</div>
                     </td>
@@ -653,6 +906,7 @@
                     </td>
                 `;
                 
+                row.innerHTML = rowContent;
                 mistakesTableBody.appendChild(row);
             });
             
@@ -675,12 +929,12 @@
                 return;
             }
             
-            // 构建Markdown表格（正确答案在前，你的答案在后）
-            let markdown = "| 中文意思 | 正确答案 | 你的答案 |\n";
-            markdown += "| ---- | ---- | ---- |\n";
+            // 构建Markdown表格（包含日语原文）
+            let markdown = "| 中文意思 | 日语原文 | 正确答案 | 你的答案 |\n";
+            markdown += "| ---- | ---- | ---- | ---- |\n";
             
             mistakesList.forEach(item => {
-                markdown += `| ${item.chinese} | ${item.kana} | ${item.userAnswer || '未输入'} |\n`;
+                markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} | ${item.userAnswer || '未输入'} |\n`;
             });
             
             // 复制到剪贴板
@@ -721,7 +975,7 @@
             showMessage('已清空所有错题记录', 'info');
         }
 
-        // 打乱单词顺序（确保文本框内容跟随对应单词）
+        // 打乱单词顺序
         function shuffleWords() {
             if (vocabularyList.length <= 1) {
                 showMessage('单词数量太少，无需打乱', 'info');
@@ -756,7 +1010,7 @@
             showMessage('单词顺序已打乱，输入内容已同步调整', 'info');
         }
 
-        // 切换假名显示/隐藏状态（保留用户输入）
+        // 切换假名显示/隐藏状态
         function toggleKanaVisibility() {
             // 保存当前输入
             saveUserInput();
@@ -764,11 +1018,29 @@
             假名隐藏状态 = !假名隐藏状态;
             
             if (假名隐藏状态) {
-                hideBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
+                hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
                 showMessage('已隐藏假名列，保留了您的输入内容', 'info');
             } else {
-                hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+                hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
                 showMessage('已显示假名列，保留了您的输入内容', 'info');
+            }
+            
+            generateTable();
+        }
+
+        // 切换日语原文显示/隐藏状态
+        function toggleOriginalVisibility() {
+            // 保存当前输入
+            saveUserInput();
+            
+            原文隐藏状态 = !原文隐藏状态;
+            
+            if (原文隐藏状态) {
+                hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
+                showMessage('已隐藏日语原文列', 'info');
+            } else {
+                hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+                showMessage('已显示日语原文列', 'info');
             }
             
             generateTable();
@@ -831,12 +1103,17 @@
             mistakesList = [];
             stats = { total: 0, practiced: 0, correct: 0 };
             假名隐藏状态 = false;
+            原文隐藏状态 = false;
+            hasOriginalText = false;
+            hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
+            hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
+            hideOriginalBtn.classList.add('hidden');
             showingMistakes = true;
-            hideBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
             mistakesSection.classList.remove('hidden');
             vocabTableBody.innerHTML = '';
             tableSection.classList.add('hidden');
             statsSection.classList.add('hidden');
+            parseInfo.classList.add('hidden');
             updateMistakesCount();
             updateLastInputButtonState();
             showMessage('已清空所有内容', 'info');
@@ -894,3 +1171,4 @@
     </script>
 </body>
 </html>
+    
