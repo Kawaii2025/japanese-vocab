@@ -18,7 +18,9 @@
                         amber: '#F59E0B',
                         error: '#EF4444',
                         light: '#F8FAFC',
-                        dark: '#1E293B'
+                        dark: '#1E293B',
+                        original: '#6366F1', // 用于区分单词按钮的颜色
+                        kana: '#EC4899'      // 用于区分假名按钮的颜色
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -54,19 +56,6 @@
                 0% { background-color: rgba(255, 217, 0, 0.3); }
                 100% { background-color: transparent; }
             }
-            /* 表格列宽固定样式 */
-            .vocab-table {
-                table-layout: fixed;
-                width: 100%;
-            }
-            .col-index { width: 5%; }
-            .col-chinese { width: 15%; }
-            .col-original { width: 20%; }
-            .col-kana { width: 15%; }
-            .col-read { width: 10%; }
-            .col-input { width: 15%; }
-            .col-check { width: 10%; }
-            .col-control { width: 10%; }
             /* 单元格内容溢出处理 */
             .table-cell {
                 overflow: hidden;
@@ -100,10 +89,7 @@
             </div>
             
             <div class="mb-4">
-                <textarea 
-                    id="vocabInput" 
-                    class="w-full h-52 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom resize-none outline-none"
-                    placeholder="请输入单词信息...">|日文|中文|假名|
+                <textarea id="vocabInput" class="w-full h-52 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom resize-none outline-none" placeholder="请输入单词信息...">|日文|中文|假名|
 | ---- | ---- | ---- |
 |相変わらず|照旧；仍然|あいかわらず|
 |こんにちは|你好|こんにちは|
@@ -117,10 +103,7 @@
 |ください|请|ください|</textarea>
             </div>
             
-            <button 
-                id="formatBtn" 
-                class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg"
-            >
+            <button id="formatBtn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg">
                 <i class="fa fa-table mr-2"></i>生成练习表格
             </button>
         </section>
@@ -138,17 +121,16 @@
                     <button id="shuffleBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-random mr-1"></i>打乱顺序
                     </button>
-                    <button id="hideKanaBtn" class="bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
+                    <button id="hideKanaBtn" class="bg-kana hover:bg-kana/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-eye mr-1"></i>显示假名
                     </button>
-                    <button id="hideOriginalBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center" id="hideOriginalBtn">
+                    <button id="hideOriginalBtn" class="bg-original hover:bg-original/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-eye mr-1"></i>显示单词
                     </button>
                     <button id="mistakesBtn" class="bg-error hover:bg-error/90 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-exclamation-circle mr-1"></i>错题复习
                         <span id="mistakesCount" class="ml-1 bg-white text-error text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
                     </button>
-                    <!-- 新增导出按钮 -->
                     <button id="exportUnfinishedBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center">
                         <i class="fa fa-file-text-o mr-1"></i>导出未完成
                     </button>
@@ -162,17 +144,17 @@
             </div>
             
             <div class="overflow-x-auto">
-                <table id="vocabTable" class="vocab-table min-w-full divide-y divide-gray-200">
+                <table id="vocabTable" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
-                            <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
-                            <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider original-header hidden">日语原文</th>
-                            <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider kana-header hidden">纯假名</th>
-                            <th scope="col" class="col-read px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
-                            <th scope="col" class="col-input px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
-                            <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
-                            <th scope="col" class="col-control px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider original-header">日语原文</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider kana-header">纯假名</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
                         </tr>
                     </thead>
                     <tbody id="vocabTableBody" class="bg-white divide-y divide-gray-200">
@@ -197,15 +179,15 @@
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="vocab-table min-w-full divide-y divide-gray-200 border border-amber/20">
+                    <table class="min-w-full divide-y divide-gray-200 border border-amber/20">
                         <thead class="bg-amber/10">
                             <tr>
-                                <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">序号</th>
-                                <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">日语原文</th>
-                                <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">纯假名</th>
-                                <th scope="col" class="col-read px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">不熟悉项</th>
-                                <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">朗读</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">序号</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">日语原文</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">纯假名</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">不熟悉项</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-amber uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
                         <tbody id="unfamiliarWordsTableBody" class="bg-white divide-y divide-gray-200">
@@ -230,7 +212,7 @@
                         <i class="fa fa-exclamation-circle mr-2"></i>错题复习列表
                     </h3>
                     <div class="flex items-center gap-2">
-                        <button id="goToLastInputBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center" disabled>
+                        <button id="goToLastInputBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center" disabled="">
                             <i class="fa fa-arrow-up mr-1"></i>返回最后输入
                         </button>
                         <button id="copyMistakesBtn" class="text-gray-600 hover:text-primary text-sm transition-custom flex items-center">
@@ -239,15 +221,15 @@
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="vocab-table min-w-full divide-y divide-gray-200 border border-error/20">
+                    <table class="min-w-full divide-y divide-gray-200 border border-error/20">
                         <thead class="bg-error/10">
                             <tr>
-                                <th scope="col" class="col-index px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
-                                <th scope="col" class="col-chinese px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
-                                <th scope="col" class="col-original px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
-                                <th scope="col" class="col-kana px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
-                                <th scope="col" class="col-input px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
-                                <th scope="col" class="col-check px-6 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">序号</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">中文意思</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
                             </tr>
                         </thead>
                         <tbody id="mistakesTableBody" class="bg-white divide-y divide-gray-200">
@@ -386,6 +368,48 @@
             
             // 页面加载时聚焦输入框
             vocabInput.focus();
+        }
+
+        // 生成掩膜文本（用星号替换）
+        function createMaskText(text) {
+            if (!text || text.trim() === '') return text;
+            // 为每个字符创建一个星号，保持原长度的视觉效果
+            return '*'.repeat(text.length);
+        }
+
+        // 处理输入并生成表格的核心函数
+        function formatInput() {
+            const input = vocabInput.value.trim();
+            if (!input) {
+                showMessage('请输入单词信息', 'error');
+                return;
+            }
+            
+            // 解析输入内容
+            vocabularyList = parseInput(input);
+            
+            if (vocabularyList.length === 0) {
+                showMessage('未能识别有效单词信息，请检查格式', 'error');
+                return;
+            }
+            
+            // 重置相关变量
+            userInputs = new Array(vocabularyList.length).fill('');
+            lastInputIndex = -1;
+            mistakesList = [];
+            unfamiliarWords = [];
+            stats = { 
+                total: vocabularyList.length, 
+                practiced: 0, 
+                correct: 0 
+            };
+            rowVisibility.original = new Array(vocabularyList.length).fill(!原文隐藏状态);
+            rowVisibility.kana = new Array(vocabularyList.length).fill(!假名隐藏状态);
+            
+            // 生成表格
+            generateTable();
+            
+            showMessage(`成功解析 ${vocabularyList.length} 个单词`, 'success');
         }
 
         // 判断文本是否为中文
@@ -758,7 +782,7 @@
             if (unfamiliarWords.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    <td colspan="6" class="px-3 py-8 text-center text-gray-500">
                         暂无需要特别复习的单词
                     </td>
                 `;
@@ -777,10 +801,10 @@
                 
                 // 构建不熟悉单词行内容
                 let rowContent = `
-                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-amber">${index + 1}</div>
                     </td>
-                    <td class="col-chinese px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -788,13 +812,13 @@
                 // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="col-original px-6 py-4 table-cell">
+                        <td class="px-3 py-4 table-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
                 } else {
                     rowContent += `
-                        <td class="col-original px-6 py-4 table-cell">
+                        <td class="px-3 py-4 table-cell">
                             <div class="text-sm text-gray-400">-</div>
                         </td>
                     `;
@@ -802,15 +826,15 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="col-kana px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
                     </td>
-                    <td class="col-read px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm text-amber font-medium">${unfamiliarText}</div>
                     </td>
-                    <td class="col-check px-6 py-4 whitespace-nowrap table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <button class="read-unfamiliar-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
-                            <i class="fa fa-volume-up mr-1"></i>朗读
+                            <i class="fa fa-volume-up"></i>
                         </button>
                     </td>
                 `;
@@ -891,17 +915,22 @@
                 hideOriginalBtn.classList.add('hidden');
             }
             
-            // 更新表头显示状态
-            updateHeadersVisibility();
-            
             vocabularyList.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition-custom';
                 row.dataset.index = index;
                 
                 // 行内显示状态优先于全局状态
-                const kanaClass = rowVisibility.kana[index] ? '' : 'hidden';
-                const originalClass = rowVisibility.original[index] ? '' : 'hidden';
+                const isKanaVisible = rowVisibility.kana[index];
+                const isOriginalVisible = rowVisibility.original[index];
+                
+                // 确定要显示的内容（原文或星号掩膜）
+                const displayOriginal = isOriginalVisible ? item.original : createMaskText(item.original);
+                const displayKana = isKanaVisible ? item.kana : createMaskText(item.kana);
+                
+                // 添加样式：掩膜文本使用灰色斜体
+                const originalStyle = isOriginalVisible ? '' : 'text-gray-400 italic';
+                const kanaStyle = isKanaVisible ? '' : 'text-gray-400 italic';
                 
                 // 检查是否已禁用（已检查过）
                 const isDisabled = stats.practiced > 0 && 
@@ -909,10 +938,10 @@
                 
                 // 构建表格行内容
                 let rowContent = `
-                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-dark">${index + 1}</div>
                     </td>
-                    <td class="col-chinese px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -920,15 +949,15 @@
                 // 只有当有日语原文时才显示该列
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="col-original px-6 py-4 ${originalClass} original-cell table-cell">
-                            <div class="text-sm font-medium text-gray-800">${item.original}</div>
+                        <td class="px-3 py-4 original-cell table-cell">
+                            <div class="text-sm font-medium ${originalStyle}">${displayOriginal}</div>
                         </td>
                     `;
                 } else {
                     // 如果没有原文且原文未隐藏，显示空单元格；否则不显示该列
                     if (!原文隐藏状态) {
                         rowContent += `
-                            <td class="col-original px-6 py-4 ${originalClass} original-cell table-cell">
+                            <td class="px-3 py-4 original-cell table-cell">
                                 <div class="text-sm text-gray-400">-</div>
                             </td>
                         `;
@@ -937,31 +966,33 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="col-kana px-6 py-4 ${kanaClass} kana-cell table-cell">
-                        <div class="text-sm font-semibold text-primary">${item.kana}</div>
+                    <td class="px-3 py-4 kana-cell table-cell">
+                        <div class="text-sm font-semibold ${kanaStyle}">${displayKana}</div>
                     </td>
-                    <td class="col-read px-6 py-4 whitespace-nowrap table-cell">
-                        <button class="read-kana-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
-                            <i class="fa fa-volume-up mr-1"></i>朗读
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
+                        <button class="read-kana-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}" title="朗读假名">
+                            <i class="fa fa-volume-up"></i>
                         </button>
                     </td>
-                    <td class="col-input px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none ${isDisabled ? 'border-error bg-red-50' : ''}" 
                                placeholder="请输入纯假名..." ${isDisabled ? 'disabled' : ''}>
                     </td>
-                    <td class="col-check px-6 py-4 whitespace-nowrap text-sm table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap text-sm table-cell">
                         <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom ${isDisabled ? 'opacity-70 cursor-not-allowed' : ''}" 
-                                data-index="${index}" ${isDisabled ? 'disabled' : ''}>
-                            <i class="fa fa-check mr-1"></i>检查
+                                data-index="${index}" ${isDisabled ? 'disabled' : ''} title="检查答案">
+                            <i class="fa fa-check"></i>
                         </button>
                     </td>
-                    <td class="col-control px-6 py-4 whitespace-nowrap table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="flex gap-1">
-                            <button class="toggle-original-btn bg-gray-200 hover:bg-gray-300 text-dark px-2 py-1 rounded transition-custom text-xs" data-index="${index}">
-                                <i class="fa ${rowVisibility.original[index] ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>${rowVisibility.original[index] ? '隐藏单词' : '显示单词'}
+                            <button class="toggle-original-btn bg-original/10 hover:bg-original/20 text-original px-2 py-1 rounded transition-custom" 
+                                    data-index="${index}" title="${isOriginalVisible ? '隐藏单词' : '显示单词'}">
+                                <i class="fa ${isOriginalVisible ? 'fa-eye-slash' : 'fa-eye'}"></i>
                             </button>
-                            <button class="toggle-kana-btn bg-gray-200 hover:bg-gray-300 text-dark px-2 py-1 rounded transition-custom text-xs" data-index="${index}">
-                                <i class="fa ${rowVisibility.kana[index] ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>${rowVisibility.kana[index] ? '隐藏假名' : '显示假名'}
+                            <button class="toggle-kana-btn bg-kana/10 hover:bg-kana/20 text-kana px-2 py-1 rounded transition-custom" 
+                                    data-index="${index}" title="${isKanaVisible ? '隐藏假名' : '显示假名'}">
+                                <i class="fa ${isKanaVisible ? 'fa-eye-slash' : 'fa-eye'}"></i>
                             </button>
                         </div>
                     </td>
@@ -998,26 +1029,28 @@
                     const newState = !rowVisibility.original[index];
                     rowVisibility.original[index] = newState;
                     
-                    // 更新按钮文本和图标
+                    // 更新按钮图标和标题
+                    const iconElement = this.querySelector('i');
+                    iconElement.className = newState ? 'fa fa-eye-slash' : 'fa fa-eye';
+                    this.title = newState ? '隐藏单词' : '显示单词';
+                    
+                    // 如果显示单词，记录为不熟悉
                     if (newState) {
-                        this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
-                        // 如果显示单词，记录为不熟悉
                         recordUnfamiliarWord(index, 'original');
                     } else {
-                        this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
                         // 如果隐藏单词，从记录中移除
                         removeUnfamiliarWord(index, 'original');
                     }
                     
-                    // 更新该行的显示状态
+                    // 更新该行的显示内容（切换原文/星号）
                     const row = this.closest('tr');
-                    const originalCell = row.querySelector('.original-cell');
+                    const originalCell = row.querySelector('.original-cell div');
                     if (originalCell) {
-                        originalCell.classList.toggle('hidden', !newState);
+                        const originalText = vocabularyList[index].original;
+                        originalCell.textContent = newState ? originalText : createMaskText(originalText);
+                        originalCell.classList.toggle('text-gray-400', !newState);
+                        originalCell.classList.toggle('italic', !newState);
                     }
-                    
-                    // 检查是否需要更新表头显示
-                    updateHeadersVisibility();
                 });
             });
             
@@ -1028,26 +1061,28 @@
                     const newState = !rowVisibility.kana[index];
                     rowVisibility.kana[index] = newState;
                     
-                    // 更新按钮文本和图标
+                    // 更新按钮图标和标题
+                    const iconElement = this.querySelector('i');
+                    iconElement.className = newState ? 'fa fa-eye-slash' : 'fa fa-eye';
+                    this.title = newState ? '隐藏假名' : '显示假名';
+                    
+                    // 如果显示假名，记录为不熟悉
                     if (newState) {
-                        this.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-                        // 如果显示假名，记录为不熟悉
                         recordUnfamiliarWord(index, 'kana');
                     } else {
-                        this.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
                         // 如果隐藏假名，从记录中移除
                         removeUnfamiliarWord(index, 'kana');
                     }
                     
-                    // 更新该行的显示状态
+                    // 更新该行的显示内容（切换假名/星号）
                     const row = this.closest('tr');
-                    const kanaCell = row.querySelector('.kana-cell');
+                    const kanaCell = row.querySelector('.kana-cell div');
                     if (kanaCell) {
-                        kanaCell.classList.toggle('hidden', !newState);
+                        const kanaText = vocabularyList[index].kana;
+                        kanaCell.textContent = newState ? kanaText : createMaskText(kanaText);
+                        kanaCell.classList.toggle('text-gray-400', !newState);
+                        kanaCell.classList.toggle('italic', !newState);
                     }
-                    
-                    // 检查是否需要更新表头显示
-                    updateHeadersVisibility();
                 });
             });
             
@@ -1061,56 +1096,6 @@
             
             // 更新统计信息
             updateStats();
-        }
-
-        // 更新表头显示状态
-        function updateHeadersVisibility() {
-            // 检查是否所有行的日语原文都隐藏了
-            const allOriginalHidden = rowVisibility.original.every(visible => !visible);
-            // 检查是否所有行的假名都隐藏了
-            const allKanaHidden = rowVisibility.kana.every(visible => !visible);
-            
-            // 更新表头显示
-            if (originalHeader) {
-                originalHeader.classList.toggle('hidden', allOriginalHidden);
-            }
-            if (kanaHeader) {
-                kanaHeader.classList.toggle('hidden', allKanaHidden);
-            }
-        }
-
-        // 格式化输入并生成单词列表
-        function formatInput() {
-            const input = vocabInput.value.trim();
-            if (!input) {
-                showMessage('请输入单词信息（支持文本或Markdown表格格式）', 'error');
-                return;
-            }
-            
-            // 重置状态
-            vocabularyList = parseInput(input);
-            userInputs = new Array(vocabularyList.length).fill(''); // 初始化与单词列表长度相同的输入数组
-            lastInputIndex = -1; // 重置最后输入索引
-            mistakesList = [];
-            unfamiliarWords = []; // 重置不熟悉单词记录
-            stats = { total: vocabularyList.length, practiced: 0, correct: 0 };
-            // 保持默认隐藏状态
-            rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
-            rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
-            
-            // 按钮文本显示为"显示"而非"隐藏"
-            hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
-            hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
-            showingMistakes = true; // 默认显示错题
-            mistakesSection.classList.remove('hidden');
-            
-            if (vocabularyList.length > 0) {
-                generateTable();
-                showMessage(`成功生成 ${vocabularyList.length} 个单词的练习表格，默认隐藏了日文单词和假名`, 'success');
-            } else {
-                showMessage('未识别到有效单词数据，请检查输入格式', 'error');
-                parseInfo.classList.add('hidden');
-            }
         }
 
         // 日语朗读函数
@@ -1216,7 +1201,7 @@
             if (mistakesList.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    <td colspan="6" class="px-3 py-8 text-center text-gray-500">
                         暂无错题记录
                     </td>
                 `;
@@ -1230,10 +1215,10 @@
                 
                 // 构建错题行内容，包含日语原文
                 let rowContent = `
-                    <td class="col-index px-6 py-4 whitespace-nowrap table-cell">
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-error">${index + 1}</div>
                     </td>
-                    <td class="col-chinese px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm text-dark">${item.chinese}</div>
                     </td>
                 `;
@@ -1241,13 +1226,13 @@
                 // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
-                        <td class="col-original px-6 py-4 table-cell">
+                        <td class="px-3 py-4 table-cell">
                             <div class="text-sm font-medium text-gray-800">${item.original}</div>
                         </td>
                     `;
                 } else {
                     rowContent += `
-                        <td class="col-original px-6 py-4 table-cell">
+                        <td class="px-3 py-4 table-cell">
                             <div class="text-sm text-gray-400">-</div>
                         </td>
                     `;
@@ -1255,15 +1240,15 @@
                 
                 // 继续添加其他列
                 rowContent += `
-                    <td class="col-kana px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm font-semibold text-error">${item.kana}</div>
                     </td>
-                    <td class="col-input px-6 py-4 table-cell">
+                    <td class="px-3 py-4 table-cell">
                         <div class="text-sm text-error font-medium">${item.userAnswer || '未输入'}</div>
                     </td>
-                    <td class="col-check px-6 py-4 whitespace-nowrap table-cell">
-                        <button class="read-mistake-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}">
-                            <i class="fa fa-volume-up mr-1"></i>朗读
+                    <td class="px-3 py-4 whitespace-nowrap table-cell">
+                        <button class="read-mistake-btn bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1 rounded transition-custom" data-index="${index}" title="朗读正确答案">
+                            <i class="fa fa-volume-up"></i>
                         </button>
                     </td>
                 `;
@@ -1502,14 +1487,12 @@
             
             if (假名隐藏状态) {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示假名';
-                showMessage('已隐藏所有假名列', 'info');
+                showMessage('已用星号隐藏所有假名', 'info');
             } else {
                 hideKanaBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏假名';
-                showMessage('已显示所有假名列', 'info');
+                showMessage('已显示所有假名', 'info');
             }
             
-            // 更新表头显示
-            updateHeadersVisibility();
             generateTable();
         }
 
@@ -1533,14 +1516,12 @@
             
             if (原文隐藏状态) {
                 hideOriginalBtn.innerHTML = '<i class="fa fa-eye mr-1"></i>显示单词';
-                showMessage('已隐藏所有日语原文列', 'info');
+                showMessage('已用星号隐藏所有单词', 'info');
             } else {
                 hideOriginalBtn.innerHTML = '<i class="fa fa-eye-slash mr-1"></i>隐藏单词';
-                showMessage('已显示所有日语原文列', 'info');
+                showMessage('已显示所有单词', 'info');
             }
             
-            // 更新表头显示
-            updateHeadersVisibility();
             generateTable();
         }
 
@@ -1618,10 +1599,6 @@
             updateMistakesCount();
             updateLastInputButtonState();
             
-            // 重置表头显示
-            if (originalHeader) originalHeader.classList.add('hidden');
-            if (kanaHeader) kanaHeader.classList.add('hidden');
-            
             showMessage('已清空所有内容', 'info');
             
             // 聚焦到输入框
@@ -1676,5 +1653,7 @@
         // 页面加载完成后初始化
         window.addEventListener('DOMContentLoaded', init);
     </script>
+
+
 </body>
 </html>
