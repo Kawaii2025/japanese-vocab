@@ -4,24 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>日语单词记忆练习</title>
+    <!-- 外部资源 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     
     <script>
+        // 配置Tailwind自定义颜色
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#3B82F6',
-                        secondary: '#10B981',
-                        accent: '#2563EB',
-                        amber: '#F59E0B',
-                        error: '#EF4444',
-                        light: '#F8FAFC',
-                        dark: '#1E293B',
-                        original: '#6366F1', // 用于区分单词按钮的颜色
-                        kana: '#EC4899',      // 用于区分假名按钮的颜色
-                        edit: '#8B5CF6'       // 编辑按钮的颜色
+                        primary: '#3B82F6',    // 主色调：蓝色
+                        secondary: '#10B981',  // 成功色：绿色
+                        accent: '#2563EB',     // 强调色：深蓝色
+                        amber: '#F59E0B',      // 提示色：琥珀色
+                        error: '#EF4444',      // 错误色：红色
+                        light: '#F8FAFC',      // 浅色背景
+                        dark: '#1E293B',       // 深色文本
+                        original: '#6366F1',   // 单词按钮色：靛蓝色
+                        kana: '#EC4899',       // 假名按钮色：粉色
+                        edit: '#8B5CF6',       // 编辑按钮色：紫色
+                        // 差异对比颜色
+                        'diff-insert': '#dcfce7',  // 新增内容背景
+                        'diff-delete': '#fee2e2',  // 删除内容背景
+                        'diff-equal': '#f3f4f6'    // 相同内容背景
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -31,6 +37,7 @@
         }
     </script>
     
+    <!-- 自定义工具类 -->
     <style type="text/tailwindcss">
         @layer utilities {
             .content-auto {
@@ -57,7 +64,6 @@
                 0% { background-color: rgba(255, 217, 0, 0.3); }
                 100% { background-color: transparent; }
             }
-            /* 单元格内容溢出处理 */
             .table-cell {
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -70,7 +76,6 @@
                 0%, 100% { background-color: rgba(139, 92, 246, 0.05); }
                 50% { background-color: rgba(139, 92, 246, 0.15); }
             }
-            /* 历史记录样式 */
             .history-item {
                 border-left: 2px solid #EF4444;
                 padding-left: 0.75rem;
@@ -79,6 +84,31 @@
             }
             .history-item.corrected {
                 border-left-color: #10B981;
+            }
+            /* 差异对比样式 */
+            .diff-container {
+                display: inline-flex;
+                flex-wrap: wrap;
+                gap: 1px;
+                line-height: 1.5;
+            }
+            .diff-insert {
+                background-color: theme('colors.diff-insert');
+                text-decoration: underline;
+                text-decoration-color: theme('colors.secondary');
+                text-decoration-thickness: 2px;
+            }
+            .diff-delete {
+                background-color: theme('colors.diff-delete');
+                text-decoration: line-through;
+                text-decoration-color: theme('colors.error');
+                text-decoration-thickness: 2px;
+            }
+            .diff-equal {
+                background-color: theme('colors.diff-equal');
+            }
+            .diff-item {
+                padding: 0 2px;
             }
         }
     </style>
@@ -244,6 +274,7 @@
                                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">日语原文</th>
                                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">正确答案</th>
                                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">你的答案</th>
+                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">差异对比</th>
                                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">状态</th>
                                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-error uppercase tracking-wider">朗读</th>
                             </tr>
@@ -299,12 +330,10 @@
     <script>
         // 全局变量
         let vocabularyList = [];
-        let userInputs = []; // 使用数组保存用户输入，与单词列表索引严格对应
+        let userInputs = []; // 保存用户输入，与单词列表索引严格对应
         let lastInputIndex = -1; // 记录最后有输入内容的索引
-        // 优化：使用对象数组存储所有错误尝试，包含状态信息
-        let mistakesList = [];
-        // 不熟悉的单词记录：记录需要显示单词或假名的单词
-        let unfamiliarWords = [];
+        let mistakesList = []; // 错题记录
+        let unfamiliarWords = []; // 不熟悉的单词记录
         let stats = { total: 0, practiced: 0, correct: 0, totalMistakes: 0 };
         let 假名隐藏状态 = true; // 默认隐藏假名
         let 原文隐藏状态 = true; // 默认隐藏日语原文
@@ -315,6 +344,8 @@
             original: [], // 存储每行日语原文的显示状态
             kana: []      // 存储每行假名的显示状态
         };
+        // 记录每个单词的练习状态和结果
+        let practiceResults = [];
         
         // DOM元素
         const vocabInput = document.getElementById('vocabInput');
@@ -385,11 +416,65 @@
         // 生成掩膜文本（用星号替换）
         function createMaskText(text) {
             if (!text || text.trim() === '') return text;
-            // 为每个字符创建一个星号，保持原长度的视觉效果
             return '*'.repeat(text.length);
         }
 
-        // 处理输入并生成表格的核心函数
+        // 计算两个字符串的差异
+        function getDiff(userAnswer, correctAnswer) {
+            const diff = [];
+            const maxLen = Math.max(userAnswer.length, correctAnswer.length);
+            
+            // 找到两个字符串的公共前缀
+            let prefixLen = 0;
+            while (prefixLen < userAnswer.length && prefixLen < correctAnswer.length && 
+                   userAnswer[prefixLen] === correctAnswer[prefixLen]) {
+                prefixLen++;
+            }
+            
+            // 添加公共前缀
+            if (prefixLen > 0) {
+                diff.push({
+                    type: 'equal',
+                    value: userAnswer.substring(0, prefixLen)
+                });
+            }
+            
+            // 处理剩余部分
+            const userRemaining = userAnswer.substring(prefixLen);
+            const correctRemaining = correctAnswer.substring(prefixLen);
+            
+            // 添加用户输入的多余部分（删除）
+            if (userRemaining.length > 0) {
+                diff.push({
+                    type: 'delete',
+                    value: userRemaining
+                });
+            }
+            
+            // 添加正确答案中用户缺失的部分（插入）
+            if (correctRemaining.length > 0) {
+                diff.push({
+                    type: 'insert',
+                    value: correctRemaining
+                });
+            }
+            
+            return diff;
+        }
+
+        // 生成差异对比的HTML
+        function generateDiffHtml(diff) {
+            if (!diff || diff.length === 0) return '';
+            
+            let html = '<div class="diff-container">';
+            diff.forEach(item => {
+                html += `<span class="diff-item diff-${item.type}">${item.value}</span>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // 处理输入并生成表格
         function formatInput() {
             const input = vocabInput.value.trim();
             if (!input) {
@@ -407,6 +492,10 @@
             
             // 重置相关变量
             userInputs = new Array(vocabularyList.length).fill('');
+            practiceResults = new Array(vocabularyList.length).fill({ 
+                practiced: false, 
+                correct: false 
+            });
             lastInputIndex = -1;
             mistakesList = [];
             unfamiliarWords = [];
@@ -428,7 +517,6 @@
         // 判断文本是否为中文
         function isChinese(text) {
             if (!text) return false;
-            // 匹配中文字符的正则表达式
             const chineseRegex = /[\u4e00-\u9fa5]/;
             return chineseRegex.test(text);
         }
@@ -436,7 +524,6 @@
         // 判断文本是否为日语假名（平假名或片假名）
         function isKana(text) {
             if (!text) return false;
-            // 匹配平假名和片假名的正则表达式
             const kanaRegex = /^[\u3040-\u309F\u30A0-\u30FF]+$/;
             return kanaRegex.test(text);
         }
@@ -444,12 +531,11 @@
         // 判断文本是否为日语原文（可能包含汉字和假名）
         function isJapaneseOriginal(text) {
             if (!text) return false;
-            // 匹配日语（包含汉字、平假名、片假名）但不是纯假名
             const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/;
             return japaneseRegex.test(text) && !isKana(text);
         }
 
-        // 智能分析表格列，确定中文意思列、日语原文列和假名列
+        // 智能分析表格列
         function analyzeTableColumns(headers) {
             let chineseColIndex = -1;
             let originalColIndex = -1;
@@ -460,7 +546,6 @@
             headers.forEach((header, index) => {
                 const lowerHeader = header.toLowerCase().trim();
                 
-                // 检查中文意思相关表头
                 if (chineseColIndex === -1 && 
                     (lowerHeader.includes('中文') || lowerHeader.includes('意思') || 
                      lowerHeader.includes('汉语') || lowerHeader.includes('翻译'))) {
@@ -468,7 +553,6 @@
                     analysisDetails.push(`通过表头"${header}"识别为中文意思列`);
                 }
                 
-                // 检查日语原文相关表头
                 if (originalColIndex === -1 && 
                     (lowerHeader.includes('日文') || lowerHeader.includes('原文') ||
                      lowerHeader.includes('日语') || lowerHeader.includes('日本語'))) {
@@ -476,7 +560,6 @@
                     analysisDetails.push(`通过表头"${header}"识别为日语原文列`);
                 }
                 
-                // 检查假名相关表头
                 if (kanaColIndex === -1 && 
                     (lowerHeader.includes('假名') || lowerHeader.includes('kana') ||
                      lowerHeader.includes('平假名') || lowerHeader.includes('片假名'))) {
@@ -498,7 +581,7 @@
             };
         }
 
-        // 解析输入内容（智能匹配列）
+        // 解析输入内容
         function parseInput(input) {
             const parsedList = [];
             const lines = input.trim().split('\n').filter(line => line.trim() !== '');
@@ -528,11 +611,9 @@
                     // 遇到分隔线，确定表头已处理
                     if (trimmedLine.includes('| ----') || trimmedLine.includes('| ---')) {
                         isHeaderPassed = true;
-                        // 分析表头，确定各列
                         columnAnalysis = analyzeTableColumns(headers);
                         analysisDetails = [...columnAnalysis.analysisDetails];
                         
-                        // 如果无法识别必要的列，记录提示
                         if (columnAnalysis.chineseColIndex === -1 || columnAnalysis.kanaColIndex === -1) {
                             analysisDetails.push("警告：未能自动识别中文意思列或假名列，将尝试逐行分析");
                         }
@@ -547,16 +628,14 @@
                         let originalText = '';
                         let kana = '';
                         
-                        // 如果已经通过表头确定了列索引
                         if (columnAnalysis.chineseColIndex !== -1 && columnAnalysis.kanaColIndex !== -1) {
                             chineseMeaning = cells[columnAnalysis.chineseColIndex] || '';
                             kana = cells[columnAnalysis.kanaColIndex] || '';
-                            // 日语原文可选
                             if (columnAnalysis.originalColIndex !== -1) {
                                 originalText = cells[columnAnalysis.originalColIndex] || '';
                             }
                         } else {
-                            // 逐行分析，寻找最可能的中文、日语原文和假名
+                            // 逐行分析
                             cells.forEach(cell => {
                                 if (!chineseMeaning && isChinese(cell)) {
                                     chineseMeaning = cell;
@@ -567,16 +646,15 @@
                                 }
                             });
                             
-                            // 如果仍未找到，尝试其他方式
+                            // 兜底方案
                             if (!chineseMeaning && cells.length > 0) {
-                                chineseMeaning = cells[0]; // 默认第一列为中文
+                                chineseMeaning = cells[0];
                                 analysisDetails.push(`第${lineIndex+1}行：默认第一列"${chineseMeaning}"为中文意思`);
                             }
                             if (!kana && cells.length > 1) {
-                                kana = cells[cells.length - 1]; // 默认最后一列为假名
+                                kana = cells[cells.length - 1];
                                 analysisDetails.push(`第${lineIndex+1}行：默认最后一列"${kana}"为假名`);
                             }
-                            // 尝试从剩余列中找日语原文
                             if (!originalText) {
                                 for (let i = 0; i < cells.length; i++) {
                                     if (i !== cells.indexOf(chineseMeaning) && i !== cells.indexOf(kana) && cells[i]) {
@@ -608,7 +686,6 @@
                     if (trimmedLine) {
                         const parts = trimmedLine.split(',').map(part => part.trim());
                         if (parts.length >= 2) {
-                            // 智能判断各部分
                             let chineseMeaning = '';
                             let originalText = '';
                             let kana = '';
@@ -623,10 +700,9 @@
                                 }
                             });
                             
-                            // 如果智能判断失败，使用默认顺序
+                            // 兜底方案
                             if (!chineseMeaning) chineseMeaning = parts[0];
                             if (!kana) kana = parts[parts.length > 2 ? 2 : 1];
-                            // 如果有第三部分且未识别为假名，则作为日语原文
                             if (!originalText && parts.length > 2 && parts[1] !== kana) {
                                 originalText = parts[1];
                             }
@@ -634,10 +710,10 @@
                             if (chineseMeaning && kana) {
                                 parsedList.push({ chinese: chineseMeaning, original: originalText, kana: kana });
                             } else {
-                                showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式（日语原文可选）`, 'error');
+                                showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式`, 'error');
                             }
                         } else {
-                            showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式（日语原文可选）`, 'error');
+                            showMessage(`第 ${index + 1} 行格式错误：请使用"中文意思,日语原文,纯假名"格式`, 'error');
                         }
                     }
                 });
@@ -655,14 +731,12 @@
             return parsedList;
         }
 
-        // 保存用户输入内容并更新最后输入索引
+        // 保存用户输入内容
         function saveUserInput() {
             const inputElements = document.querySelectorAll('.practice-input');
             inputElements.forEach((el, index) => {
-                // 保存所有输入框内容，包括已禁用的（已检查的）
                 userInputs[index] = el.value;
                 
-                // 如果输入内容不为空且未禁用，更新最后输入索引
                 if (!el.disabled && el.value.trim() !== '') {
                     lastInputIndex = index;
                     updateLastInputButtonState();
@@ -674,7 +748,7 @@
         function restoreUserInput() {
             const inputElements = document.querySelectorAll('.practice-input');
             inputElements.forEach((el, index) => {
-                // 先移除已有的双击事件监听器，避免重复绑定
+                // 先移除已有的双击事件监听器
                 const newElement = el.cloneNode(true);
                 el.parentNode.replaceChild(newElement, el);
                 
@@ -688,7 +762,7 @@
                 
                 // 添加双击事件，允许重新编辑错误的答案
                 newElement.addEventListener('dblclick', function() {
-                    if (this.disabled) { // 只有已禁用的输入框（已检查的）才允许双击编辑
+                    if (this.disabled) {
                         enableEditing(index);
                     }
                 });
@@ -703,20 +777,27 @@
 
         // 启用编辑功能
         function enableEditing(index) {
-            // 获取相关元素
             const rows = document.querySelectorAll('#vocabTableBody tr');
             if (!rows[index]) return;
+            
+            // 恢复练习状态
+            if (practiceResults[index].practiced) {
+                stats.practiced--;
+                if (practiceResults[index].correct) {
+                    stats.correct--;
+                }
+                practiceResults[index] = { practiced: false, correct: false };
+            }
             
             const input = rows[index].querySelector('.practice-input');
             const editBtn = rows[index].querySelector('.edit-btn');
             const checkBtn = rows[index].querySelector('.check-btn');
             
-            // 移除"→ 正确答案"部分，只保留用户输入
+            // 清除任何HTML标记
             let currentValue = input.value;
-            const arrowIndex = currentValue.indexOf('→');
-            if (arrowIndex !== -1) {
-                currentValue = currentValue.substring(0, arrowIndex).trim();
-            }
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = currentValue;
+            currentValue = tempDiv.textContent || '';
             
             // 重新启用输入框
             input.value = currentValue;
@@ -732,7 +813,15 @@
                 checkBtn.addEventListener('click', checkAnswer);
             }
             
+            // 移除差异对比元素
+            const diffElement = rows[index].querySelector('.diff-container').parentNode;
+            if (diffElement) {
+                diffElement.remove();
+                input.style.display = 'block';
+            }
+            
             showMessage('已重新启用编辑，请再次尝试', 'info');
+            updateStats();
         }
 
         // 更新"返回最后输入"按钮状态
@@ -755,7 +844,6 @@
                 return;
             }
             
-            // 找到对应的行并滚动到视图
             const rows = document.querySelectorAll('#vocabTableBody tr');
             if (rows[lastInputIndex]) {
                 const row = rows[lastInputIndex];
@@ -780,31 +868,26 @@
         // 记录不熟悉的单词
         function recordUnfamiliarWord(index, type) {
             const wordData = vocabularyList[index];
-            // 检查该单词是否已在记录中
             const existingIndex = unfamiliarWords.findIndex(item => 
                 item.chinese === wordData.chinese && item.kana === wordData.kana
             );
             
             if (existingIndex === -1) {
-                // 新增记录
                 unfamiliarWords.push({
                     ...wordData,
-                    unfamiliarTypes: [type] // 记录不熟悉的类型：'original' 或 'kana'
+                    unfamiliarTypes: [type]
                 });
             } else {
-                // 更新现有记录
                 if (!unfamiliarWords[existingIndex].unfamiliarTypes.includes(type)) {
                     unfamiliarWords[existingIndex].unfamiliarTypes.push(type);
                 }
             }
             
-            // 更新不熟悉单词表格
             updateUnfamiliarWordsTable();
-            // 更新统计
             updateStats();
         }
 
-        // 从记录中移除不熟悉的单词（当用户再次隐藏时）
+        // 从记录中移除不熟悉的单词
         function removeUnfamiliarWord(index, type) {
             const wordData = vocabularyList[index];
             const existingIndex = unfamiliarWords.findIndex(item => 
@@ -812,18 +895,14 @@
             );
             
             if (existingIndex !== -1) {
-                // 移除该类型
                 unfamiliarWords[existingIndex].unfamiliarTypes = 
                     unfamiliarWords[existingIndex].unfamiliarTypes.filter(t => t !== type);
                 
-                // 如果没有其他不熟悉的类型，移除整个记录
                 if (unfamiliarWords[existingIndex].unfamiliarTypes.length === 0) {
                     unfamiliarWords.splice(existingIndex, 1);
                 }
                 
-                // 更新不熟悉单词表格
                 updateUnfamiliarWordsTable();
-                // 更新统计
                 updateStats();
             }
         }
@@ -847,12 +926,10 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-amber-50 transition-custom';
                 
-                // 转换不熟悉类型为显示文本
                 const unfamiliarText = item.unfamiliarTypes.map(type => 
                     type === 'original' ? '单词' : '假名'
                 ).join('、');
                 
-                // 构建不熟悉单词行内容
                 let rowContent = `
                     <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-amber">${index + 1}</div>
@@ -862,7 +939,6 @@
                     </td>
                 `;
                 
-                // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
                         <td class="px-3 py-4 table-cell">
@@ -877,7 +953,6 @@
                     `;
                 }
                 
-                // 继续添加其他列
                 rowContent += `
                     <td class="px-3 py-4 table-cell">
                         <div class="text-sm font-semibold text-primary">${item.kana}</div>
@@ -896,7 +971,6 @@
                 unfamiliarWordsTableBody.appendChild(row);
             });
             
-            // 添加不熟悉单词朗读事件
             document.querySelectorAll('.read-unfamiliar-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
@@ -915,10 +989,8 @@
                 return;
             }
             
-            // 滚动到单词表
             document.getElementById('vocabTable').scrollIntoView({ behavior: 'smooth' });
             
-            // 高亮显示所有不熟悉的单词
             document.querySelectorAll('#vocabTableBody tr').forEach((row, index) => {
                 const wordData = vocabularyList[index];
                 const isUnfamiliar = unfamiliarWords.some(item => 
@@ -927,7 +999,6 @@
                 
                 if (isUnfamiliar) {
                     row.classList.add('bg-amber-50');
-                    // 3秒后移除高亮
                     setTimeout(() => {
                         row.classList.remove('bg-amber-50');
                     }, 3000);
@@ -947,21 +1018,17 @@
 
         // 生成单词表格
         function generateTable() {
-            // 保存当前输入内容
             saveUserInput();
             
             vocabTableBody.innerHTML = '';
             
-            // 检查是否有日语原文
             hasOriginalText = vocabularyList.some(item => item.original && item.original.trim() !== '');
             
-            // 初始化或更新行显示状态
             if (rowVisibility.original.length !== vocabularyList.length) {
                 rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
                 rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
             }
             
-            // 显示或隐藏"隐藏单词"按钮
             if (hasOriginalText) {
                 hideOriginalBtn.classList.remove('hidden');
             } else {
@@ -973,23 +1040,17 @@
                 row.className = 'hover:bg-gray-50 transition-custom';
                 row.dataset.index = index;
                 
-                // 行内显示状态优先于全局状态
                 const isKanaVisible = rowVisibility.kana[index];
                 const isOriginalVisible = rowVisibility.original[index];
                 
-                // 确定要显示的内容（原文或星号掩膜）
                 const displayOriginal = isOriginalVisible ? item.original : createMaskText(item.original);
                 const displayKana = isKanaVisible ? item.kana : createMaskText(item.kana);
                 
-                // 添加样式：掩膜文本使用灰色斜体
                 const originalStyle = isOriginalVisible ? '' : 'text-gray-400 italic';
                 const kanaStyle = isKanaVisible ? '' : 'text-gray-400 italic';
                 
-                // 检查是否已禁用（已检查过）
-                const isDisabled = stats.practiced > 0 && 
-                                  document.querySelector(`.check-btn[data-index="${index}"]`)?.disabled;
+                const isDisabled = practiceResults[index].practiced;
                 
-                // 构建表格行内容
                 let rowContent = `
                     <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium text-dark">${index + 1}</div>
@@ -999,7 +1060,6 @@
                     </td>
                 `;
                 
-                // 只有当有日语原文时才显示该列
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
                         <td class="px-3 py-4 original-cell table-cell">
@@ -1007,7 +1067,6 @@
                         </td>
                     `;
                 } else {
-                    // 如果没有原文且原文未隐藏，显示空单元格；否则不显示该列
                     if (!原文隐藏状态) {
                         rowContent += `
                             <td class="px-3 py-4 original-cell table-cell">
@@ -1017,7 +1076,6 @@
                     }
                 }
                 
-                // 继续添加其他列
                 rowContent += `
                     <td class="px-3 py-4 kana-cell table-cell">
                         <div class="text-sm font-semibold ${kanaStyle}">${displayKana}</div>
@@ -1028,16 +1086,16 @@
                         </button>
                     </td>
                     <td class="px-3 py-4 table-cell">
-                        <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none ${isDisabled ? 'border-error bg-red-50' : ''}" 
-                               placeholder="请输入纯假名..." ${isDisabled ? 'disabled' : ''}>
+                        <div class="practice-container w-full">
+                            <input type="text" class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none ${isDisabled ? 'border-error bg-red-50' : ''}" 
+                                   placeholder="请输入纯假名..." ${isDisabled ? 'disabled' : ''}>
+                        </div>
                     </td>
                     <td class="px-3 py-4 whitespace-nowrap text-sm table-cell ${isDisabled ? 'editing-breathing-bg' : ''}">
-                        <!-- 检查按钮 - 仅在未禁用时显示 -->
                         <button class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom ${isDisabled ? 'hidden opacity-70 cursor-not-allowed' : ''}" 
                                 data-index="${index}" ${isDisabled ? 'disabled' : ''} title="检查答案">
                             <i class="fa fa-check"></i>
                         </button>
-                        <!-- 编辑按钮 - 仅在禁用时显示 -->
                         <button class="edit-btn bg-edit hover:bg-edit/90 text-white px-3 py-1 rounded transition-custom ${isDisabled ? '' : 'hidden'}" 
                                 data-index="${index}" title="重新编辑答案">
                             <i class="fa fa-pencil"></i>
@@ -1061,17 +1119,14 @@
                 vocabTableBody.appendChild(row);
             });
             
-            // 恢复用户输入内容
             restoreUserInput();
             
-            // 添加事件监听
             document.querySelectorAll('.check-btn').forEach(btn => {
                 if (!btn.disabled) {
                     btn.addEventListener('click', checkAnswer);
                 }
             });
             
-            // 添加编辑按钮事件监听
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
@@ -1091,28 +1146,22 @@
                 });
             });
             
-            // 添加行内显示控制按钮事件
             document.querySelectorAll('.toggle-original-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
-                    // 切换该行的日语原文显示状态
                     const newState = !rowVisibility.original[index];
                     rowVisibility.original[index] = newState;
                     
-                    // 更新按钮图标和标题
                     const iconElement = this.querySelector('i');
                     iconElement.className = newState ? 'fa fa-eye-slash' : 'fa fa-eye';
                     this.title = newState ? '隐藏单词' : '显示单词';
                     
-                    // 如果显示单词，记录为不熟悉
                     if (newState) {
                         recordUnfamiliarWord(index, 'original');
                     } else {
-                        // 如果隐藏单词，从记录中移除
                         removeUnfamiliarWord(index, 'original');
                     }
                     
-                    // 更新该行的显示内容（切换原文/星号）
                     const row = this.closest('tr');
                     const originalCell = row.querySelector('.original-cell div');
                     if (originalCell) {
@@ -1127,24 +1176,19 @@
             document.querySelectorAll('.toggle-kana-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
-                    // 切换该行的假名显示状态
                     const newState = !rowVisibility.kana[index];
                     rowVisibility.kana[index] = newState;
                     
-                    // 更新按钮图标和标题
                     const iconElement = this.querySelector('i');
                     iconElement.className = newState ? 'fa fa-eye-slash' : 'fa fa-eye';
                     this.title = newState ? '隐藏假名' : '显示假名';
                     
-                    // 如果显示假名，记录为不熟悉
                     if (newState) {
                         recordUnfamiliarWord(index, 'kana');
                     } else {
-                        // 如果隐藏假名，从记录中移除
                         removeUnfamiliarWord(index, 'kana');
                     }
                     
-                    // 更新该行的显示内容（切换假名/星号）
                     const row = this.closest('tr');
                     const kanaCell = row.querySelector('.kana-cell div');
                     if (kanaCell) {
@@ -1156,37 +1200,27 @@
                 });
             });
             
-            // 更新错题表格和不熟悉单词表格
             updateMistakesTable();
             updateUnfamiliarWordsTable();
             
-            // 显示表格和统计区域
             tableSection.classList.remove('hidden');
             statsSection.classList.remove('hidden');
             
-            // 更新统计信息
             updateStats();
         }
 
         // 日语朗读函数
         function readJapanese(text) {
-            // 停止当前朗读
             if (speechSynthesis.speaking) {
                 speechSynthesis.cancel();
             }
 
-            // 创建语音合成实例
             const utterance = new SpeechSynthesisUtterance(text);
-            
-            // 设置日语
             utterance.lang = 'ja-JP';
-            
-            // 设置语音参数
             utterance.rate = 0.9;
             utterance.pitch = 1.1;
             utterance.volume = 1;
 
-            // 开始朗读
             speechSynthesis.speak(utterance);
             return utterance;
         }
@@ -1195,60 +1229,59 @@
         function checkAnswer(e) {
             const index = parseInt(e.currentTarget.dataset.index);
             const wordData = vocabularyList[index];
+            const inputContainer = e.currentTarget.closest('tr').querySelector('.practice-container');
             const inputElement = e.currentTarget.closest('tr').querySelector('.practice-input');
             const userAnswer = inputElement.value.trim();
             const editBtn = e.currentTarget.closest('tr').querySelector('.edit-btn');
             
-            // 禁用输入框和检查按钮，显示编辑按钮
             inputElement.disabled = true;
             e.currentTarget.disabled = true;
             e.currentTarget.classList.add('opacity-70', 'cursor-not-allowed', 'hidden');
             if (editBtn) editBtn.classList.remove('hidden');
             
-            // 检查是否已练习过
-            const hasBeenPracticed = stats.practiced > 0 && 
-                document.querySelectorAll('#vocabTableBody tr .check-btn[disabled]').length > 0;
+            // 标记为已练习
+            practiceResults[index].practiced = true;
+            stats.practiced++;
             
-            // 检查答案
             if (userAnswer === wordData.kana) {
                 inputElement.classList.add('border-secondary', 'bg-green-50');
                 showMessage('回答正确！', 'success');
                 
-                // 如果是第一次答对，增加正确计数
-                if (!hasBeenPracticed || !userInputs[index].includes('→')) {
-                    stats.correct++;
-                }
+                practiceResults[index].correct = true;
+                stats.correct++;
                 
-                // 标记该单词的所有错误尝试为"已纠正"
                 markMistakesAsCorrected(wordData);
             } else {
                 inputElement.classList.add('border-error', 'bg-red-50');
-                // 显示正确答案
-                setTimeout(() => {
-                    inputElement.value = `${userAnswer || '未输入'} → ${wordData.kana}`;
-                    inputElement.classList.add('text-error');
-                }, 500);
-                showMessage(`回答错误，正确答案是：${wordData.kana}`, 'error');
                 
-                // 添加到错题列表（去重）
+                const diff = getDiff(userAnswer, wordData.kana);
+                const diffHtml = generateDiffHtml(diff);
+                
+                inputElement.style.display = 'none';
+                const diffElement = document.createElement('div');
+                diffElement.className = 'w-full p-2 border border-error bg-red-50 rounded text-sm text-error';
+                diffElement.innerHTML = `
+                    <div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>
+                    ${diffHtml}
+                `;
+                inputContainer.appendChild(diffElement);
+                
+                userInputs[index] = diffHtml;
+                
+                showMessage(`回答错误，请查看差异对比`, 'error');
+                
                 addToMistakes(wordData, userAnswer);
                 stats.totalMistakes++;
+                
+                practiceResults[index].correct = false;
             }
             
-            // 保存当前输入
-            userInputs[index] = inputElement.value;
-            
-            // 更新统计
-            if (!hasBeenPracticed) {
-                stats.practiced++;
-            }
             updateStats();
             updateMistakesTable();
         }
 
-        // 添加到错题列表（去重）
+        // 添加到错题列表
         function addToMistakes(wordData, userAnswer) {
-            // 检查是否已经有相同的错误记录
             const isAlreadyInMistakes = mistakesList.some(item => 
                 item.chinese === wordData.chinese && 
                 item.kana === wordData.kana &&
@@ -1257,11 +1290,14 @@
             );
             
             if (!isAlreadyInMistakes) {
+                const diff = getDiff(userAnswer, wordData.kana);
+                
                 mistakesList.push({
                     ...wordData,
-                    userAnswer: userAnswer, // 保存用户输入的错误答案
-                    corrected: false,       // 标记是否已纠正
-                    timestamp: new Date()   // 记录错误时间
+                    userAnswer: userAnswer,
+                    diff: diff,
+                    corrected: false,
+                    timestamp: new Date()
                 });
                 updateMistakesCount();
             }
@@ -1277,11 +1313,11 @@
             updateMistakesCount();
         }
 
-        // 更新错题数量显示（只计算未纠正的错误）
+        // 更新错题数量显示
         function updateMistakesCount() {
             const activeMistakes = mistakesList.filter(m => !m.corrected).length;
-            mistakesList.textContent = activeMistakes;
-            mistakesCountStat.textContent = mistakesList.length; // 显示总错误数
+            mistakesCount.textContent = activeMistakes;
+            mistakesCountStat.textContent = mistakesList.length;
         }
 
         // 更新错题表格
@@ -1291,7 +1327,7 @@
             if (mistakesList.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td colspan="7" class="px-3 py-8 text-center text-gray-500">
+                    <td colspan="8" class="px-3 py-8 text-center text-gray-500">
                         暂无错题记录
                     </td>
                 `;
@@ -1299,14 +1335,14 @@
                 return;
             }
             
-            // 按时间排序，最新的错误在前面
             const sortedMistakes = [...mistakesList].sort((a, b) => b.timestamp - a.timestamp);
             
             sortedMistakes.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = item.corrected ? 'hover:bg-green-50 transition-custom bg-green-50/50' : 'hover:bg-red-50 transition-custom';
                 
-                // 构建错题行内容，包含日语原文
+                const diffHtml = generateDiffHtml(item.diff);
+                
                 let rowContent = `
                     <td class="px-3 py-4 whitespace-nowrap table-cell">
                         <div class="text-sm font-medium ${item.corrected ? 'text-secondary' : 'text-error'}">${index + 1}</div>
@@ -1316,7 +1352,6 @@
                     </td>
                 `;
                 
-                // 添加日语原文（如果有）
                 if (item.original && item.original.trim() !== '') {
                     rowContent += `
                         <td class="px-3 py-4 table-cell">
@@ -1331,13 +1366,17 @@
                     `;
                 }
                 
-                // 继续添加其他列
                 rowContent += `
                     <td class="px-3 py-4 table-cell">
                         <div class="text-sm font-semibold ${item.corrected ? 'text-secondary' : 'text-error'}">${item.kana}</div>
                     </td>
                     <td class="px-3 py-4 table-cell">
                         <div class="text-sm ${item.corrected ? 'text-secondary' : 'text-error'} font-medium">${item.userAnswer || '未输入'}</div>
+                    </td>
+                    <td class="px-3 py-4 table-cell">
+                        <div class="text-sm">
+                            ${diffHtml}
+                        </div>
                     </td>
                     <td class="px-3 py-4 table-cell">
                         <div class="text-sm font-medium ${item.corrected ? 'text-secondary' : 'text-error'}">
@@ -1355,7 +1394,6 @@
                 mistakesTableBody.appendChild(row);
             });
             
-            // 添加错题朗读事件
             document.querySelectorAll('.read-mistake-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const index = parseInt(this.dataset.index);
@@ -1374,7 +1412,6 @@
                 return;
             }
             
-            // 构建Markdown表格（包含日语原文）
             let markdown = "| 中文意思 | 日语原文 | 正确答案 | 你的答案 | 状态 |\n";
             markdown += "| ---- | ---- | ---- | ---- | ---- |\n";
             
@@ -1382,34 +1419,27 @@
                 markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} | ${item.userAnswer || '未输入'} | ${item.corrected ? '已纠正' : '未纠正'} |\n`;
             });
             
-            // 复制到剪贴板
             navigator.clipboard.writeText(markdown).then(() => {
                 showMessage('错题已以Markdown格式复制到剪贴板', 'success');
-                
-                // 按钮动画反馈
                 copyMistakesBtn.classList.add('btn-pulse');
-                setTimeout(() => {
-                    copyMistakesBtn.classList.remove('btn-pulse');
-                }, 500);
+                setTimeout(() => copyMistakesBtn.classList.remove('btn-pulse'), 500);
             }).catch(err => {
                 showMessage('复制失败，请手动复制', 'error');
                 console.error('复制失败:', err);
             });
         }
 
-        // 导出未完成的单词为Markdown
+        // 导出未完成的单词
         function exportUnfinishedWords() {
             if (vocabularyList.length === 0) {
                 showMessage('没有单词可导出，请先生成表格', 'info');
                 return;
             }
             
-            // 收集未完成的单词（未检查的单词）
             const unfinishedWords = [];
-            const checkButtons = document.querySelectorAll('.check-btn');
             
-            checkButtons.forEach((btn, index) => {
-                if (!btn.disabled && !btn.classList.contains('hidden')) { // 按钮未禁用表示未检查
+            practiceResults.forEach((result, index) => {
+                if (!result.practiced) {
                     unfinishedWords.push(vocabularyList[index]);
                 }
             });
@@ -1419,7 +1449,6 @@
                 return;
             }
             
-            // 构建Markdown表格
             let markdown = "| 中文意思 | 日语原文 | 假名 |\n";
             markdown += "| ---- | ---- | ---- |\n";
             
@@ -1427,32 +1456,25 @@
                 markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} |\n`;
             });
             
-            // 复制到剪贴板
             navigator.clipboard.writeText(markdown).then(() => {
                 showMessage(`已将 ${unfinishedWords.length} 个未完成单词以Markdown格式复制到剪贴板`, 'success');
-                
-                // 按钮动画反馈
                 exportUnfinishedBtn.classList.add('btn-pulse');
-                setTimeout(() => {
-                    exportUnfinishedBtn.classList.remove('btn-pulse');
-                }, 500);
+                setTimeout(() => exportUnfinishedBtn.classList.remove('btn-pulse'), 500);
             }).catch(err => {
                 showMessage('复制失败，请手动复制', 'error');
                 console.error('复制失败:', err);
             });
         }
 
-        // 合并导出不熟悉和背错的单词为Markdown
+        // 合并导出不熟悉和背错的单词
         function exportCombinedWords() {
             if (unfamiliarWords.length === 0 && mistakesList.length === 0) {
                 showMessage('没有不熟悉或背错的单词可导出', 'info');
                 return;
             }
             
-            // 创建一个集合用于去重
             const uniqueWords = new Map();
             
-            // 添加不熟悉的单词
             unfamiliarWords.forEach(word => {
                 const key = `${word.chinese}-${word.kana}`;
                 if (!uniqueWords.has(key)) {
@@ -1463,11 +1485,9 @@
                 }
             });
             
-            // 添加背错的单词（去重）
             mistakesList.forEach(word => {
                 const key = `${word.chinese}-${word.kana}`;
                 if (uniqueWords.has(key)) {
-                    // 如果已存在，更新类型为"不熟悉+背错"
                     uniqueWords.set(key, {
                         ...uniqueWords.get(key),
                         type: '不熟悉+背错'
@@ -1480,7 +1500,6 @@
                 }
             });
             
-            // 构建Markdown表格
             let markdown = "| 中文意思 | 日语原文 | 假名 | 类型 |\n";
             markdown += "| ---- | ---- | ---- | ---- |\n";
             
@@ -1488,15 +1507,10 @@
                 markdown += `| ${item.chinese} | ${item.original || '-'} | ${item.kana} | ${item.type} |\n`;
             });
             
-            // 复制到剪贴板
             navigator.clipboard.writeText(markdown).then(() => {
                 showMessage(`已将 ${uniqueWords.size} 个合并单词（去重）以Markdown格式复制到剪贴板`, 'success');
-                
-                // 按钮动画反馈
                 exportCombinedBtn.classList.add('btn-pulse');
-                setTimeout(() => {
-                    exportCombinedBtn.classList.remove('btn-pulse');
-                }, 500);
+                setTimeout(() => exportCombinedBtn.classList.remove('btn-pulse'), 500);
             }).catch(err => {
                 showMessage('复制失败，请手动复制', 'error');
                 console.error('复制失败:', err);
@@ -1518,25 +1532,17 @@
                 return;
             }
             
-            // 1. 先保存当前所有输入到数组
             saveUserInput();
             
-            // 2. Fisher-Yates 洗牌算法 - 同时打乱单词和对应的用户输入
             for (let i = vocabularyList.length - 1; i > 0; i--) {
-                // 生成0到i之间的随机索引
                 const j = Math.floor(Math.random() * (i + 1));
                 
-                // 交换单词数据
                 [vocabularyList[i], vocabularyList[j]] = [vocabularyList[j], vocabularyList[i]];
-                
-                // 同步交换用户输入内容，确保输入跟随单词移动
                 [userInputs[i], userInputs[j]] = [userInputs[j], userInputs[i]];
-                
-                // 同步交换行显示状态
+                [practiceResults[i], practiceResults[j]] = [practiceResults[j], practiceResults[i]];
                 [rowVisibility.original[i], rowVisibility.original[j]] = [rowVisibility.original[j], rowVisibility.original[i]];
                 [rowVisibility.kana[i], rowVisibility.kana[j]] = [rowVisibility.kana[j], rowVisibility.kana[i]];
                 
-                // 更新最后输入索引（如果被交换）
                 if (lastInputIndex === i) {
                     lastInputIndex = j;
                 } else if (lastInputIndex === j) {
@@ -1544,23 +1550,18 @@
                 }
             }
             
-            // 3. 重新生成表格，此时会恢复已同步打乱的用户输入
             generateTable();
             
             showMessage('单词顺序已打乱，输入内容已同步调整', 'info');
         }
 
-        // 切换假名显示/隐藏状态（全局）
+        // 切换假名显示/隐藏状态
         function toggleKanaVisibility() {
-            // 保存当前输入
             saveUserInput();
             
             假名隐藏状态 = !假名隐藏状态;
-            
-            // 更新所有行的假名显示状态
             rowVisibility.kana = vocabularyList.map(() => !假名隐藏状态);
             
-            // 清除所有假名相关的不熟悉记录，因为这是全局操作而非个人不熟悉
             unfamiliarWords = unfamiliarWords.map(word => {
                 return {
                     ...word,
@@ -1579,17 +1580,13 @@
             generateTable();
         }
 
-        // 切换日语原文显示/隐藏状态（全局）
+        // 切换日语原文显示/隐藏状态
         function toggleOriginalVisibility() {
-            // 保存当前输入
             saveUserInput();
             
             原文隐藏状态 = !原文隐藏状态;
-            
-            // 更新所有行的日语原文显示状态
             rowVisibility.original = vocabularyList.map(() => !原文隐藏状态);
             
-            // 清除所有单词相关的不熟悉记录，因为这是全局操作而非个人不熟悉
             unfamiliarWords = unfamiliarWords.map(word => {
                 return {
                     ...word,
@@ -1610,7 +1607,6 @@
 
         // 清空所有内容
         function clearAll() {
-            // 停止可能的朗读
             if (speechSynthesis.speaking) {
                 speechSynthesis.cancel();
             }
@@ -1618,12 +1614,13 @@
             vocabInput.value = '';
             vocabularyList = [];
             userInputs = [];
+            practiceResults = [];
             lastInputIndex = -1;
             mistakesList = [];
-            unfamiliarWords = []; // 清空不熟悉单词记录
+            unfamiliarWords = [];
             stats = { total: 0, practiced: 0, correct: 0, totalMistakes: 0 };
-            假名隐藏状态 = true; // 重置为默认隐藏
-            原文隐藏状态 = true; // 重置为默认隐藏
+            假名隐藏状态 = true;
+            原文隐藏状态 = true;
             rowVisibility.original = [];
             rowVisibility.kana = [];
             hasOriginalText = false;
@@ -1639,7 +1636,6 @@
             
             showMessage('已清空所有内容', 'info');
             
-            // 聚焦到输入框
             vocabInput.focus();
         }
 
@@ -1662,7 +1658,6 @@
             
             resultMessage.classList.remove('hidden');
             
-            // 自动隐藏消息
             const timeout = type === 'error' ? 5000 : 3000;
             setTimeout(() => {
                 resultMessage.classList.add('hidden');
@@ -1673,7 +1668,7 @@
         function updateStats() {
             totalWordsEl.textContent = stats.total;
             practicedWordsEl.textContent = stats.practiced;
-            mistakesCountStat.textContent = stats.totalMistakes; // 显示总错误数
+            mistakesCountStat.textContent = stats.totalMistakes;
             unfamiliarCountStat.textContent = unfamiliarWords.length;
             
             const accuracy = stats.practiced > 0 
@@ -1681,7 +1676,6 @@
                 : 0;
             accuracyRateEl.textContent = `${accuracy}%`;
             
-            // 添加数字变化动画
             [totalWordsEl, practicedWordsEl, accuracyRateEl, mistakesCountStat, unfamiliarCountStat].forEach(el => {
                 el.classList.add('scale-110');
                 setTimeout(() => el.classList.remove('scale-110'), 300);
@@ -1691,7 +1685,5 @@
         // 页面加载完成后初始化
         window.addEventListener('DOMContentLoaded', init);
     </script>
-
-
 </body>
 </html>
