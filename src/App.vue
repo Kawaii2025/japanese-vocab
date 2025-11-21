@@ -7,6 +7,7 @@
       <!-- 输入区域 -->
       <VocabInputComponent 
         ref="vocabInputRef"
+        :batchAddVocabulary="batchAddVocabulary"
         @submit="handleSubmit"
       />
       
@@ -78,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import HeaderComponent from './components/HeaderComponent.vue';
 import VocabInputComponent from './components/VocabInputComponent.vue';
 import VocabTableComponent from './components/VocabTableComponent.vue';
@@ -101,6 +102,8 @@ const {
   originalHidden,
   rowVisibility,
   stats,
+  loading,
+  error,
   hasOriginalText,
   activeMistakes,
   accuracy,
@@ -116,7 +119,11 @@ const {
   toggleOriginalVisibility,
   clearAll,
   clearMistakes,
-  clearUnfamiliarWords
+  clearUnfamiliarWords,
+  loadVocabularyFromAPI,
+  batchAddVocabulary,
+  loadRandomWords,
+  loadTodayReview
 } = useVocabulary();
 
 // 组件引用
@@ -144,6 +151,18 @@ const messageClasses = computed(() => {
       break;
   }
   return classes;
+});
+
+// 初始化：尝试从 API 加载数据
+onMounted(async () => {
+  try {
+    // 尝试加载今日录入的单词
+    await loadVocabularyFromAPI({ pageSize: 50 });
+    showMessage(`已加载 ${vocabularyList.value.length} 个单词`, 'success');
+  } catch (err) {
+    console.warn('无法连接到API服务器，使用离线模式');
+    // API 不可用时，用户仍然可以手动输入单词进行练习
+  }
 });
 
 // 显示消息

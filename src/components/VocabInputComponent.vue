@@ -20,15 +20,27 @@
         placeholder="请输入单词信息..."
         @keydown.ctrl.enter="handleSubmit"
         @keydown.meta.enter="handleSubmit"
+        :disabled="loading"
       ></textarea>
     </div>
     
-    <button 
-      @click="handleSubmit"
-      class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg"
-    >
-      <i class="fa fa-table mr-2"></i>生成练习表格
-    </button>
+    <div class="flex gap-2">
+      <button 
+        @click="handleSubmit"
+        :disabled="loading"
+        class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <i class="fa fa-table mr-2"></i>{{ loading ? '处理中...' : '生成练习表格' }}
+      </button>
+      
+      <button 
+        @click="handleSaveToAPI"
+        :disabled="loading"
+        class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center justify-center shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <i class="fa fa-save mr-2"></i>{{ loading ? '保存中...' : '保存到数据库' }}
+      </button>
+    </div>
     
     <!-- 解析信息提示 -->
     <div v-if="parseInfo" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -37,11 +49,28 @@
         <span>{{ parseInfo }}</span>
       </p>
     </div>
+    
+    <!-- 成功提示 -->
+    <div v-if="successMessage" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+      <p class="text-sm text-green-700 flex items-center">
+        <i class="fa fa-check-circle mr-2"></i>
+        <span>{{ successMessage }}</span>
+      </p>
+    </div>
+    
+    <!-- 错误提示 -->
+    <div v-if="errorMessage" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <p class="text-sm text-red-700 flex items-center">
+        <i class="fa fa-exclamation-circle mr-2"></i>
+        <span>{{ errorMessage }}</span>
+      </p>
+    </div>
   </section>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { parseVocabularyInput } from '../utils/parser.js';
 
 const props = defineProps({
   defaultValue: {
@@ -58,6 +87,10 @@ const props = defineProps({
 |はい|是的|はい|
 |いいえ|不是|いいえ|
 |ください|请|ください|`
+  },
+  batchAddVocabulary: {
+    type: Function,
+    required: false
   }
 });
 
@@ -65,9 +98,58 @@ const emit = defineEmits(['submit']);
 
 const inputValue = ref(props.defaultValue);
 const parseInfo = ref('');
+const loading = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
 
 function handleSubmit() {
   emit('submit', inputValue.value);
+}
+
+async function handleSaveToAPI() {
+  if (!props.batchAddVocabulary) {
+    errorMessage.value = '批量添加功能未初始化';
+    setTimeout(() => errorMessage.value = '', 3000);
+    return;
+  }
+  
+  if (!inputValue.value.trim()) {
+    errorMessage.value = '请输入单词信息';
+    setTimeout(() => errorMessage.value = '', 3000);
+    return;
+  }
+  
+  loading.value = true;
+  successMessage.value = '';
+  errorMessage.value = '';
+  parseInfo.value = '';
+  
+  try {
+    // 解析输入
+    const { words, info } = parseVocabularyInput(inputValue.value);
+    
+    if (words.length === 0) {
+      throw new Error('没有解析到有效的单词');
+    }
+    
+    // 保存到数据库
+    const response = await props.batchAddVocabulary(words);
+    
+    successMessage.value = `成功保存 ${response.total} 个单词到数据库！`;
+    parseInfo.value = info;
+    
+    // 清空输入
+    setTimeout(() => {
+      inputValue.value = '';
+      successMessage.value = '';
+      parseInfo.value = '';
+    }, 3000);
+  } catch (error) {
+    errorMessage.value = `保存失败: ${error.message}`;
+    setTimeout(() => errorMessage.value = '', 5000);
+  } finally {
+    loading.value = false;
+  }
 }
 
 function setParseInfo(info) {
@@ -77,6 +159,8 @@ function setParseInfo(info) {
 function clearInput() {
   inputValue.value = '';
   parseInfo.value = '';
+  successMessage.value = '';
+  errorMessage.value = '';
 }
 
 defineExpose({

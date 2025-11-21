@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import * as api from '../services/api.js';
 
 export function useVocabulary() {
   // 核心数据
@@ -13,6 +14,10 @@ export function useVocabulary() {
   const kanaHidden = ref(true);
   const originalHidden = ref(true);
   const rowVisibility = ref({ original: [], kana: [] });
+  
+  // 加载状态
+  const loading = ref(false);
+  const error = ref(null);
   
   // 统计数据
   const stats = ref({
@@ -67,7 +72,7 @@ export function useVocabulary() {
   }
   
   // 检查答案
-  function checkAnswer(index, userAnswer) {
+  async function checkAnswer(index, userAnswer) {
     const wordData = vocabularyList.value[index];
     
     practiceResults.value[index].practiced = true;
@@ -79,9 +84,31 @@ export function useVocabulary() {
       practiceResults.value[index].correct = true;
       stats.value.correct++;
       markMistakesAsCorrected(wordData);
+      
+      // 记录练习结果到后端
+      try {
+        await api.recordPractice({
+          vocabulary_id: wordData.id,
+          user_answer: userAnswer,
+          is_correct: true
+        });
+      } catch (err) {
+        console.error('记录练习失败:', err);
+      }
     } else {
       stats.value.totalMistakes++;
       practiceResults.value[index].correct = false;
+      
+      // 记录错误练习到后端
+      try {
+        await api.recordPractice({
+          vocabulary_id: wordData.id,
+          user_answer: userAnswer,
+          is_correct: false
+        });
+      } catch (err) {
+        console.error('记录练习失败:', err);
+      }
     }
     
     return isCorrect;
@@ -233,6 +260,112 @@ export function useVocabulary() {
     unfamiliarWords.value = [];
   }
   
+  // ==================== API 集成方法 ====================
+  
+  /**
+   * 从 API 加载单词列表
+   */
+  async function loadVocabularyFromAPI(params = {}) {
+    loading.value = true;
+    error.value = null;
+    
+    try {
+      const response = await api.getAllVocabulary(params);
+      const words = response.data.map(word => ({
+        id: word.id,
+        chinese: word.chinese,
+        original: word.original || '',
+        kana: word.kana,
+        category: word.category || '',
+        difficulty: word.difficulty || 1
+      }));
+      
+      initVocabulary(words);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+  
+  /**
+   * 批量添加单词到后端
+   */
+  async function batchAddVocabulary(words) {
+    loading.value = true;
+    error.value = null;
+    
+    try {
+      const response = await api.batchCreateVocabulary(words);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+  
+  /**
+   * 获取随机单词用于练习
+   */
+  async function loadRandomWords(count = 10, params = {}) {
+    loading.value = true;
+    error.value = null;
+    
+    try {
+      const response = await api.getRandomVocabulary(count, params);
+      const words = response.data.map(word => ({
+        id: word.id,
+        chinese: word.chinese,
+        original: word.original || '',
+        kana: word.kana,
+        category: word.category || '',
+        difficulty: word.difficulty || 1
+      }));
+      
+      initVocabulary(words);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+  
+  /**
+   * 获取今日待复习的单词
+   */
+  async function loadTodayReview() {
+    loading.value = true;
+    error.value = null;
+    
+    try {
+      const response = await api.getTodayReview();
+      const words = response.data.map(word => ({
+        id: word.id,
+        chinese: word.chinese,
+        original: word.original || '',
+        kana: word.kana,
+        category: word.category || '',
+        difficulty: word.difficulty || 1,
+        mastery_level: word.mastery_level,
+        next_review_date: word.next_review_date
+      }));
+      
+      initVocabulary(words);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+  
   return {
     // 数据
     vocabularyList,
@@ -245,6 +378,8 @@ export function useVocabulary() {
     originalHidden,
     rowVisibility,
     stats,
+    loading,
+    error,
     
     // 计算属性
     hasOriginalText,
@@ -265,6 +400,12 @@ export function useVocabulary() {
     toggleOriginalVisibility,
     clearAll,
     clearMistakes,
-    clearUnfamiliarWords
+    clearUnfamiliarWords,
+    
+    // API 方法
+    loadVocabularyFromAPI,
+    batchAddVocabulary,
+    loadRandomWords,
+    loadTodayReview
   };
 }

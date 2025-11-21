@@ -179,3 +179,29 @@ export function parseInput(input) {
   
   return { parsedList, analysisDetails };
 }
+
+/**
+ * 解析单词输入并返回适合 API 的格式
+ * 这个函数专门用于批量添加到数据库
+ */
+export function parseVocabularyInput(input) {
+  const { parsedList, analysisDetails } = parseInput(input);
+  
+  // 转换为 API 需要的格式
+  const words = parsedList.map(item => ({
+    chinese: item.chinese,
+    original: item.original || '',
+    kana: item.kana,
+    category: '', // 可以后续扩展分类功能
+    difficulty: 1  // 默认难度为1
+  }));
+  
+  // 生成解析信息
+  const info = `成功解析 ${words.length} 个单词${analysisDetails.length > 0 ? '；' + analysisDetails.join('；') : ''}`;
+  
+  return {
+    words,
+    info,
+    analysisDetails
+  };
+}

@@ -1,4 +1,4 @@
-# 日语单词记忆练习 - Vue 3 版本
+# 日语单词记忆练习 - Vue 3 + API 版本
 
 [![Deploy to GitHub Pages](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml/badge.svg)](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml)
 
@@ -6,9 +6,42 @@
 
 🌐 **在线访问**: https://kawaii2025.github.io/japanese-vocab/
 
-## 项目说明
+## ✨ 新功能 (2025-11-22 更新)
 
-这是将原始单页面HTML应用拆分成Vue 3组件结构的版本。所有功能和样式保持不变，但代码结构更加模块化和可维护。
+- 🗄️ **数据库集成**: 使用 PostgreSQL (Neon) 存储单词
+- 🔄 **智能复习系统**: 基于 Ebbinghaus 遗忘曲线的复习计划
+- 📊 **学习统计**: 详细的学习数据分析和可视化
+- 💾 **自动保存**: 练习结果自动同步到数据库
+- 🎯 **掌握度分级**: 6级掌握度系统（0-5）
+- 📅 **日期追踪**: 录入日期、复习日期智能管理
+- 🚀 **模块化架构**: API 重构为 MVC 架构，易于维护
+
+## 快速开始
+
+### 方式一：完整功能（前端 + 后端）
+
+**1. 启动后端 API 服务器**
+```bash
+cd api
+npm install
+node server.js
+```
+服务器运行在 `http://localhost:3001`
+
+**2. 启动前端开发服务器**
+```bash
+npm install
+npm run dev
+```
+前端运行在 `http://localhost:5173`
+
+### 方式二：仅前端（离线模式）
+
+```bash
+npm install
+npm run dev
+```
+无需后端，手动输入单词即可练习（不保存到数据库）
 
 ## 项目结构
 
