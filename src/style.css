@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义工具类 */
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  .transition-custom {
+    transition: all 0.3s ease;
+  }
+  .btn-pulse {
+    animation: pulse 0.5s ease;
+  }
+  .highlight-transition {
+    animation: highlight 1.5s ease;
+  }
+  .table-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .editing-breathing-bg {
+    animation: breathing 2s ease-in-out infinite;
+  }
+  .history-item {
+    border-left: 2px solid #ef4444;
+    padding-left: 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+  .history-item.corrected {
+    border-left-color: #10b981;
+  }
+  /* 差异对比样式 */
+  .diff-container {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    line-height: 1.5;
+  }
+  .diff-insert {
+    background-color: #dcfce7;
+    text-decoration: underline;
+    text-decoration-color: #10b981;
+    text-decoration-thickness: 2px;
+  }
+  .diff-delete {
+    background-color: #fee2e2;
+    text-decoration: line-through;
+    text-decoration-color: #ef4444;
+    text-decoration-thickness: 2px;
+  }
+  .diff-equal {
+    background-color: #f3f4f6;
+  }
+  .diff-item {
+    padding: 0 2px;
+  }
+}
+
+/* 动画定义 */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes highlight {
+  0% {
+    background-color: rgba(255, 217, 0, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes breathing {
+  0%,
+  100% {
+    background-color: rgba(139, 92, 246, 0.05);
+  }
+  50% {
+    background-color: rgba(139, 92, 246, 0.15);
+  }
+}
