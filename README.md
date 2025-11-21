@@ -1,5 +1,11 @@
 # 日语单词记忆练习 - Vue 3 版本
 
+[![Deploy to GitHub Pages](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml/badge.svg)](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml)
+
+## 在线演示
+
+🌐 **在线访问**: https://kawaii2025.github.io/japanese-vocab/
+
 ## 项目说明
 
 这是将原始单页面HTML应用拆分成Vue 3组件结构的版本。所有功能和样式保持不变，但代码结构更加模块化和可维护。
@@ -78,6 +84,21 @@ npm run dev
 ```bash
 npm run build
 ```
+
+### 预览生产构建
+```bash
+npm run preview
+```
+
+## 自动部署
+
+项目配置了 GitHub Actions 自动部署到 GitHub Pages：
+
+- ✅ 推送到 `main` 分支自动触发部署
+- ✅ 自动构建和发布到 GitHub Pages
+- ✅ 部署状态徽章显示在 README 顶部
+
+查看详细部署配置：[DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## 功能特性（与原版完全一致）
 
