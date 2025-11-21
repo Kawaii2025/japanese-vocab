@@ -21,9 +21,30 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ==================== 全局中间件 ====================
+// CORS 配置 - 允许前端访问
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || '*'
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// 添加额外的 CORS 头处理
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // 处理 OPTIONS 预检请求
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
+
 app.use(express.json());
 
 // ==================== 路由注册 ====================
@@ -38,6 +59,29 @@ app.get('/health', (req, res) => {
     message: 'API 运行正常',
     timestamp: new Date().toISOString()
   });
+});
+
+// 健康检查（包含数据库连接测试）
+app.get('/api/health', async (req, res) => {
+  try {
+    // 测试数据库连接
+    const result = await pool.query('SELECT NOW()');
+    res.json({
+      success: true,
+      message: 'API 和数据库运行正常',
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: true,
+        serverTime: result.rows[0].now
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: '数据库连接失败',
+      error: error.message
+    });
+  }
 });
 
 // 获取所有分类（独立端点）

@@ -181,33 +181,54 @@ export async function batchCreateVocabulary(req, res) {
   const client = await pool.connect();
   
   try {
-    await client.query('BEGIN');
-    
     const insertedWords = [];
+    const skippedWords = [];
+    
     for (const word of words) {
       const { chinese, original, kana, category, difficulty } = word;
       
       if (!chinese || !kana) continue;
       
-      const result = await client.query(
-        `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
-        [chinese, original, kana, category || null, difficulty || 1]
-      );
-      
-      insertedWords.push(result.rows[0]);
+      try {
+        // 使用 INSERT ... ON CONFLICT DO NOTHING 来优雅地处理重复
+        const result = await client.query(
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (chinese, kana) DO NOTHING
+           RETURNING *`,
+          [chinese, original, kana, category || null, difficulty || 1]
+        );
+        
+        if (result.rows.length > 0) {
+          insertedWords.push(result.rows[0]);
+        } else {
+          // 没有返回行说明发生了冲突（单词已存在）
+          skippedWords.push({
+            chinese,
+            kana,
+            reason: '已存在'
+          });
+        }
+      } catch (insertError) {
+        // 处理单个插入的错误
+        console.error(`插入单词失败: ${chinese} (${kana})`, insertError.message);
+        skippedWords.push({
+          chinese,
+          kana,
+          reason: insertError.message
+        });
+      }
     }
-    
-    await client.query('COMMIT');
     
     res.status(201).json({
       success: true,
       data: insertedWords,
-      total: insertedWords.length
+      total: insertedWords.length,
+      skipped: skippedWords.length,
+      skippedWords: skippedWords,
+      message: `成功添加 ${insertedWords.length} 个单词${skippedWords.length > 0 ? `，跳过 ${skippedWords.length} 个重复单词` : ''}`
     });
   } catch (error) {
-    await client.query('ROLLBACK');
     throw error;
   } finally {
     client.release();
@@ -361,5 +382,74 @@ export async function getReviewPlan(req, res) {
     data: result.rows,
     total: result.rowCount,
     days: parseInt(days)
+  });
+}
+
+// 标记单词为不熟悉
+export async function markAsUnfamiliar(req, res) {
+  const { id } = req.params;
+  const { user_id = 1 } = req.body; // 默认用户ID为1
+  
+  // 检查是否已存在
+  const checkResult = await pool.query(
+    'SELECT id FROM unfamiliar_words WHERE user_id = $1 AND vocabulary_id = $2',
+    [user_id, id]
+  );
+  
+  if (checkResult.rows.length > 0) {
+    return res.json({
+      success: true,
+      message: '该单词已在不熟悉列表中'
+    });
+  }
+  
+  // 添加到不熟悉单词表
+  await pool.query(
+    'INSERT INTO unfamiliar_words (user_id, vocabulary_id) VALUES ($1, $2)',
+    [user_id, id]
+  );
+  
+  res.json({
+    success: true,
+    message: '已标记为不熟悉'
+  });
+}
+
+// 移除不熟悉标记
+export async function removeUnfamiliarMark(req, res) {
+  const { id } = req.params;
+  const { user_id = 1 } = req.body; // 默认用户ID为1
+  
+  const result = await pool.query(
+    'DELETE FROM unfamiliar_words WHERE user_id = $1 AND vocabulary_id = $2',
+    [user_id, id]
+  );
+  
+  res.json({
+    success: true,
+    message: '已移除不熟悉标记',
+    deleted: result.rowCount
+  });
+}
+
+// 获取不熟悉单词列表
+export async function getUnfamiliarWords(req, res) {
+  const { user_id = 1 } = req.query;
+  
+  const result = await pool.query(`
+    SELECT 
+      v.*,
+      uw.marked_at,
+      uw.review_count
+    FROM unfamiliar_words uw
+    JOIN vocabulary v ON uw.vocabulary_id = v.id
+    WHERE uw.user_id = $1
+    ORDER BY uw.marked_at DESC
+  `, [user_id]);
+  
+  res.json({
+    success: true,
+    data: result.rows,
+    total: result.rowCount
   });
 }

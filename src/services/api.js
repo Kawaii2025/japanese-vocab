@@ -6,28 +6,50 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 /**
- * 通用请求处理
+ * 通用请求处理（带超时和重试）
  */
 async function request(url, options = {}) {
-  try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+  const timeout = options.timeout || 30000; // 默认30秒超时（应对数据库唤醒）
+  const retries = options.retries || 1; // 默认重试1次
+  
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      const data = await response.json();
 
-    const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '请求失败');
+      }
 
-    if (!response.ok) {
-      throw new Error(data.error || '请求失败');
+      return data;
+    } catch (error) {
+      // 如果是最后一次重试，抛出错误
+      if (i === retries) {
+        if (error.name === 'AbortError') {
+          console.error('API 请求超时:', url);
+          throw new Error('请求超时，数据库可能正在唤醒，请稍后重试');
+        }
+        console.error('API 请求错误:', error);
+        throw error;
+      }
+      
+      // 等待后重试
+      console.log(`请求失败，${i + 1}秒后重试...`);
+      await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
     }
-
-    return data;
-  } catch (error) {
-    console.error('API 请求错误:', error);
-    throw error;
   }
 }
 
@@ -204,4 +226,40 @@ export async function getMasteryDistribution() {
  */
 export async function getOverview(userId = 1) {
   return request(`/stats/overview?user_id=${userId}`);
+}
+
+// ==================== 不熟悉单词管理 ====================
+
+/**
+ * 获取不熟悉单词列表
+ */
+export async function getUnfamiliarWords(userId = 1) {
+  return request(`/vocabulary/unfamiliar/list?user_id=${userId}`);
+}
+
+/**
+ * 标记单词为不熟悉
+ */
+export async function markAsUnfamiliar(vocabularyId, userId = 1) {
+  return request(`/vocabulary/${vocabularyId}/unfamiliar`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+/**
+ * 移除不熟悉标记
+ */
+export async function removeUnfamiliarMark(vocabularyId, userId = 1) {
+  return request(`/vocabulary/${vocabularyId}/unfamiliar`, {
+    method: 'DELETE',
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+/**
+ * 获取错题列表
+ */
+export async function getMistakes(userId = 1, limit = 50) {
+  return request(`/practice/mistakes?user_id=${userId}&limit=${limit}`);
 }

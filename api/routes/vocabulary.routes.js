@@ -53,4 +53,15 @@ router.put('/:id', asyncHandler(vocabularyController.updateVocabulary));
 // 删除单词
 router.delete('/:id', asyncHandler(vocabularyController.deleteVocabulary));
 
+// ==================== 不熟悉单词管理 ====================
+
+// 获取不熟悉单词列表
+router.get('/unfamiliar/list', asyncHandler(vocabularyController.getUnfamiliarWords));
+
+// 标记单词为不熟悉
+router.post('/:id/unfamiliar', asyncHandler(vocabularyController.markAsUnfamiliar));
+
+// 移除不熟悉标记
+router.delete('/:id/unfamiliar', asyncHandler(vocabularyController.removeUnfamiliarMark));
+
 export default router;

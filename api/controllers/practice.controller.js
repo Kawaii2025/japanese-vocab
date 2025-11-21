@@ -36,3 +36,29 @@ export async function recordPractice(req, res) {
     message: is_correct ? '回答正确！' : '继续加油！'
   });
 }
+
+// 获取错题列表（最近的练习错误）
+export async function getMistakes(req, res) {
+  const { user_id = 1, limit = 50 } = req.query;
+  
+  const result = await pool.query(`
+    SELECT 
+      v.*,
+      pr.user_answer,
+      pr.practice_date,
+      pr.attempt_count,
+      pr.created_at as practiced_at
+    FROM practice_records pr
+    JOIN vocabulary v ON pr.vocabulary_id = v.id
+    WHERE pr.user_id = $1 
+      AND pr.is_correct = false
+    ORDER BY pr.created_at DESC
+    LIMIT $2
+  `, [user_id, limit]);
+  
+  res.json({
+    success: true,
+    data: result.rows,
+    total: result.rowCount
+  });
+}

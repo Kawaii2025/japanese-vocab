@@ -3,8 +3,18 @@
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-amber flex items-center">
         <i class="fa fa-question-circle mr-2"></i>不熟悉的单词
+        <span v-if="loading" class="ml-2 text-sm text-gray-500">
+          <i class="fa fa-spinner fa-spin"></i> 加载中...
+        </span>
       </h3>
       <div class="flex items-center gap-2">
+        <button 
+          @click="$emit('sync')"
+          :disabled="loading"
+          class="bg-amber-600 hover:bg-amber-700 text-white text-sm px-3 py-1 rounded transition-custom disabled:opacity-50"
+        >
+          <i class="fa fa-cloud-upload mr-1"></i>同步到服务器
+        </button>
         <button 
           @click="$emit('review')"
           class="text-amber hover:text-amber/80 text-sm transition-custom flex items-center"
@@ -75,6 +85,7 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { readJapanese } from '../utils/helpers';
 
 defineProps({
@@ -84,7 +95,9 @@ defineProps({
   }
 });
 
-defineEmits(['review', 'clear']);
+defineEmits(['review', 'clear', 'sync']);
+
+const loading = ref(false);
 
 function handleRead(kana, event) {
   readJapanese(kana);

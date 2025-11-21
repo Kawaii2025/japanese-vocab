@@ -7,6 +7,9 @@ import * as practiceController from '../controllers/practice.controller.js';
 
 const router = express.Router();
 
+// 获取错题列表
+router.get('/mistakes', asyncHandler(practiceController.getMistakes));
+
 // 记录练习结果（会自动触发复习计划更新）
 router.post('/', asyncHandler(practiceController.recordPractice));
 

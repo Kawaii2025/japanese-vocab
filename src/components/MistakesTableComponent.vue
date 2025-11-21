@@ -3,8 +3,18 @@
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-error flex items-center">
         <i class="fa fa-exclamation-circle mr-2"></i>错题历史记录
+        <span v-if="loading" class="ml-2 text-sm text-gray-500">
+          <i class="fa fa-spinner fa-spin"></i> 加载中...
+        </span>
       </h3>
       <div class="flex items-center gap-2">
+        <button 
+          @click="$emit('loadFromAPI')"
+          :disabled="loading"
+          class="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1 rounded transition-custom disabled:opacity-50"
+        >
+          <i class="fa fa-cloud-download mr-1"></i>从服务器加载
+        </button>
         <button 
           @click="$emit('goToLastInput')"
           :disabled="!canGoToLastInput"
@@ -99,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { generateDiffHtml, readJapanese } from '../utils/helpers';
 
 const props = defineProps({
@@ -113,7 +123,9 @@ const props = defineProps({
   }
 });
 
-defineEmits(['goToLastInput', 'copy', 'clear']);
+defineEmits(['goToLastInput', 'copy', 'clear', 'loadFromAPI']);
+
+const loading = ref(false);
 
 const sortedMistakes = computed(() => {
   return [...props.mistakesList].sort((a, b) => b.timestamp - a.timestamp);
