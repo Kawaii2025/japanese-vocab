@@ -77,11 +77,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from '../composables/useToast.js';
+import { useConfirm } from '../composables/useConfirm.js';
 import VocabInputComponent from '../components/VocabInputComponent.vue';
 import * as api from '../services/api.js';
 import { formatBeijingTime } from '../utils/dateFormatter.js';
 
 const router = useRouter();
+const toast = useToast();
+const confirm = useConfirm();
 const vocabInputRef = ref(null);
 const recentWords = ref([]);
 
@@ -109,7 +113,10 @@ async function batchAddVocabulary(words) {
     const skippedList = response.skippedWords
       .map(w => `${w.chinese}(${w.kana})`)
       .join('、');
-    alert(`${response.message}\n\n跳过的单词: ${skippedList}`);
+    toast.warning(
+      `${response.message}\n跳过的单词: ${skippedList}`,
+      '部分单词已存在'
+    );
   }
   
   // 刷新最近添加的单词列表
@@ -119,13 +126,15 @@ async function batchAddVocabulary(words) {
 
 // 删除单词
 async function deleteWord(id) {
-  if (!confirm('确定要删除这个单词吗？')) return;
-  
   try {
+    await confirm.danger('删除后无法恢复，确定要删除这个单词吗？', '确认删除');
     await api.deleteVocabulary(id);
     recentWords.value = recentWords.value.filter(w => w.id !== id);
+    toast.success('删除成功');
   } catch (error) {
-    alert('删除失败: ' + error.message);
+    if (error !== false) { // false 表示用户取消
+      toast.error('删除失败: ' + error.message);
+    }
   }
 }
 

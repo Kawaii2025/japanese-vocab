@@ -3,6 +3,7 @@
  */
 import pool from '../db.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
+import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
 
 // 获取所有单词（带分页，默认第一页）
 export async function getAllVocabulary(req, res) {
@@ -299,7 +300,7 @@ export async function getAllCategories(req, res) {
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
   const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE input_date = CURRENT_DATE ORDER BY created_at DESC'
+    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at DESC`
   );
   
   res.json({
@@ -352,7 +353,7 @@ export async function getVocabularyByDateRange(req, res) {
 // 获取今日待复习的单词
 export async function getTodayReview(req, res) {
   const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE next_review_date <= CURRENT_DATE ORDER BY next_review_date ASC, mastery_level ASC'
+    `SELECT * FROM vocabulary WHERE next_review_date <= ${BEIJING_CURRENT_DATE} ORDER BY next_review_date ASC, mastery_level ASC`
   );
   
   res.json({
@@ -371,7 +372,7 @@ export async function getReviewPlan(req, res) {
       COUNT(*) as word_count,
       json_agg(json_build_object('id', id, 'chinese', chinese, 'kana', kana, 'mastery_level', mastery_level)) as words
     FROM vocabulary 
-    WHERE next_review_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $1::integer
+    WHERE next_review_date BETWEEN ${BEIJING_CURRENT_DATE} AND ${BEIJING_CURRENT_DATE} + $1::integer
     GROUP BY next_review_date
     ORDER BY next_review_date`,
     [days]

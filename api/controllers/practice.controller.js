@@ -2,6 +2,7 @@
  * 练习记录相关业务逻辑控制器
  */
 import pool from '../db.js';
+import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
 
 // 记录练习结果（会自动触发复习计划更新）
 export async function recordPractice(req, res) {
@@ -16,7 +17,7 @@ export async function recordPractice(req, res) {
   
   const result = await pool.query(
     `INSERT INTO practice_records (user_id, vocabulary_id, user_answer, is_correct, attempt_count, practice_date)
-     VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
+     VALUES ($1, $2, $3, $4, $5, ${BEIJING_CURRENT_DATE})
      RETURNING *`,
     [user_id, vocabulary_id, user_answer, is_correct, attempt_count]
   );

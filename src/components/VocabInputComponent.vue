@@ -49,28 +49,13 @@
         <span>{{ parseInfo }}</span>
       </p>
     </div>
-    
-    <!-- 成功提示 -->
-    <div v-if="successMessage" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-      <p class="text-sm text-green-700 flex items-center">
-        <i class="fa fa-check-circle mr-2"></i>
-        <span>{{ successMessage }}</span>
-      </p>
-    </div>
-    
-    <!-- 错误提示 -->
-    <div v-if="errorMessage" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-      <p class="text-sm text-red-700 flex items-center">
-        <i class="fa fa-exclamation-circle mr-2"></i>
-        <span>{{ errorMessage }}</span>
-      </p>
-    </div>
   </section>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { parseVocabularyInput } from '../utils/parser.js';
+import { useToast } from '../composables/useToast.js';
 
 const props = defineProps({
   defaultValue: {
@@ -99,8 +84,9 @@ const emit = defineEmits(['submit']);
 const inputValue = ref(props.defaultValue);
 const parseInfo = ref('');
 const loading = ref(false);
-const successMessage = ref('');
-const errorMessage = ref('');
+
+// 使用 Toast
+const toast = useToast();
 
 function handleSubmit() {
   emit('submit', inputValue.value);
@@ -108,20 +94,16 @@ function handleSubmit() {
 
 async function handleSaveToAPI() {
   if (!props.batchAddVocabulary) {
-    errorMessage.value = '批量添加功能未初始化';
-    setTimeout(() => errorMessage.value = '', 3000);
+    toast.error('批量添加功能未初始化');
     return;
   }
   
   if (!inputValue.value.trim()) {
-    errorMessage.value = '请输入单词信息';
-    setTimeout(() => errorMessage.value = '', 3000);
+    toast.warning('请输入单词信息');
     return;
   }
   
   loading.value = true;
-  successMessage.value = '';
-  errorMessage.value = '';
   parseInfo.value = '';
   
   try {
@@ -135,18 +117,16 @@ async function handleSaveToAPI() {
     // 保存到数据库
     const response = await props.batchAddVocabulary(words);
     
-    successMessage.value = `成功保存 ${response.total} 个单词到数据库！`;
+    toast.success(`成功保存 ${response.total} 个单词到数据库！`, '保存成功');
     parseInfo.value = info;
     
     // 清空输入
     setTimeout(() => {
       inputValue.value = '';
-      successMessage.value = '';
       parseInfo.value = '';
-    }, 3000);
+    }, 2000);
   } catch (error) {
-    errorMessage.value = `保存失败: ${error.message}`;
-    setTimeout(() => errorMessage.value = '', 5000);
+    toast.error(error.message || '保存失败，请重试', '保存失败');
   } finally {
     loading.value = false;
   }
@@ -159,8 +139,6 @@ function setParseInfo(info) {
 function clearInput() {
   inputValue.value = '';
   parseInfo.value = '';
-  successMessage.value = '';
-  errorMessage.value = '';
 }
 
 defineExpose({

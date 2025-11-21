@@ -2,6 +2,7 @@
  * 统计相关业务逻辑控制器
  */
 import pool from '../db.js';
+import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
 
 // 获取每日录入统计
 export async function getDailyInputStats(req, res) {
@@ -12,7 +13,7 @@ export async function getDailyInputStats(req, res) {
       COUNT(*) as word_count,
       COUNT(CASE WHEN mastery_level >= 3 THEN 1 END) as mastered_count
     FROM vocabulary
-    WHERE input_date >= CURRENT_DATE - $1::integer
+    WHERE input_date >= ${BEIJING_CURRENT_DATE} - $1::integer
     GROUP BY input_date
     ORDER BY input_date DESC`,
     [days]
@@ -36,7 +37,7 @@ export async function getDailyPracticeStats(req, res) {
       SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count,
       ROUND(AVG(CASE WHEN is_correct THEN 100.0 ELSE 0 END), 2) as accuracy_rate
     FROM practice_records
-    WHERE user_id = $1 AND practice_date >= CURRENT_DATE - $2::integer
+    WHERE user_id = $1 AND practice_date >= ${BEIJING_CURRENT_DATE} - $2::integer
     GROUP BY practice_date
     ORDER BY practice_date DESC`,
     [user_id, days]
@@ -75,13 +76,13 @@ export async function getOverview(req, res) {
   // 获取多个统计数据
   const [totalWords, todayInput, todayReview, totalPractice, recentAccuracy] = await Promise.all([
     pool.query('SELECT COUNT(*) as count FROM vocabulary'),
-    pool.query('SELECT COUNT(*) as count FROM vocabulary WHERE input_date = CURRENT_DATE'),
-    pool.query('SELECT COUNT(*) as count FROM vocabulary WHERE next_review_date <= CURRENT_DATE'),
+    pool.query(`SELECT COUNT(*) as count FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE}`),
+    pool.query(`SELECT COUNT(*) as count FROM vocabulary WHERE next_review_date <= ${BEIJING_CURRENT_DATE}`),
     pool.query('SELECT COUNT(*) as count FROM practice_records WHERE user_id = $1', [user_id]),
     pool.query(
       `SELECT ROUND(AVG(CASE WHEN is_correct THEN 100.0 ELSE 0 END), 2) as rate
        FROM practice_records 
-       WHERE user_id = $1 AND practice_date >= CURRENT_DATE - 7`,
+       WHERE user_id = $1 AND practice_date >= ${BEIJING_CURRENT_DATE} - 7`,
       [user_id]
     )
   ]);

@@ -131,15 +131,6 @@
         @loadFromAPI="loadMistakesFromAPI"
       />
       
-      <!-- 消息提示 -->
-      <div 
-        v-if="message.show"
-        class="mt-4 text-center font-medium px-4 py-2 rounded-lg transition-custom"
-        :class="messageClasses"
-      >
-        {{ message.text }}
-      </div>
-      
       <!-- 统计信息 -->
       <StatsComponent 
         v-if="vocabularyList.length > 0"
@@ -165,10 +156,14 @@ import UnfamiliarWordsComponent from '../components/UnfamiliarWordsComponent.vue
 import MistakesTableComponent from '../components/MistakesTableComponent.vue';
 import StatsComponent from '../components/StatsComponent.vue';
 import { useVocabulary } from '../composables/useVocabulary';
+import { useToast } from '../composables/useToast';
+import { useConfirm } from '../composables/useConfirm';
 import { getDiff } from '../utils/helpers';
 import * as api from '../services/api.js';
 
 const router = useRouter();
+const toast = useToast();
+const confirm = useConfirm();
 
 // 使用组合式函数
 const {
@@ -220,29 +215,6 @@ const pagination = ref({
 
 const pageSize = ref(20);
 
-// 消息提示
-const message = ref({
-  show: false,
-  text: '',
-  type: 'info'
-});
-
-const messageClasses = computed(() => {
-  const classes = [];
-  switch (message.value.type) {
-    case 'success':
-      classes.push('bg-green-50', 'text-green-700', 'border', 'border-green-200');
-      break;
-    case 'error':
-      classes.push('bg-red-50', 'text-red-700', 'border', 'border-red-200');
-      break;
-    case 'info':
-      classes.push('bg-blue-50', 'text-blue-700', 'border', 'border-blue-200');
-      break;
-  }
-  return classes;
-});
-
 // 加载指定页
 async function loadPage(page) {
   try {
@@ -251,9 +223,9 @@ async function loadPage(page) {
       pageSize: pageSize.value 
     });
     pagination.value = response.pagination;
-    showMessage(`已加载第 ${page} 页`, 'success');
+    toast.success(`已加载第 ${page} 页`);
   } catch (err) {
-    showMessage('加载失败: ' + err.message, 'error');
+    toast.error('加载失败: ' + err.message);
   }
 }
 
@@ -267,9 +239,9 @@ async function changePageSize() {
 async function loadRandomPractice() {
   try {
     await loadRandomWords(20);
-    showMessage('已加载20个随机单词', 'success');
+    toast.success('已加载20个随机单词');
   } catch (err) {
-    showMessage('加载失败: ' + err.message, 'error');
+    toast.error('加载失败: ' + err.message);
   }
 }
 
@@ -278,12 +250,12 @@ async function loadTodayReview() {
   try {
     const response = await loadTodayReviewAPI();
     if (response.total === 0) {
-      showMessage('今天没有需要复习的单词！', 'info');
+      toast.info('今天没有需要复习的单词！');
     } else {
-      showMessage(`已加载${response.total}个待复习单词`, 'success');
+      toast.success(`已加载${response.total}个待复习单词`);
     }
   } catch (err) {
-    showMessage('加载失败: ' + err.message, 'error');
+    toast.error('加载失败: ' + err.message);
   }
 }
 
@@ -296,9 +268,9 @@ async function syncUnfamiliarToAPI() {
     for (const word of unfamiliarWords.value) {
       await api.markAsUnfamiliar(word.id);
     }
-    showMessage(`已同步 ${unfamiliarWords.value.length} 个不熟悉单词`, 'success');
+    toast.success(`已同步 ${unfamiliarWords.value.length} 个不熟悉单词`);
   } catch (err) {
-    showMessage('同步失败: ' + err.message, 'error');
+    toast.error('同步失败: ' + err.message);
   } finally {
     loading.value = false;
   }
@@ -321,9 +293,9 @@ async function loadMistakesFromAPI() {
     
     // 合并到当前错题列表
     mistakesList.value = [...apiMistakes, ...mistakesList.value];
-    showMessage(`已加载 ${response.total} 个错题`, 'success');
+    toast.success(`已加载 ${response.total} 个错题`);
   } catch (err) {
-    showMessage('加载失败: ' + err.message, 'error');
+    toast.error('加载失败: ' + err.message);
   } finally {
     loading.value = false;
   }
@@ -339,20 +311,12 @@ onMounted(async () => {
     });
     console.log('API response:', response);
     pagination.value = response.pagination;
-    showMessage(`已加载 ${response.data.length} 个单词`, 'success');
+    toast.success(`已加载 ${response.data.length} 个单词`);
   } catch (err) {
     console.error('无法连接到API服务器:', err);
-    showMessage('无法连接到服务器，请检查后端是否启动', 'error');
+    toast.error('无法连接到服务器，请检查后端是否启动');
   }
 });
-
-// 显示消息
-function showMessage(text, type = 'info') {
-  message.value = { show: true, text, type };
-  setTimeout(() => {
-    message.value.show = false;
-  }, 3000);
-}
 
 // 事件处理器
 async function handleCheckAnswer(index, userAnswer) {
@@ -395,7 +359,7 @@ function handleToggleRowKana(index) {
 
 function handleShuffle() {
   shuffleWords();
-  showMessage('已打乱顺序', 'info');
+  toast.info('已打乱顺序');
 }
 
 function handleToggleKana() {
@@ -412,7 +376,7 @@ function handleExportUnfinished() {
   const text = unfinished.map(w => `${w.chinese},${w.original},${w.kana}`).join('\n');
   
   navigator.clipboard.writeText(text);
-  showMessage(`已复制${unfinished.length}个未完成单词`, 'success');
+  toast.success(`已复制${unfinished.length}个未完成单词`);
 }
 
 function handleExportCombined() {
@@ -420,23 +384,26 @@ function handleExportCombined() {
   const text = vocabularyList.value.map(w => `${w.chinese},${w.original},${w.kana}`).join('\n');
   
   navigator.clipboard.writeText(text);
-  showMessage(`已复制${vocabularyList.value.length}个单词`, 'success');
+  toast.success(`已复制${vocabularyList.value.length}个单词`);
 }
 
-function handleClearAll() {
-  if (confirm('确定要清空所有内容吗？')) {
+async function handleClearAll() {
+  try {
+    await confirm.warning('清空后将无法恢复，确定要清空所有内容吗？', '确认清空');
     clearAll();
-    showMessage('已清空', 'info');
+    toast.info('已清空');
+  } catch (error) {
+    // 用户取消，不做任何操作
   }
 }
 
 function handleReviewUnfamiliar() {
-  showMessage('复习不熟悉单词...', 'info');
+  toast.info('复习不熟悉单词...');
 }
 
 function handleClearUnfamiliar() {
   clearUnfamiliarWords();
-  showMessage('已清空不熟悉单词', 'info');
+  toast.info('已清空不熟悉单词');
 }
 
 function handleGoToLastInput() {
@@ -452,11 +419,11 @@ function handleCopyMistakes() {
     .join('\n');
   
   navigator.clipboard.writeText(text);
-  showMessage(`已复制${mistakesList.value.filter(m => !m.corrected).length}个错题`, 'success');
+  toast.success(`已复制${mistakesList.value.filter(m => !m.corrected).length}个错题`);
 }
 
 function handleClearMistakes() {
   clearMistakes();
-  showMessage('已清空错题', 'info');
+  toast.info('已清空错题');
 }
 </script>
