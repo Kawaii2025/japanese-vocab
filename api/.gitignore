@@ -1,0 +1,11 @@
+# 环境变量文件（包含敏感信息，不要提交）
+.env
+.env.local
+.env.*.local
+
+# 依赖
+node_modules/
+
+# 日志
+*.log
+npm-debug.log*

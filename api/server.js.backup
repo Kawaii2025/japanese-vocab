@@ -1,0 +1,717 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import pool from './db.js';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// 中间件
+app.use(cors({
+  origin: process.env.CORS_ORIGIN?.split(',') || '*'
+}));
+app.use(express.json());
+
+// ==================== 单词相关 API ====================
+
+// 获取所有单词（带分页，默认第一页）
+app.get('/api/vocabulary', async (req, res) => {
+  try {
+    const { category, difficulty, page, pageSize, limit, offset } = req.query;
+    
+    // 构建 WHERE 条件
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (category) {
+      whereClause += ` AND category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+    
+    if (difficulty) {
+      whereClause += ` AND difficulty <= $${paramIndex}`;
+      params.push(difficulty);
+      paramIndex++;
+    }
+    
+    // 1. 先查询总数
+    const countQuery = `SELECT COUNT(*) FROM vocabulary ${whereClause}`;
+    const countResult = await pool.query(countQuery, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // 2. 计算分页参数（默认：第1页，每页20条）
+    let actualLimit, actualOffset, currentPage;
+    
+    // 优先使用 page/pageSize（推荐），否则使用 limit/offset（兼容旧版）
+    if (limit !== undefined || offset !== undefined) {
+      // 兼容旧版 API
+      actualLimit = limit ? parseInt(limit) : 20;
+      actualOffset = offset ? parseInt(offset) : 0;
+      currentPage = Math.floor(actualOffset / actualLimit) + 1;
+    } else {
+      // 使用页码分页（默认第1页，每页20条）
+      currentPage = page ? parseInt(page) : 1;
+      const currentPageSize = pageSize ? parseInt(pageSize) : 20;
+      actualLimit = currentPageSize;
+      actualOffset = (currentPage - 1) * currentPageSize;
+    }
+    
+    // 3. 查询数据（始终使用分页，防止性能问题）
+    const dataQuery = `
+      SELECT * FROM vocabulary 
+      ${whereClause}
+      ORDER BY id
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    const dataParams = [...params, actualLimit, actualOffset];
+    const dataResult = await pool.query(dataQuery, dataParams);
+    
+    // 4. 计算分页信息
+    const totalPages = Math.ceil(totalCount / actualLimit);
+    
+    res.json({
+      success: true,
+      data: dataResult.rows,
+      pagination: {
+        total: totalCount,           // 总记录数
+        page: currentPage,            // 当前页码
+        pageSize: actualLimit,        // 每页条数
+        totalPages: totalPages,       // 总页数
+        hasNext: currentPage < totalPages,    // 是否有下一页
+        hasPrev: currentPage > 1              // 是否有上一页
+      }
+    });
+  } catch (error) {
+    console.error('获取单词列表失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取单词列表失败'
+    });
+  }
+});
+
+// 获取单个单词
+app.get('/api/vocabulary/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM vocabulary WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: '单词不存在'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('获取单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取单词失败'
+    });
+  }
+});
+
+// 随机获取单词（用于练习）
+app.get('/api/vocabulary/random/:count', async (req, res) => {
+  try {
+    const { count } = req.params;
+    const { category, difficulty } = req.query;
+    
+    let query = 'SELECT * FROM vocabulary WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (category) {
+      query += ` AND category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+    
+    if (difficulty) {
+      query += ` AND difficulty <= $${paramIndex}`;
+      params.push(difficulty);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
+    params.push(count);
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount
+    });
+  } catch (error) {
+    console.error('获取随机单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取随机单词失败'
+    });
+  }
+});
+
+// 搜索单词（带分页）
+app.get('/api/vocabulary/search/:keyword', async (req, res) => {
+  try {
+    const { keyword } = req.params;
+    const { page = 1, pageSize = 20 } = req.query;
+    
+    const searchPattern = `%${keyword}%`;
+    
+    // 1. 查询总数
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM vocabulary 
+       WHERE chinese LIKE $1 OR kana LIKE $1 OR original LIKE $1`,
+      [searchPattern]
+    );
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // 2. 计算分页
+    const currentPage = parseInt(page);
+    const currentPageSize = parseInt(pageSize);
+    const offset = (currentPage - 1) * currentPageSize;
+    
+    // 3. 查询数据
+    const result = await pool.query(
+      `SELECT * FROM vocabulary 
+       WHERE chinese LIKE $1 OR kana LIKE $1 OR original LIKE $1
+       ORDER BY id
+       LIMIT $2 OFFSET $3`,
+      [searchPattern, currentPageSize, offset]
+    );
+    
+    // 4. 计算分页信息
+    const totalPages = Math.ceil(totalCount / currentPageSize);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      keyword: keyword,
+      pagination: {
+        total: totalCount,
+        page: currentPage,
+        pageSize: currentPageSize,
+        totalPages: totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
+    });
+  } catch (error) {
+    console.error('搜索单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '搜索单词失败'
+    });
+  }
+});
+
+// 创建单词
+app.post('/api/vocabulary', async (req, res) => {
+  try {
+    const { chinese, original, kana, category, difficulty } = req.body;
+    
+    if (!chinese || !kana) {
+      return res.status(400).json({
+        success: false,
+        error: '中文意思和假名不能为空'
+      });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [chinese, original, kana, category || null, difficulty || 1]
+    );
+    
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('创建单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '创建单词失败'
+    });
+  }
+});
+
+// 批量创建单词
+app.post('/api/vocabulary/batch', async (req, res) => {
+  try {
+    const { words } = req.body;
+    
+    if (!Array.isArray(words) || words.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '单词列表不能为空'
+      });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      const insertedWords = [];
+      for (const word of words) {
+        const { chinese, original, kana, category, difficulty } = word;
+        
+        if (!chinese || !kana) continue;
+        
+        const result = await client.query(
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [chinese, original, kana, category || null, difficulty || 1]
+        );
+        
+        insertedWords.push(result.rows[0]);
+      }
+      
+      await client.query('COMMIT');
+      
+      res.status(201).json({
+        success: true,
+        data: insertedWords,
+        total: insertedWords.length
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('批量创建单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '批量创建单词失败'
+    });
+  }
+});
+
+// 更新单词
+app.put('/api/vocabulary/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { chinese, original, kana, category, difficulty } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE vocabulary 
+       SET chinese = $1, original = $2, kana = $3, category = $4, difficulty = $5
+       WHERE id = $6
+       RETURNING *`,
+      [chinese, original, kana, category, difficulty, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: '单词不存在'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('更新单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '更新单词失败'
+    });
+  }
+});
+
+// 删除单词
+app.delete('/api/vocabulary/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'DELETE FROM vocabulary WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: '单词不存在'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: '删除成功'
+    });
+  } catch (error) {
+    console.error('删除单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '删除单词失败'
+    });
+  }
+});
+
+// ==================== 分类相关 API ====================
+
+// 获取所有分类
+app.get('/api/categories', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT DISTINCT category FROM vocabulary WHERE category IS NOT NULL ORDER BY category'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows.map(row => row.category)
+    });
+  } catch (error) {
+    console.error('获取分类失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取分类失败'
+    });
+  }
+});
+
+// ==================== 健康检查 ====================
+
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API 运行正常',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 启动服务器
+app.listen(PORT, () => {
+  console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
+  console.log(`📚 API 文档: http://localhost:${PORT}/api`);
+});
+
+// ==================== 日期相关 API ====================
+
+// 获取今日录入的单词
+app.get('/api/vocabulary/today', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM vocabulary WHERE input_date = CURRENT_DATE ORDER BY created_at DESC'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount
+    });
+  } catch (error) {
+    console.error('获取今日单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取今日单词失败'
+    });
+  }
+});
+
+// 获取指定日期的单词
+app.get('/api/vocabulary/by-date/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM vocabulary WHERE input_date = $1 ORDER BY created_at DESC',
+      [date]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount,
+      date: date
+    });
+  } catch (error) {
+    console.error('获取指定日期单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取指定日期单词失败'
+    });
+  }
+});
+
+// 获取日期范围内的单词
+app.get('/api/vocabulary/date-range', async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    
+    if (!start || !end) {
+      return res.status(400).json({
+        success: false,
+        error: '请提供 start 和 end 参数'
+      });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM vocabulary WHERE input_date BETWEEN $1 AND $2 ORDER BY input_date DESC, created_at DESC',
+      [start, end]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount,
+      dateRange: { start, end }
+    });
+  } catch (error) {
+    console.error('获取日期范围单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取日期范围单词失败'
+    });
+  }
+});
+
+// 获取今日待复习的单词
+app.get('/api/vocabulary/review/today', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM vocabulary WHERE next_review_date <= CURRENT_DATE ORDER BY next_review_date ASC, mastery_level ASC'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount
+    });
+  } catch (error) {
+    console.error('获取待复习单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取待复习单词失败'
+    });
+  }
+});
+
+// 获取未来N天的复习计划
+app.get('/api/vocabulary/review/plan', async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    const result = await pool.query(
+      `SELECT 
+        next_review_date as date,
+        COUNT(*) as word_count,
+        json_agg(json_build_object('id', id, 'chinese', chinese, 'kana', kana, 'mastery_level', mastery_level)) as words
+      FROM vocabulary 
+      WHERE next_review_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $1::integer
+      GROUP BY next_review_date
+      ORDER BY next_review_date`,
+      [days]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount,
+      days: parseInt(days)
+    });
+  } catch (error) {
+    console.error('获取复习计划失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取复习计划失败'
+    });
+  }
+});
+
+// 记录练习结果（会自动触发复习计划更新）
+app.post('/api/practice', async (req, res) => {
+  try {
+    const { user_id = 1, vocabulary_id, user_answer, is_correct, attempt_count = 1 } = req.body;
+    
+    if (!vocabulary_id || user_answer === undefined || is_correct === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要参数：vocabulary_id, user_answer, is_correct'
+      });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO practice_records (user_id, vocabulary_id, user_answer, is_correct, attempt_count, practice_date)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
+       RETURNING *`,
+      [user_id, vocabulary_id, user_answer, is_correct, attempt_count]
+    );
+    
+    // 获取更新后的单词信息
+    const vocabResult = await pool.query(
+      'SELECT id, chinese, kana, mastery_level, next_review_date, review_count FROM vocabulary WHERE id = $1',
+      [vocabulary_id]
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        practice: result.rows[0],
+        vocabulary: vocabResult.rows[0]
+      },
+      message: is_correct ? '回答正确！' : '继续加油！'
+    });
+  } catch (error) {
+    console.error('记录练习失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '记录练习失败'
+    });
+  }
+});
+
+// ==================== 统计相关 API ====================
+
+// 获取每日录入统计
+app.get('/api/stats/daily-input', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const result = await pool.query(
+      `SELECT 
+        input_date,
+        COUNT(*) as word_count,
+        COUNT(CASE WHEN mastery_level >= 3 THEN 1 END) as mastered_count
+      FROM vocabulary
+      WHERE input_date >= CURRENT_DATE - $1::integer
+      GROUP BY input_date
+      ORDER BY input_date DESC`,
+      [days]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount,
+      days: parseInt(days)
+    });
+  } catch (error) {
+    console.error('获取每日录入统计失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取每日录入统计失败'
+    });
+  }
+});
+
+// 获取每日练习统计
+app.get('/api/stats/daily-practice', async (req, res) => {
+  try {
+    const { user_id = 1, days = 30 } = req.query;
+    const result = await pool.query(
+      `SELECT 
+        practice_date,
+        COUNT(*) as practice_count,
+        SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count,
+        ROUND(AVG(CASE WHEN is_correct THEN 100.0 ELSE 0 END), 2) as accuracy_rate
+      FROM practice_records
+      WHERE user_id = $1 AND practice_date >= CURRENT_DATE - $2::integer
+      GROUP BY practice_date
+      ORDER BY practice_date DESC`,
+      [user_id, days]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      total: result.rowCount,
+      days: parseInt(days)
+    });
+  } catch (error) {
+    console.error('获取每日练习统计失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取每日练习统计失败'
+    });
+  }
+});
+
+// 获取掌握程度分布
+app.get('/api/stats/mastery-distribution', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        mastery_level,
+        COUNT(*) as word_count,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM vocabulary), 2) as percentage
+      FROM vocabulary
+      GROUP BY mastery_level
+      ORDER BY mastery_level`
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('获取掌握程度分布失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取掌握程度分布失败'
+    });
+  }
+});
+
+// 获取学习概览
+app.get('/api/stats/overview', async (req, res) => {
+  try {
+    const { user_id = 1 } = req.query;
+    
+    // 获取多个统计数据
+    const [totalWords, todayInput, todayReview, totalPractice, recentAccuracy] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM vocabulary'),
+      pool.query('SELECT COUNT(*) as count FROM vocabulary WHERE input_date = CURRENT_DATE'),
+      pool.query('SELECT COUNT(*) as count FROM vocabulary WHERE next_review_date <= CURRENT_DATE'),
+      pool.query('SELECT COUNT(*) as count FROM practice_records WHERE user_id = $1', [user_id]),
+      pool.query(
+        `SELECT ROUND(AVG(CASE WHEN is_correct THEN 100.0 ELSE 0 END), 2) as rate
+         FROM practice_records 
+         WHERE user_id = $1 AND practice_date >= CURRENT_DATE - 7`,
+        [user_id]
+      )
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        totalWords: parseInt(totalWords.rows[0].count),
+        todayInput: parseInt(todayInput.rows[0].count),
+        todayReview: parseInt(todayReview.rows[0].count),
+        totalPractice: parseInt(totalPractice.rows[0].count),
+        recentAccuracy: parseFloat(recentAccuracy.rows[0].rate) || 0
+      }
+    });
+  } catch (error) {
+    console.error('获取学习概览失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取学习概览失败'
+    });
+  }
+});
+
+// 优雅关闭
+process.on('SIGINT', async () => {
+  console.log('\n正在关闭服务器...');
+  await pool.end();
+  process.exit(0);
+});
