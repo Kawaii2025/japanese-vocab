@@ -37,6 +37,17 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Debug - List dist contents
+        run: |
+          echo "=== Checking dist folder ==="
+          ls -la dist/
+          echo "=== Checking dist/assets ==="
+          ls -la dist/assets/ || echo "assets folder not found"
+          echo "=== Index.html content (first 30 lines) ==="
+          head -30 dist/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
