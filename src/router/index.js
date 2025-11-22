@@ -15,9 +15,8 @@ const routes = [
   }
 ];
 
-
 const router = createRouter({
-  history: createWebHistory(import.meta.env.VITE_BASE_PATH || '/'),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 });
 
