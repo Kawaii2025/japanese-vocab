@@ -6,144 +6,135 @@
       
       <!-- 功能区域 -->
       <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <!-- 操作按钮区 -->
-        <div class="flex flex-wrap gap-3 mb-6">
-          <button 
-            @click="$router.push('/add')"
-            class="btn-action btn-success"
-          >
-            <i class="fa fa-plus mr-2"></i>添加单词
-          </button>
-          
-          <button 
-            @click="loadRandomPractice"
-            :disabled="loading"
-            class="btn-action btn-primary"
-          >
-            <i class="fa fa-random mr-2"></i>
-            {{ loading ? '加载中...' : '随机练习' }}
-          </button>
-          
-          <button 
-            @click="loadTodayReview"
-            :disabled="loading"
-            class="btn-action btn-warning"
-          >
-            <i class="fa fa-calendar-check-o mr-2"></i>
-            <span>今日复习</span>
-            <span v-if="todayReviewCount > 0" class="badge-count">{{ todayReviewCount }}</span>
-          </button>
-        </div>
-        
-        <!-- 分页控件 -->
-        <div v-if="pagination.total > 0" class="pagination-container">
-          <div class="pagination-info">
-            <i class="fa fa-book text-primary mr-2"></i>
-            <span class="text-sm font-medium text-gray-700">
-              共 <span class="text-primary font-bold">{{ pagination.total }}</span> 个单词
-            </span>
+        <template v-if="vocabularyList.length > 0">
+          <!-- 操作按钮区 -->
+          <div class="flex flex-wrap gap-3 mb-6">
+            <button 
+              @click="$router.push('/add')"
+              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
+            >
+              <i class="fa fa-plus mr-2"></i>添加单词
+            </button>
+            <button 
+              @click="loadRandomPractice"
+              :disabled="loading"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
+            >
+              <i class="fa fa-random mr-2"></i>
+              {{ loading ? '加载中...' : '随机练习' }}
+            </button>
+            <button 
+              @click="loadTodayReview"
+              :disabled="loading"
+              class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-custom flex items-center relative"
+            >
+              <i class="fa fa-calendar-check-o mr-2"></i>
+              <span>今日复习</span>
+              <span v-if="todayReviewCount > 0" class="absolute top-0 right-0 -mt-2 -mr-2 bg-white text-orange-500 text-xs rounded-full h-5 w-5 flex items-center justify-center border border-orange-300 shadow">{{ todayReviewCount }}</span>
+            </button>
           </div>
-          
-          <div class="pagination-controls">
-            <button 
-              @click="loadPage(1)"
-              :disabled="!pagination.hasPrev || loading"
-              class="pagination-btn"
-              title="第一页"
-            >
-              <i class="fa fa-angle-double-left"></i>
-            </button>
-            
-            <button 
-              @click="loadPage(pagination.page - 1)"
-              :disabled="!pagination.hasPrev || loading"
-              class="pagination-btn"
-              title="上一页"
-            >
-              <i class="fa fa-angle-left"></i>
-            </button>
-            
-            <div class="pagination-current">
-              <span class="text-primary font-bold">{{ pagination.page }}</span>
-              <span class="text-gray-400 mx-1">/</span>
-              <span class="text-gray-600">{{ pagination.totalPages }}</span>
+          <VocabTableComponent 
+            ref="vocabTableRef"
+            :vocabularyList="vocabularyList"
+            :practiceResults="practiceResults"
+            :rowVisibility="rowVisibility"
+            :kanaHidden="kanaHidden"
+            :originalHidden="originalHidden"
+            :hasOriginalText="hasOriginalText"
+            :activeMistakes="activeMistakes"
+            @shuffle="handleShuffle"
+            @toggleKana="handleToggleKana"
+            @toggleOriginal="handleToggleOriginal"
+            @exportUnfinished="handleExportUnfinished"
+            @exportCombined="handleExportCombined"
+            @clear="handleClearAll"
+            @checkAnswer="handleCheckAnswer"
+            @enableEditing="handleEnableEditing"
+            @toggleRowOriginal="handleToggleRowOriginal"
+            @toggleRowKana="handleToggleRowKana"
+            @updateInput="handleUpdateInput"
+          />
+          <!-- 分页控件（表格下方） -->
+          <div v-if="pagination.total > 0" class="pagination-container mt-8">
+            <div class="pagination-info">
+              <i class="fa fa-book text-primary mr-2"></i>
+              <span class="text-sm font-medium text-gray-700">
+                共 <span class="text-primary font-bold">{{ pagination.total }}</span> 个单词
+              </span>
             </div>
-            
+            <div class="pagination-controls">
+              <button 
+                @click="loadPage(1)"
+                :disabled="!pagination.hasPrev || loading"
+                class="pagination-btn"
+                title="第一页"
+              >
+                <i class="fa fa-angle-double-left"></i>
+              </button>
+              <button 
+                @click="loadPage(pagination.page - 1)"
+                :disabled="!pagination.hasPrev || loading"
+                class="pagination-btn"
+                title="上一页"
+              >
+                <i class="fa fa-angle-left"></i>
+              </button>
+              <div class="pagination-current">
+                <span class="text-primary font-bold">{{ pagination.page }}</span>
+                <span class="text-gray-400 mx-1">/</span>
+                <span class="text-gray-600">{{ pagination.totalPages }}</span>
+              </div>
+              <button 
+                @click="loadPage(pagination.page + 1)"
+                :disabled="!pagination.hasNext || loading"
+                class="pagination-btn"
+                title="下一页"
+              >
+                <i class="fa fa-angle-right"></i>
+              </button>
+              <button 
+                @click="loadPage(pagination.totalPages)"
+                :disabled="!pagination.hasNext || loading"
+                class="pagination-btn"
+                title="最后一页"
+              >
+                <i class="fa fa-angle-double-right"></i>
+              </button>
+            </div>
+            <!-- 分页条数选择器（下方） -->
+            <div class="pagination-size mt-4">
+              <select 
+                v-model="pageSize" 
+                @change="changePageSize"
+                class="page-size-select"
+              >
+                <option :value="10">10条/页</option>
+                <option :value="20">20条/页</option>
+                <option :value="50">50条/页</option>
+                <option :value="100">100条/页</option>
+              </select>
+            </div>
+          </div>
+        </template>
+        <template v-else-if="loading">
+          <div class="text-center py-12">
+            <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+            <p class="text-gray-600">加载中...</p>
+          </div>
+        </template>
+        <template v-else>
+          <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+            <i class="fa fa-inbox text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-600 mb-4">还没有单词，开始添加吧！</p>
             <button 
-              @click="loadPage(pagination.page + 1)"
-              :disabled="!pagination.hasNext || loading"
-              class="pagination-btn"
-              title="下一页"
+              @click="$router.push('/add')"
+              class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom"
             >
-              <i class="fa fa-angle-right"></i>
-            </button>
-            
-            <button 
-              @click="loadPage(pagination.totalPages)"
-              :disabled="!pagination.hasNext || loading"
-              class="pagination-btn"
-              title="最后一页"
-            >
-              <i class="fa fa-angle-double-right"></i>
+              <i class="fa fa-plus mr-2"></i>添加单词
             </button>
           </div>
-          
-          <div class="pagination-size">
-            <select 
-              v-model="pageSize" 
-              @change="changePageSize"
-              class="page-size-select"
-            >
-              <option :value="10">10条/页</option>
-              <option :value="20">20条/页</option>
-              <option :value="50">50条/页</option>
-              <option :value="100">100条/页</option>
-            </select>
-          </div>
-        </div>
+        </template>
       </section>
-      
-      <!-- 表格区域 -->
-      <VocabTableComponent 
-        v-if="vocabularyList.length > 0"
-        ref="vocabTableRef"
-        :vocabularyList="vocabularyList"
-        :practiceResults="practiceResults"
-        :rowVisibility="rowVisibility"
-        :kanaHidden="kanaHidden"
-        :originalHidden="originalHidden"
-        :hasOriginalText="hasOriginalText"
-        :activeMistakes="activeMistakes"
-        @shuffle="handleShuffle"
-        @toggleKana="handleToggleKana"
-        @toggleOriginal="handleToggleOriginal"
-        @exportUnfinished="handleExportUnfinished"
-        @exportCombined="handleExportCombined"
-        @clear="handleClearAll"
-        @checkAnswer="handleCheckAnswer"
-        @enableEditing="handleEnableEditing"
-        @toggleRowOriginal="handleToggleRowOriginal"
-        @toggleRowKana="handleToggleRowKana"
-        @updateInput="handleUpdateInput"
-      />
-      
-      <!-- 加载提示 -->
-      <div v-else-if="loading" class="text-center py-12">
-        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-        <p class="text-gray-600">加载中...</p>
-      </div>
-      
-      <!-- 空状态 -->
-      <div v-else class="bg-white rounded-xl shadow-lg p-12 text-center">
-        <i class="fa fa-inbox text-6xl text-gray-300 mb-4"></i>
-        <p class="text-gray-600 mb-4">还没有单词，开始添加吧！</p>
-        <button 
-          @click="$router.push('/add')"
-          class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom"
-        >
-          <i class="fa fa-plus mr-2"></i>添加单词
-        </button>
-      </div>
       
       <!-- 不熟悉单词总结区域 -->
       <UnfamiliarWordsComponent 

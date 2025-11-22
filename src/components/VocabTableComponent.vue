@@ -110,7 +110,7 @@
                   v-model="localInputs[index]"
                   type="text" 
                   class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none" 
-                  :class="inputClasses[index]"
+                  :class="isEditing[index] ? '' : inputClasses[index]"
                   placeholder="请输入纯假名..."
                   @input="handleInput(index)"
                 />
@@ -122,7 +122,7 @@
               </div>
             </td>
             <!-- 操作列 -->
-            <td class="px-3 py-4 whitespace-nowrap text-sm table-cell" :class="practiceResults[index].practiced && !isEditing[index] ? 'editing-breathing-bg' : ''">
+            <td class="px-3 py-4 whitespace-nowrap text-sm table-cell">
               <button 
                 v-if="!practiceResults[index].practiced || isEditing[index]"
                 @click="handleCheck(index)"
@@ -214,7 +214,12 @@ const rowRefs = ref([]);
 
 const inputClasses = computed(() => {
   return props.practiceResults.map((result, index) => {
-    if (result.practiced && !isEditing.value[index]) {
+    // 如果正在编辑，不应用任何背景色
+    if (isEditing.value[index]) {
+      return '';
+    }
+    // 如果已经练习过且不在编辑状态，应用结果颜色
+    if (result.practiced) {
       return result.correct ? 'border-secondary bg-green-50' : 'border-error bg-red-50';
     }
     return '';
@@ -228,11 +233,28 @@ watch(() => props.vocabularyList.length, (newLen) => {
   diffHtml.value = new Array(newLen).fill('');
 }, { immediate: true });
 
+// 监听 practiceResults 的变化，重置编辑状态
+watch(() => props.practiceResults, (newResults) => {
+  
+  const anyNeedReset = newResults.some((result, index) => !result.practiced && isEditing.value[index]);
+  
+  if (anyNeedReset) {
+    const newEditing = [...isEditing.value];
+    newResults.forEach((result, index) => {
+      if (!result.practiced && isEditing.value[index]) {
+        newEditing[index] = false;
+      }
+    });
+    isEditing.value = newEditing;
+  }
+}, { deep: true });
+
 function handleInput(index) {
   emit('updateInput', index, localInputs.value[index]);
 }
 
 function handleCheck(index) {
+  
   const userAnswer = localInputs.value[index].trim();
   const wordData = props.vocabularyList[index];
   
@@ -241,14 +263,24 @@ function handleCheck(index) {
   if (!isCorrect) {
     const diff = getDiff(userAnswer, wordData.kana);
     const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
+    diffHtml.value = [...diffHtml.value];
     diffHtml.value[index] = html;
   }
   
-  isEditing.value[index] = false;
+  // 确保响应式更新
+  const newEditing = [...isEditing.value];
+  newEditing[index] = false;
+  isEditing.value = newEditing;
 }
 
 function handleEdit(index, event) {
-  isEditing.value[index] = true;
+  
+  // 确保响应式更新
+  const newEditing = [...isEditing.value];
+  newEditing[index] = true;
+  isEditing.value = newEditing;
+  
+  diffHtml.value = [...diffHtml.value];
   diffHtml.value[index] = '';
   emit('enableEditing', index);
   

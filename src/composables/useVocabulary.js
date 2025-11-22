@@ -46,16 +46,17 @@ export function useVocabulary() {
   function initVocabulary(list) {
     vocabularyList.value = list;
     userInputs.value = new Array(list.length).fill('');
-    practiceResults.value = new Array(list.length).fill({ 
-      practiced: false, 
-      correct: false 
-    });
+    // 每个元素都是独立对象，避免批量变色 bug
+    practiceResults.value = Array.from({ length: list.length }, () => ({
+      practiced: false,
+      correct: false
+    }));
     lastInputIndex.value = -1;
     mistakesList.value = [];
     unfamiliarWords.value = [];
-    stats.value = { 
-      total: list.length, 
-      practiced: 0, 
+    stats.value = {
+      total: list.length,
+      practiced: 0,
       correct: 0,
       totalMistakes: 0
     };
