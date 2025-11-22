@@ -121,7 +121,8 @@
                 ></div>
               </div>
             </td>
-            <td class="px-3 py-4 whitespace-nowrap text-sm table-cell" :class="practiceResults[index].practiced ? 'editing-breathing-bg' : ''">
+            <!-- 操作列 -->
+            <td class="px-3 py-4 whitespace-nowrap text-sm table-cell" :class="practiceResults[index].practiced && !isEditing[index] ? 'editing-breathing-bg' : ''">
               <button 
                 v-if="!practiceResults[index].practiced || isEditing[index]"
                 @click="handleCheck(index)"
