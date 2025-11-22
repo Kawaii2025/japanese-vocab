@@ -6,59 +6,93 @@
       
       <!-- 功能区域 -->
       <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div class="flex flex-wrap gap-4 items-center justify-between">
-          <div class="flex gap-2">
-            <button 
-              @click="$router.push('/add')"
-              class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-custom flex items-center shadow-md hover:shadow-lg"
-            >
-              <i class="fa fa-plus mr-2"></i>添加单词
-            </button>
-            
-            <button 
-              @click="loadRandomPractice"
-              :disabled="loading"
-              class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-custom flex items-center shadow-md hover:shadow-lg disabled:opacity-50"
-            >
-              <i class="fa fa-random mr-2"></i>{{ loading ? '加载中...' : '随机练习' }}
-            </button>
-            
-            <button 
-              @click="loadTodayReview"
-              :disabled="loading"
-              class="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg transition-custom flex items-center shadow-md hover:shadow-lg disabled:opacity-50"
-            >
-              <i class="fa fa-clock-o mr-2"></i>今日复习
-            </button>
+        <!-- 操作按钮区 -->
+        <div class="flex flex-wrap gap-3 mb-6">
+          <button 
+            @click="$router.push('/add')"
+            class="btn-action btn-success"
+          >
+            <i class="fa fa-plus mr-2"></i>添加单词
+          </button>
+          
+          <button 
+            @click="loadRandomPractice"
+            :disabled="loading"
+            class="btn-action btn-primary"
+          >
+            <i class="fa fa-random mr-2"></i>
+            {{ loading ? '加载中...' : '随机练习' }}
+          </button>
+          
+          <button 
+            @click="loadTodayReview"
+            :disabled="loading"
+            class="btn-action btn-warning"
+          >
+            <i class="fa fa-calendar-check-o mr-2"></i>
+            <span>今日复习</span>
+            <span v-if="todayReviewCount > 0" class="badge-count">{{ todayReviewCount }}</span>
+          </button>
+        </div>
+        
+        <!-- 分页控件 -->
+        <div v-if="pagination.total > 0" class="pagination-container">
+          <div class="pagination-info">
+            <i class="fa fa-book text-primary mr-2"></i>
+            <span class="text-sm font-medium text-gray-700">
+              共 <span class="text-primary font-bold">{{ pagination.total }}</span> 个单词
+            </span>
           </div>
           
-          <!-- 分页控件 -->
-          <div v-if="pagination.total > 0" class="flex items-center gap-2">
+          <div class="pagination-controls">
+            <button 
+              @click="loadPage(1)"
+              :disabled="!pagination.hasPrev || loading"
+              class="pagination-btn"
+              title="第一页"
+            >
+              <i class="fa fa-angle-double-left"></i>
+            </button>
+            
             <button 
               @click="loadPage(pagination.page - 1)"
               :disabled="!pagination.hasPrev || loading"
-              class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              class="pagination-btn"
+              title="上一页"
             >
-              <i class="fa fa-chevron-left"></i>
+              <i class="fa fa-angle-left"></i>
             </button>
             
-            <span class="text-sm text-gray-600">
-              第 {{ pagination.page }} / {{ pagination.totalPages }} 页
-              （共 {{ pagination.total }} 个单词）
-            </span>
+            <div class="pagination-current">
+              <span class="text-primary font-bold">{{ pagination.page }}</span>
+              <span class="text-gray-400 mx-1">/</span>
+              <span class="text-gray-600">{{ pagination.totalPages }}</span>
+            </div>
             
             <button 
               @click="loadPage(pagination.page + 1)"
               :disabled="!pagination.hasNext || loading"
-              class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              class="pagination-btn"
+              title="下一页"
             >
-              <i class="fa fa-chevron-right"></i>
+              <i class="fa fa-angle-right"></i>
             </button>
             
+            <button 
+              @click="loadPage(pagination.totalPages)"
+              :disabled="!pagination.hasNext || loading"
+              class="pagination-btn"
+              title="最后一页"
+            >
+              <i class="fa fa-angle-double-right"></i>
+            </button>
+          </div>
+          
+          <div class="pagination-size">
             <select 
               v-model="pageSize" 
               @change="changePageSize"
-              class="ml-2 px-2 py-1 border rounded text-sm"
+              class="page-size-select"
             >
               <option :value="10">10条/页</option>
               <option :value="20">20条/页</option>
@@ -203,6 +237,9 @@ const {
 // 组件引用
 const vocabTableRef = ref(null);
 
+// 今日复习数量
+const todayReviewCount = ref(0);
+
 // 分页状态
 const pagination = ref({
   total: 0,
@@ -249,6 +286,7 @@ async function loadRandomPractice() {
 async function loadTodayReview() {
   try {
     const response = await loadTodayReviewAPI();
+    todayReviewCount.value = response.total || 0; // 更新数量
     if (response.total === 0) {
       toast.info('今天没有需要复习的单词！');
     } else {
@@ -312,11 +350,24 @@ onMounted(async () => {
     console.log('API response:', response);
     pagination.value = response.pagination;
     toast.success(`已加载 ${response.data.length} 个单词`);
+    
+    // 加载今日复习数量
+    loadTodayReviewCount();
   } catch (err) {
     console.error('无法连接到API服务器:', err);
     toast.error('无法连接到服务器，请检查后端是否启动');
   }
 });
+
+// 加载今日复习数量（不显示单词，只获取数量）
+async function loadTodayReviewCount() {
+  try {
+    const response = await api.getTodayReview();
+    todayReviewCount.value = response.total || 0;
+  } catch (err) {
+    console.error('获取今日复习数量失败:', err);
+  }
+}
 
 // 事件处理器
 async function handleCheckAnswer(index, userAnswer) {
@@ -427,3 +478,191 @@ function handleClearMistakes() {
   toast.info('已清空错题');
 }
 </script>
+
+<style scoped>
+/* 操作按钮样式 */
+.btn-action {
+  position: relative;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  color: white;
+}
+
+.btn-action:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-success {
+  background: linear-gradient(to right, #10b981, #059669);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(to right, #059669, #047857);
+}
+
+.btn-primary {
+  background: linear-gradient(to right, #3b82f6, #2563eb);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(to right, #2563eb, #1d4ed8);
+}
+
+.btn-warning {
+  background: linear-gradient(to right, #f59e0b, #d97706);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(to right, #d97706, #b45309);
+}
+
+/* 今日复习徽章 */
+.badge-count {
+  margin-left: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* 分页容器 */
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: white;
+  border: 2px solid #d1d5db;
+  color: #6b7280;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-current {
+  margin: 0 0.5rem;
+  padding: 0.375rem 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pagination-current .text-primary {
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.pagination-current .text-gray-400 {
+  color: #9ca3af;
+}
+
+.pagination-current .text-gray-600 {
+  color: #4b5563;
+}
+
+.pagination-size {
+  display: flex;
+  align-items: center;
+}
+
+.page-size-select {
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.page-size-select:hover {
+  border-color: #3b82f6;
+}
+
+.page-size-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .pagination-info,
+  .pagination-controls,
+  .pagination-size {
+    justify-content: center;
+  }
+  
+  .page-size-select {
+    width: 100%;
+  }
+}
+</style>
