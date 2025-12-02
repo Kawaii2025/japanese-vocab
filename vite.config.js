@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  base: process.env.NODE_ENV === 'production' ? '/japanese-vocab/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/' : '/'
   server: {
     port: 5173
   }
