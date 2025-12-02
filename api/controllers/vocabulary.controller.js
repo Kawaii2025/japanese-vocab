@@ -223,7 +223,7 @@ export async function batchCreateVocabulary(req, res) {
     
     res.status(201).json({
       success: true,
-      data: insertedWords,
+      data: insertedWords.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
       total: insertedWords.length,
       skipped: skippedWords.length,
       skippedWords: skippedWords,
@@ -300,7 +300,7 @@ export async function getAllCategories(req, res) {
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
   const result = await pool.query(
-    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at DESC`
+    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at DESC LIMIT 1000`
   );
   
   res.json({
