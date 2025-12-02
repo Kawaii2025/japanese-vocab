@@ -2,3 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile optimization */
+@layer base {
+  input,
+  textarea,
+  select {
+    @apply text-base; /* Prevent auto-zoom on iOS input focus */
+  }
+  
+  button {
+    @apply min-h-12 sm:min-h-10; /* Touch-friendly button size on mobile */
+  }
+
+  /* Prevent zoom when double-tapping buttons on mobile */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    button {
+      @apply touch-manipulation;
+    }
+  }
+}
+
+/* Smooth transitions for better mobile UX */
+@layer components {
+  .transition-custom {
+    @apply transition-all duration-200 ease-in-out;
+  }
+}

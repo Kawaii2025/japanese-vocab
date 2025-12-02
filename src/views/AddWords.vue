@@ -1,18 +1,18 @@
 <template>
-  <div class="bg-gradient-to-br from-light to-gray-100 min-h-screen font-sans text-dark">
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
+  <div class="bg-gradient-to-br from-light to-gray-100 min-h-screen font-sans text-dark pb-4 md:pb-8">
+    <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
       <!-- 页面标题 -->
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold mb-2 flex items-center justify-center">
-          <i class="fa fa-plus-circle text-primary mr-3"></i>
+      <div class="text-center mb-6 sm:mb-8">
+        <h1 class="text-2xl sm:text-4xl font-bold mb-2 flex items-center justify-center">
+          <i class="fa fa-plus-circle text-primary mr-2 sm:mr-3"></i>
           <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             添加单词
           </span>
         </h1>
-        <p class="text-gray-600">批量导入单词到数据库</p>
+        <p class="text-sm sm:text-base text-gray-600">批量导入单词到数据库</p>
         <button 
           @click="$router.push('/')"
-          class="mt-4 text-primary hover:text-primary/80 transition-custom"
+          class="mt-4 text-primary hover:text-primary/80 transition-custom text-sm sm:text-base active:scale-95 transition-transform"
         >
           <i class="fa fa-arrow-left mr-2"></i>返回练习页面
         </button>
@@ -25,12 +25,48 @@
         :showGenerateButton="false"
       />
       
+      
       <!-- 最近添加的单词 -->
-      <section v-if="recentWords.length > 0" class="bg-white rounded-xl shadow-lg p-6 mt-6">
-        <h2 class="text-xl font-semibold mb-4 flex items-center">
+      <section v-if="recentWords.length > 0" class="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 mt-4 sm:mt-6">
+        <h2 class="text-lg sm:text-xl font-semibold mb-4 flex items-center">
           <i class="fa fa-history text-primary mr-2"></i>最近添加（{{ recentWords.length }}个）
         </h2>
-        <div class="overflow-x-auto">
+        <!-- 移动端卡片视图 -->
+        <div class="sm:hidden space-y-3">
+          <div 
+            v-for="word in recentWords" 
+            :key="word.id" 
+            class="bg-gray-50 border border-gray-200 rounded-lg p-3 active:bg-gray-100 transition-colors"
+          >
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
+                <p class="font-semibold text-base text-dark">{{ word.original }}</p>
+                <p class="text-sm text-gray-600 mb-1">{{ word.chinese }}</p>
+                <p class="text-xs text-gray-500">{{ word.kana }}</p>
+              </div>
+              <button 
+                @click="deleteWord(word.id)"
+                class="text-red-600 active:text-red-800 p-2 active:bg-red-50 rounded-lg transition-colors ml-2 flex-shrink-0"
+              >
+                <i class="fa fa-trash text-lg"></i>
+              </button>
+            </div>
+            <div class="flex gap-2 text-xs">
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                {{ word.category || '-' }}
+              </span>
+              <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded">
+                难度: {{ word.difficulty || 1 }}
+              </span>
+              <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded ml-auto">
+                {{ formatTime(word.created_at) }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 桌面端表格视图 -->
+        <div class="hidden sm:block overflow-x-auto">
           <table class="min-w-full">
             <thead class="bg-gray-50">
               <tr>
