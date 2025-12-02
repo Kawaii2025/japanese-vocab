@@ -5,7 +5,7 @@ import pool from '../db.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
 import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
 
-// 获取所有单词（带分页，默认第一页）
+// 获取所有单词（带分页，最新添加的单词优先显示）
 export async function getAllVocabulary(req, res) {
   const { category, difficulty } = req.query;
   
@@ -34,17 +34,21 @@ export async function getAllVocabulary(req, res) {
   // 2. 解析分页参数
   const pagination = parsePaginationParams(req.query, 20);
   
-  // 3. 查询数据（始终使用分页，防止性能问题）
+  // 3. 计算偏移量
+  const offset = (pagination.page - 1) * pagination.pageSize;
+  
+  // 4. 查询数据（按创建时间降序排列，最新的单词最先显示）
   const dataQuery = `
     SELECT * FROM vocabulary 
     ${whereClause}
-    ORDER BY id
+    ORDER BY created_at DESC NULLS LAST, id DESC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
-  const dataParams = [...params, pagination.limit, pagination.offset];
+  const dataParams = [...params, pagination.pageSize, offset];
   const dataResult = await pool.query(dataQuery, dataParams);
   
-  // 4. 构建分页信息
+  // 5. 构建分页信息
+  const totalPages = Math.ceil(totalCount / pagination.pageSize);
   const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
   
   res.json({
