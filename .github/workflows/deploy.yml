@@ -39,6 +39,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+      
+      - name: Copy 404 page
+        run: cp build/index.html dist/404.html
 
       - name: Debug - List dist contents
         run: |
