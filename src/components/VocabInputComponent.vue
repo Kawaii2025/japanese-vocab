@@ -3,7 +3,15 @@
     <h2 class="text-lg sm:text-xl font-semibold mb-4 flex items-center">
       <i class="fa fa-pencil-square-o text-primary mr-2"></i>输入单词信息
     </h2>
-    <div class="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs sm:text-sm">
+    <!-- 移动端提示 -->
+    <div class="sm:hidden mb-4 bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs">
+      <p class="text-blue-700 font-medium mb-1">输入格式（每行一个单词）：</p>
+      <p class="text-blue-700 mb-1"><span class="text-dark">中文意思,日语原文,纯假名</span></p>
+      <p class="text-blue-600 text-xs">例：你好,こんにちは,こんにちは</p>
+    </div>
+    
+    <!-- 桌面端提示 -->
+    <div class="hidden sm:block mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs sm:text-sm">
       <p class="text-gray-600 font-medium mb-1">支持两种输入格式（任选一种）：</p>
       <p class="text-gray-600 mb-1">1. 文本格式：<span class="text-dark">中文意思,日语原文,纯假名</span>（每行一个，日语原文可选）</p>
       <p class="text-gray-600">2. Markdown表格格式（智能识别各列）：</p>
@@ -54,14 +62,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { parseVocabularyInput } from '../utils/parser.js';
 import { useToast } from '../composables/useToast.js';
 
-const props = defineProps({
-  defaultValue: {
-    type: String,
-    default: `|日文|中文|假名|
+// 移动端默认格式（简单文本，一行一个单词）
+const MOBILE_DEFAULT = `你好,こんにちは,こんにちは
+谢谢,ありがとう,ありがとう
+再见,さようなら,さようなら
+对不起,すみません,すみません`;
+
+// 桌面端默认格式（Markdown表格）
+const DESKTOP_DEFAULT = `|日文|中文|假名|
 | ---- | ---- | ---- |
 |相変わらず|照旧；仍然|あいかわらず|
 |こんにちは|你好|こんにちは|
@@ -72,7 +84,12 @@ const props = defineProps({
 |こんばんは|晚上好|こんばんは|
 |はい|是的|はい|
 |いいえ|不是|いいえ|
-|ください|请|ください|`
+|ください|请|ください|`;
+
+const props = defineProps({
+  defaultValue: {
+    type: String,
+    default: ''
   },
   batchAddVocabulary: {
     type: Function,
@@ -82,7 +99,7 @@ const props = defineProps({
 
 const emit = defineEmits(['submit']);
 
-const inputValue = ref(props.defaultValue);
+const inputValue = ref('');
 const parseInfo = ref('');
 const loading = ref(false);
 
@@ -93,6 +110,15 @@ const isMobile = computed(() => {
 
 // 使用 Toast
 const toast = useToast();
+
+// 初始化时设置默认值
+onMounted(() => {
+  if (props.defaultValue) {
+    inputValue.value = props.defaultValue;
+  } else {
+    inputValue.value = isMobile.value ? MOBILE_DEFAULT : DESKTOP_DEFAULT;
+  }
+});
 
 function handleSubmit() {
   emit('submit', inputValue.value);
@@ -153,3 +179,4 @@ defineExpose({
   isMobile
 });
 </script>
+
