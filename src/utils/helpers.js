@@ -91,6 +91,33 @@ export function readJapanese(text) {
   utterance.pitch = 1.1;
   utterance.volume = 1;
 
+  // 获取所有可用声音并选择日语声音
+  const getJapaneseVoice = () => {
+    const voices = window.speechSynthesis.getVoices();
+    // 优先选择日语(日本)的声音
+    return voices.find(v => v.lang === 'ja-JP') ||
+           // 次选其他日语变体
+           voices.find(v => v.lang.startsWith('ja-')) ||
+           // 最后选任何日语
+           voices.find(v => v.lang.includes('ja')) ||
+           null;
+  };
+
+  const japaneseVoice = getJapaneseVoice();
+  if (japaneseVoice) {
+    utterance.voice = japaneseVoice;
+  }
+
+  // 如果声音未加载，等待voiceschanged事件
+  if (!japaneseVoice && window.speechSynthesis.onvoiceschanged === undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      const voice = getJapaneseVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
+    };
+  }
+
   window.speechSynthesis.speak(utterance);
   return utterance;
 }
