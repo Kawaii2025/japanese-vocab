@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './db.js';
+import { config, getCorsOptions } from './config.js';
 
 // 导入路由
 import vocabularyRoutes from './routes/vocabulary.routes.js';
@@ -18,36 +19,10 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // ==================== 全局中间件 ====================
 // CORS 配置 - 允许前端访问
-const corsOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
-
-app.use(cors({
-  origin: corsOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-}));
-
-// 添加额外的 CORS 头处理
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // 处理 OPTIONS 预检请求
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  
-  next();
-});
+app.use(cors(getCorsOptions()));
 
 app.use(express.json());
 
@@ -116,10 +91,11 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ==================== 服务器启动 ====================
-app.listen(PORT, () => {
-  console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
-  console.log(`📚 API 文档: http://localhost:${PORT}/api`);
-  console.log(`\n可用的端点：`);
+const server = app.listen(config.server.port, () => {
+  console.log(`\n🚀 服务器启动成功！`);
+  console.log(`   本机访问: http://localhost:${config.server.port}`);
+  console.log(`   📚 API 文档: http://localhost:${config.server.port}/api\n`);
+  console.log(`可用的端点：`);
   console.log(`  - GET  /api/vocabulary          获取所有单词（分页）`);
   console.log(`  - GET  /api/vocabulary/:id      获取单个单词`);
   console.log(`  - POST /api/vocabulary          创建单词`);

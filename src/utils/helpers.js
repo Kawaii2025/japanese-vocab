@@ -81,7 +81,59 @@ export function generateDiffHtml(diff) {
 
 // 日语朗读函数
 export function readJapanese(text) {
+  console.log('🎙️ readJapanese called with:', text);
+  
+  if (!window.speechSynthesis) {
+    console.error('❌ Speech Synthesis API not supported');
+    alert('您的浏览器不支持语音合成');
+    return null;
+  }
+
+  console.log('✅ Speech Synthesis API available');
+  console.log('   speaking:', window.speechSynthesis.speaking);
+  console.log('   pending:', window.speechSynthesis.pending);
+  
+  // Check if running on Android
+  const isAndroid = /Android/.test(navigator.userAgent);
+  console.log('📱 Device type: ' + (isAndroid ? 'Android' : 'Other'));
+  
+  // Check available voices count
+  const initialVoices = window.speechSynthesis.getVoices();
+  console.log('📢 Initial voices available: ' + initialVoices.length);
+  
+  // If no voices available, try waiting a bit for Android to load them
+  if (initialVoices.length === 0 && isAndroid) {
+    console.log('⏳ Android detected with no voices yet, waiting for voice loading...');
+    // Give Android time to load voices
+    return new Promise((resolve) => {
+      const checkVoices = setInterval(() => {
+        const voices = window.speechSynthesis.getVoices();
+        console.log('  Checking voices... count:', voices.length);
+        if (voices.length > 0) {
+          clearInterval(checkVoices);
+          console.log('✅ Voices loaded!');
+          performSpeechSynthesis(text);
+          resolve();
+        }
+      }, 500);
+      
+      // Timeout after 3 seconds
+      setTimeout(() => {
+        clearInterval(checkVoices);
+        console.warn('⚠️ Timeout waiting for voices, proceeding without them');
+        performSpeechSynthesis(text);
+        resolve();
+      }, 3000);
+    });
+  }
+
+  
+  performSpeechSynthesis(text);
+}
+
+function performSpeechSynthesis(text) {
   if (window.speechSynthesis.speaking) {
+    console.log('⏹️ Cancelling previous speech');
     window.speechSynthesis.cancel();
   }
 
@@ -94,41 +146,78 @@ export function readJapanese(text) {
   // 获取所有可用声音并选择日语声音
   const getJapaneseVoice = () => {
     const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) return null;
+    console.log(`📢 Total voices available: ${voices.length}`);
+    
+    if (voices.length > 0) {
+      const voiceList = voices.map(v => `${v.name} (${v.lang})`).join('\n   ');
+      console.log('   Available voices:\n   ' + voiceList);
+    }
+    
+    if (voices.length === 0) {
+      console.warn('⚠️ No voices available yet');
+      return null;
+    }
     
     // 优先选择日语(日本)的声音
-    return voices.find(v => v.lang === 'ja-JP') ||
-           // 次选其他日语变体
-           voices.find(v => v.lang.startsWith('ja-')) ||
-           // 最后选任何日语
-           voices.find(v => v.lang.includes('ja')) ||
-           // 如果没有日语，选择第一个可用声音
-           voices[0] ||
-           null;
+    const jaJPVoice = voices.find(v => v.lang === 'ja-JP');
+    if (jaJPVoice) {
+      console.log('✓ Found ja-JP voice:', jaJPVoice.name);
+      return jaJPVoice;
+    }
+    
+    const jaVoice = voices.find(v => v.lang.startsWith('ja-'));
+    if (jaVoice) {
+      console.log('✓ Found ja-* voice:', jaVoice.name, jaVoice.lang);
+      return jaVoice;
+    }
+    
+    const jaInclude = voices.find(v => v.lang.includes('ja'));
+    if (jaInclude) {
+      console.log('✓ Found voice with ja:', jaInclude.name, jaInclude.lang);
+      return jaInclude;
+    }
+    
+    console.warn('⚠️ No Japanese voice found, using first available');
+    return voices[0] || null;
   };
 
   // 设置初始声音（如果可用）
   const japaneseVoice = getJapaneseVoice();
   if (japaneseVoice) {
     utterance.voice = japaneseVoice;
+    console.log('🔊 Selected voice:', japaneseVoice.name, `(${japaneseVoice.lang})`);
+  } else {
+    console.warn('⚠️ No suitable voice found');
   }
 
   // 监听声音加载完成事件
   const handleVoicesChanged = () => {
+    console.log('🔄 Voices changed event fired');
     const voice = getJapaneseVoice();
     if (voice && !utterance.voice) {
       utterance.voice = voice;
+      console.log('✓ Voice updated on voiceschanged:', voice.name);
     }
   };
 
-  // 在某些浏览器上，voiceschanged事件可能被多次触发
   window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
+
+  // 设置错误处理
+  utterance.onerror = (event) => {
+    console.error('❌ Speech synthesis error:', event.error);
+  };
+
+  utterance.onend = () => {
+    console.log('✅ Speech synthesis completed');
+  };
 
   // 立即尝试播放，如果失败会由voice loaded后重试
   try {
+    console.log('▶️ Starting speech synthesis');
     window.speechSynthesis.speak(utterance);
+    console.log('✓ Speech synthesis queued successfully');
   } catch (error) {
-    console.error('Speech synthesis error:', error);
+    console.error('❌ Exception during speech synthesis:', error);
   }
 
   return utterance;
