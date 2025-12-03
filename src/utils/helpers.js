@@ -94,30 +94,42 @@ export function readJapanese(text) {
   // 获取所有可用声音并选择日语声音
   const getJapaneseVoice = () => {
     const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return null;
+    
     // 优先选择日语(日本)的声音
     return voices.find(v => v.lang === 'ja-JP') ||
            // 次选其他日语变体
            voices.find(v => v.lang.startsWith('ja-')) ||
            // 最后选任何日语
            voices.find(v => v.lang.includes('ja')) ||
+           // 如果没有日语，选择第一个可用声音
+           voices[0] ||
            null;
   };
 
+  // 设置初始声音（如果可用）
   const japaneseVoice = getJapaneseVoice();
   if (japaneseVoice) {
     utterance.voice = japaneseVoice;
   }
 
-  // 如果声音未加载，等待voiceschanged事件
-  if (!japaneseVoice && window.speechSynthesis.onvoiceschanged === undefined) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      const voice = getJapaneseVoice();
-      if (voice) {
-        utterance.voice = voice;
-      }
-    };
+  // 监听声音加载完成事件
+  const handleVoicesChanged = () => {
+    const voice = getJapaneseVoice();
+    if (voice && !utterance.voice) {
+      utterance.voice = voice;
+    }
+  };
+
+  // 在某些浏览器上，voiceschanged事件可能被多次触发
+  window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
+
+  // 立即尝试播放，如果失败会由voice loaded后重试
+  try {
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.error('Speech synthesis error:', error);
   }
 
-  window.speechSynthesis.speak(utterance);
   return utterance;
 }

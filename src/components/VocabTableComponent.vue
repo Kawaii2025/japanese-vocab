@@ -4,7 +4,8 @@
       <h2 class="text-xl font-semibold flex items-center">
         <i class="fa fa-list-alt text-primary mr-2"></i>单词练习表
       </h2>
-      <div class="flex flex-wrap gap-2">
+      <!-- 移动端：按钮分为两行 -->
+      <div class="hidden sm:flex flex-wrap gap-2 w-full sm:w-auto">
         <button 
           @click="$emit('shuffle')"
           class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
@@ -49,6 +50,54 @@
           <i class="fa fa-trash mr-1"></i>清空
         </button>
       </div>
+      
+      <!-- 移动端：按钮分两行 -->
+      <div class="flex flex-wrap gap-2 w-full sm:hidden">
+        <button 
+          @click="$emit('shuffle')"
+          class="flex-1 min-w-20 bg-gray-600 hover:bg-gray-700 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+        >
+          <i class="fa fa-random mr-1"></i><span>打乱</span>
+        </button>
+        <button 
+          @click="$emit('toggleKana')"
+          class="flex-1 min-w-20 bg-kana hover:bg-kana/90 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+          :title="kanaHidden ? '显示假名' : '隐藏假名'"
+        >
+          <i class="fa fa-eye mr-1"></i><span>{{ kanaHidden ? '假名' : '隐假' }}</span>
+        </button>
+        <button 
+          v-if="hasOriginalText"
+          @click="$emit('toggleOriginal')"
+          class="flex-1 min-w-20 bg-original hover:bg-original/90 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+          :title="originalHidden ? '显示单词' : '隐藏单词'"
+        >
+          <i class="fa fa-eye mr-1"></i><span>{{ originalHidden ? '单词' : '隐词' }}</span>
+        </button>
+        <span class="flex-1 min-w-20 bg-error/10 text-error px-2 py-2 rounded text-sm flex items-center justify-center">
+          <i class="fa fa-exclamation-circle mr-1"></i><span>错{{ activeMistakes }}</span>
+        </span>
+      </div>
+      <div class="flex flex-wrap gap-2 w-full sm:hidden">
+        <button 
+          @click="$emit('exportUnfinished')"
+          class="flex-1 min-w-20 bg-purple-600 hover:bg-purple-700 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+        >
+          <i class="fa fa-file-text-o mr-1"></i><span>未完成</span>
+        </button>
+        <button 
+          @click="$emit('exportCombined')"
+          class="flex-1 min-w-20 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+        >
+          <i class="fa fa-files-o mr-1"></i><span>合并</span>
+        </button>
+        <button 
+          @click="$emit('clear')"
+          class="flex-1 min-w-20 bg-gray-200 hover:bg-gray-300 text-dark px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
+        >
+          <i class="fa fa-trash mr-1"></i><span>清空</span>
+        </button>
+      </div>
     </div>
     
     <div class="overflow-x-auto">
@@ -62,7 +111,6 @@
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">显示控制</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -80,16 +128,20 @@
             </td>
             <td v-if="hasOriginalText || !originalHidden" class="px-3 py-4 table-cell">
               <div 
-                class="text-sm font-medium"
-                :class="rowVisibility.original[index] ? '' : 'text-gray-400 italic'"
+                @click="toggleRowOriginal(index)"
+                class="text-sm font-medium cursor-pointer user-select-none transition-colors rounded px-2 py-1"
+                :class="rowVisibility.original[index] ? 'hover:bg-original/5' : 'text-gray-400 italic hover:bg-original/10'"
+                :title="rowVisibility.original[index] ? '点击隐藏' : '点击显示'"
               >
                 {{ item.original ? (rowVisibility.original[index] ? item.original : createMaskText(item.original)) : '-' }}
               </div>
             </td>
             <td class="px-3 py-4 table-cell">
               <div 
-                class="text-sm font-semibold"
-                :class="rowVisibility.kana[index] ? '' : 'text-gray-400 italic'"
+                @click="toggleRowKana(index)"
+                class="text-sm font-semibold cursor-pointer user-select-none transition-colors rounded px-2 py-1"
+                :class="rowVisibility.kana[index] ? 'hover:bg-kana/5' : 'text-gray-400 italic hover:bg-kana/10'"
+                :title="rowVisibility.kana[index] ? '点击隐藏' : '点击显示'"
               >
                 {{ rowVisibility.kana[index] ? item.kana : createMaskText(item.kana) }}
               </div>
@@ -139,25 +191,6 @@
               >
                 <i class="fa fa-pencil"></i>
               </button>
-            </td>
-            <td class="px-3 py-4 whitespace-nowrap table-cell">
-              <div class="flex gap-1">
-                <button 
-                  v-if="item.original && item.original.trim() !== ''"
-                  @click="toggleRowOriginal(index)"
-                  class="toggle-original-btn bg-original/10 hover:bg-original/20 text-original px-2 py-1 rounded transition-custom"
-                  :title="rowVisibility.original[index] ? '隐藏单词' : '显示单词'"
-                >
-                  <i class="fa" :class="rowVisibility.original[index] ? 'fa-eye-slash' : 'fa-eye'"></i>
-                </button>
-                <button 
-                  @click="toggleRowKana(index)"
-                  class="toggle-kana-btn bg-kana/10 hover:bg-kana/20 text-kana px-2 py-1 rounded transition-custom"
-                  :title="rowVisibility.kana[index] ? '隐藏假名' : '显示假名'"
-                >
-                  <i class="fa" :class="rowVisibility.kana[index] ? 'fa-eye-slash' : 'fa-eye'"></i>
-                </button>
-              </div>
             </td>
           </tr>
         </tbody>
