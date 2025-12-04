@@ -186,15 +186,16 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
+import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
 import * as api from '../services/api';
 
 const router = useRouter();
 const toast = useToast();
+const { selectedDate, getTodayDate, getVocabularyByDate, formatPagination } = useDateFilter();
 
 const vocabularyList = ref([]);
 const searchKeyword = ref('');
-const selectedDate = ref('');
 const loading = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
@@ -270,33 +271,14 @@ async function handleDateChange(newDate) {
 
 // 按日期筛选单词
 async function loadVocabularyByDate() {
-  if (!selectedDate.value) {
-    toast.warning('请选择日期');
-    loading.value = false;
-    return;
-  }
-  
-  try {
-    const response = await api.getVocabularyByDate(selectedDate.value);
+  const response = await getVocabularyByDate(selectedDate.value);
+  if (response) {
     vocabularyList.value = response.data || [];
-    pagination.value = {
-      total: response.total || response.data.length,
-      page: 1,
-      pageSize: response.data.length,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false
-    };
-    
-    const dateObj = new Date(selectedDate.value);
-    const dateStr = dateObj.toLocaleDateString('zh-CN');
-    toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
-  } catch (error) {
-    console.error('按日期筛选失败:', error);
-    toast.error('筛选失败: ' + error.message);
-  } finally {
+    pagination.value = formatPagination(response.data || []);
+  } else {
     loading.value = false;
   }
+  loading.value = false;
 }
 
 // 重置日期筛选
@@ -310,15 +292,6 @@ async function resetDateFilter() {
 async function clearDateFilter() {
   selectedDate.value = '';
   loadVocabulary(1);
-}
-
-// 获取今天日期（北京时区）
-function getTodayDate() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 // 开始编辑
