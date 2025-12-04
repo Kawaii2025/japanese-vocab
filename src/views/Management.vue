@@ -6,7 +6,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800">单词管理</h1>
         <button 
           @click="goBack"
-          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-custom flex items-center"
+          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-custom flex items-center"
         >
           <i class="fa fa-arrow-left mr-2"></i>返回
         </button>
@@ -34,7 +34,7 @@
           </button>
           <button 
             @click="resetSearch"
-            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-custom"
+            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-custom"
           >
             重置
           </button>
