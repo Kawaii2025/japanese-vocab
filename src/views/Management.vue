@@ -304,12 +304,16 @@ async function deleteWord(id) {
 // 分页
 function previousPage() {
   if (pagination.value.page > 1) {
+    vocabularyList.value = [];
+    loading.value = true;
     loadVocabulary(pagination.value.page - 1);
   }
 }
 
 function nextPage() {
   if (pagination.value.hasNext) {
+    vocabularyList.value = [];
+    loading.value = true;
     loadVocabulary(pagination.value.page + 1);
   }
 }
