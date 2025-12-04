@@ -63,22 +63,24 @@
       </div>
       
       <!-- 按钮组 -->
-      <div class="flex gap-2">
-        <button 
-          type="button"
-          @click="resetFilter"
-          class="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-        >
-          <i class="fa fa-redo mr-1"></i>今日
-        </button>
-        <button 
-          type="button"
-          @click="clearFilter"
-          class="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
-        >
-          全部
-        </button>
-      </div>
+      <slot name="buttons">
+        <div class="flex gap-2">
+          <button 
+            type="button"
+            @click="resetFilter"
+            class="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+          >
+            <i class="fa fa-redo mr-1"></i>今日
+          </button>
+          <button 
+            type="button"
+            @click="clearFilter"
+            class="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+          >
+            全部
+          </button>
+        </div>
+      </slot>
     </div>
   </div>
 </template>
