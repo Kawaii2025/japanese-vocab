@@ -37,11 +37,11 @@ export async function getAllVocabulary(req, res) {
   // 3. 计算偏移量
   const offset = (pagination.page - 1) * pagination.pageSize;
   
-  // 4. 查询数据（按创建时间降序排列，最新的单词最先显示）
+  // 4. 查询数据（按日期降序，同一天内按创建时间升序，新添加的单词在同一天的最后）
   const dataQuery = `
     SELECT * FROM vocabulary 
     ${whereClause}
-    ORDER BY created_at DESC NULLS LAST, id DESC
+    ORDER BY input_date DESC, created_at ASC, id ASC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
   const dataParams = [...params, pagination.pageSize, offset];
@@ -132,7 +132,7 @@ export async function searchVocabulary(req, res) {
   const result = await pool.query(
     `SELECT * FROM vocabulary 
      WHERE chinese LIKE $1 OR kana LIKE $1 OR original LIKE $1
-     ORDER BY id
+     ORDER BY input_date DESC, created_at ASC, id ASC
      LIMIT $2 OFFSET $3`,
     [searchPattern, pagination.limit, pagination.offset]
   );
@@ -304,7 +304,7 @@ export async function getAllCategories(req, res) {
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
   const result = await pool.query(
-    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at DESC LIMIT 1000`
+    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at ASC LIMIT 1000`
   );
   
   res.json({
@@ -318,7 +318,7 @@ export async function getTodayVocabulary(req, res) {
 export async function getVocabularyByDate(req, res) {
   const { date } = req.params;
   const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE input_date = $1 ORDER BY created_at DESC',
+    'SELECT * FROM vocabulary WHERE input_date = $1 ORDER BY created_at ASC',
     [date]
   );
   
@@ -342,7 +342,7 @@ export async function getVocabularyByDateRange(req, res) {
   }
   
   const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE input_date BETWEEN $1 AND $2 ORDER BY input_date DESC, created_at DESC',
+    'SELECT * FROM vocabulary WHERE input_date BETWEEN $1 AND $2 ORDER BY input_date DESC, created_at ASC',
     [start, end]
   );
   
