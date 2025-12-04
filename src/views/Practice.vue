@@ -15,6 +15,12 @@
             <i class="fa fa-plus mr-2"></i>添加单词
           </button>
           <button 
+            @click="$router.push('/management')"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
+          >
+            <i class="fa fa-cog mr-2"></i>管理单词
+          </button>
+          <button 
             @click="loadRandomPractice"
             :disabled="loading"
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
@@ -37,8 +43,9 @@
             <DateFilterComponent 
               :model-value="selectedDate"
               :disabled="loading"
-              @update:model-value="(newDate) => { selectedDate = newDate; filterByDate(); }"
+              @update:model-value="handleDateChange"
               @reset="resetFilter"
+              @clear="clearFilter"
             />
           </div>
         </div>
@@ -275,15 +282,23 @@ function initializeDate() {
   selectedDate.value = getTodayDate();
 }
 
+// 处理日期改变事件
+async function handleDateChange(newDate) {
+  selectedDate.value = newDate;
+  vocabularyList.value = [];
+  loading.value = true;
+  await filterByDate();
+}
+
 // 按日期筛选单词
 async function filterByDate() {
   if (!selectedDate.value) {
     toast.warning('请选择日期');
+    loading.value = false;
     return;
   }
   
   try {
-    loading.value = true;
     const response = await api.getVocabularyByDate(selectedDate.value);
     
     if (response.data && response.data.length > 0) {
@@ -303,9 +318,7 @@ async function filterByDate() {
       const dateStr = dateObj.toLocaleDateString('zh-CN');
       toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
     } else {
-      vocabularyList.value = [];
-      userInputs.value = [];
-      practiceResults.value = {};
+      initVocabulary([]);
       toast.info(`${new Date(selectedDate.value).toLocaleDateString('zh-CN')} 没有添加任何单词`);
     }
   } catch (error) {
@@ -330,6 +343,25 @@ async function resetFilter() {
   } catch (error) {
     console.error('重置筛选失败:', error);
     toast.error('重置失败: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 清空日期条件，查看所有单词
+async function clearFilter() {
+  try {
+    loading.value = true;
+    selectedDate.value = '';
+    const response = await loadVocabularyFromAPI({ 
+      page: 1, 
+      pageSize: pageSize.value 
+    });
+    pagination.value = response.pagination;
+    toast.success('已清空日期筛选，显示所有单词');
+  } catch (error) {
+    console.error('清空筛选失败:', error);
+    toast.error('清空失败: ' + error.message);
   } finally {
     loading.value = false;
   }
