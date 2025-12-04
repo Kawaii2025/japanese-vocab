@@ -77,7 +77,7 @@
             @click="clearFilter"
             class="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
           >
-            全部
+            全部日期
           </button>
         </div>
       </slot>
