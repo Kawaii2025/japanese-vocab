@@ -50,7 +50,16 @@
       </div>
 
       <!-- 单词列表 -->
-      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden relative">
+        <!-- 加载蒙版 -->
+        <div v-if="loading" class="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+          <div class="flex flex-col items-center gap-2">
+            <div class="animate-spin">
+              <i class="fa fa-spinner text-2xl text-primary"></i>
+            </div>
+            <span class="text-sm text-gray-600">加载中...</span>
+          </div>
+        </div>
         <table class="w-full">
           <thead class="bg-gray-100 border-b">
             <tr class="text-left">
@@ -255,7 +264,6 @@ function resetSearch() {
 // 处理日期改变
 async function handleDateChange(newDate) {
   selectedDate.value = newDate;
-  vocabularyList.value = [];
   loading.value = true;
   await loadVocabularyByDate();
 }
@@ -294,7 +302,6 @@ async function loadVocabularyByDate() {
 // 重置日期筛选
 async function resetDateFilter() {
   selectedDate.value = getTodayDate();
-  vocabularyList.value = [];
   loading.value = true;
   await loadVocabularyByDate();
 }
@@ -377,7 +384,6 @@ async function deleteWord(id) {
 // 分页
 function previousPage() {
   if (pagination.value.page > 1) {
-    vocabularyList.value = [];
     loading.value = true;
     loadVocabulary(pagination.value.page - 1);
   }
@@ -385,7 +391,6 @@ function previousPage() {
 
 function nextPage() {
   if (pagination.value.hasNext) {
-    vocabularyList.value = [];
     loading.value = true;
     loadVocabulary(pagination.value.page + 1);
   }
