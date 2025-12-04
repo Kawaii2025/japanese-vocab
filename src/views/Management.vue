@@ -6,7 +6,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800">单词管理</h1>
         <button 
           @click="goBack"
-          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-custom flex items-center"
+          class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-custom flex items-center"
         >
           <i class="fa fa-arrow-left mr-2"></i>返回
         </button>
@@ -25,14 +25,7 @@
               @keyup.enter="handleSearch"
             />
           </div>
-          <button 
-            @click="handleSearch"
-            :disabled="loading"
-            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-custom flex items-center disabled:opacity-50"
-          >
-            <i class="fa fa-search mr-2"></i>{{ loading ? '搜索中...' : '搜索' }}
-          </button>
-          <!-- 日期筛选 -->
+          <!-- 日期筛选 放在搜索框右边 -->
           <DateFilterComponent 
             :model-value="selectedDate"
             :disabled="loading"
@@ -41,10 +34,17 @@
             @clear="clearDateFilter"
           />
           <button 
-            @click="resetSearch"
-            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-custom"
+            @click="handleSearch"
+            :disabled="loading"
+            class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-custom flex items-center disabled:opacity-50"
           >
-            重置
+            <i class="fa fa-search mr-2"></i>{{ loading ? '搜索中...' : '搜索' }}
+          </button>
+          <button 
+            @click="resetSearch"
+            class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-custom flex items-center"
+          >
+            <i class="fa fa-refresh mr-2"></i>重置
           </button>
         </div>
       </div>
@@ -114,7 +114,7 @@
                   <button 
                     v-if="editingId !== word.id"
                     @click="startEdit(word)"
-                    class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-custom"
+                    class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm transition-custom"
                   >
                     <i class="fa fa-edit"></i>
                   </button>
@@ -399,7 +399,7 @@ function formatDate(date) {
 
 // 返回
 function goBack() {
-  router.push('/practice');
+  router.push('/');
 }
 
 // 初始化
