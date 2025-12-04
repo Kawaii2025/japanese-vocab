@@ -32,26 +32,14 @@
             <span v-if="todayReviewCount > 0" class="absolute top-0 right-0 -mt-2 -mr-2 bg-white text-orange-500 text-xs rounded-full h-5 w-5 flex items-center justify-center border border-orange-300 shadow">{{ todayReviewCount }}</span>
           </button>
           
-          <!-- 日期筛选 - 放在右边 -->
-          <div class="ml-auto flex items-end gap-2">
-            <div class="flex items-end gap-2">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">按日期筛选</label>
-                <input 
-                  v-model="selectedDate" 
-                  @change="filterByDate"
-                  type="date" 
-                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-              <button 
-                @click="resetFilter" 
-                :disabled="loading || isDateFiltering"
-                class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-custom text-sm flex items-center"
-              >
-                <i class="fa fa-redo mr-1"></i>重置
-              </button>
-            </div>
+          <!-- 日期筛选组件 - 放在右边 -->
+          <div class="ml-auto">
+            <DateFilterComponent 
+              :model-value="selectedDate"
+              :disabled="loading"
+              @update:model-value="(newDate) => { selectedDate = newDate; filterByDate(); }"
+              @reset="resetFilter"
+            />
           </div>
         </div>
         
@@ -205,6 +193,7 @@ import VocabTableComponent from '../components/VocabTableComponent.vue';
 import UnfamiliarWordsComponent from '../components/UnfamiliarWordsComponent.vue';
 import MistakesTableComponent from '../components/MistakesTableComponent.vue';
 import StatsComponent from '../components/StatsComponent.vue';
+import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { useVocabulary } from '../composables/useVocabulary';
 import { useToast } from '../composables/useToast';
 import { useConfirm } from '../composables/useConfirm';
