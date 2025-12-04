@@ -1,77 +1,90 @@
 <template>
-  <div class="flex items-end gap-2 relative">
-    <div class="relative">
-      <label class="block text-xs font-medium text-gray-700 mb-1">按日期筛选</label>
-      <button 
-        @click="showCalendar = !showCalendar"
-        :disabled="disabled"
-        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer text-left w-32"
-      >
-        <span class="flex items-center justify-between">
-          <span>{{ formatDisplayDate }}</span>
-          <i class="fa fa-calendar ml-2"></i>
-        </span>
-      </button>
+  <div class="relative">
+    <button 
+      type="button"
+      @click="showCalendar = !showCalendar"
+      :disabled="disabled"
+      class="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer text-left"
+    >
+      <span class="flex items-center gap-2">
+        <span>{{ formatDisplayDate }}</span>
+        <i class="fa fa-calendar"></i>
+      </span>
+    </button>
+    
+    <!-- 日历弹窗 -->
+    <div v-if="showCalendar && !disabled" class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 w-64">
+      <!-- 月份导航 -->
+      <div class="flex items-center justify-between mb-3">
+        <button 
+          type="button"
+          @click="previousMonth"
+          class="px-2 py-1 hover:bg-gray-100 rounded text-sm"
+        >
+          <i class="fa fa-chevron-left"></i>
+        </button>
+        <div class="text-sm font-medium">
+          {{ currentMonthYear }}
+        </div>
+        <button 
+          type="button"
+          @click="nextMonth"
+          class="px-2 py-1 hover:bg-gray-100 rounded text-sm"
+        >
+          <i class="fa fa-chevron-right"></i>
+        </button>
+      </div>
       
-      <!-- 日历弹窗 -->
-      <div v-if="showCalendar && !disabled" class="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 w-64">
-        <!-- 月份导航 -->
-        <div class="flex items-center justify-between mb-3">
-          <button 
-            @click="previousMonth"
-            class="px-2 py-1 hover:bg-gray-100 rounded text-sm transition-custom"
-          >
-            <i class="fa fa-chevron-left"></i>
-          </button>
-          <div class="text-sm font-medium text-gray-700">
-            {{ currentMonthYear }}
-          </div>
-          <button 
-            @click="nextMonth"
-            class="px-2 py-1 hover:bg-gray-100 rounded text-sm transition-custom"
-          >
-            <i class="fa fa-chevron-right"></i>
-          </button>
-        </div>
-        
-        <!-- 星期标题 -->
-        <div class="grid grid-cols-7 gap-1 mb-2">
-          <div v-for="day in weekDays" :key="day" class="text-center text-xs font-semibold text-gray-500 w-8 h-8 flex items-center justify-center">
-            {{ day }}
-          </div>
-        </div>
-        
-        <!-- 日期网格 -->
-        <div class="grid grid-cols-7 gap-1">
-          <button 
-            v-for="day in calendarDays" 
-            :key="day.dateStr"
-            @click="selectDate(day.dateStr)"
-            :class="{
-              'bg-primary text-white': day.isSelected,
-              'text-gray-400': !day.isCurrentMonth,
-              'hover:bg-gray-100': day.isCurrentMonth && !day.isSelected
-            }"
-            class="w-8 h-8 text-xs rounded flex items-center justify-center transition-custom font-medium"
-          >
-            {{ day.date }}
-          </button>
+      <!-- 星期标题 -->
+      <div class="grid grid-cols-7 gap-1 mb-2">
+        <div v-for="day in weekDays" :key="day" class="text-center text-xs font-semibold text-gray-500 h-8 flex items-center justify-center">
+          {{ day }}
         </div>
       </div>
+      
+      <!-- 日期网格 -->
+      <div class="grid grid-cols-7 gap-1 mb-3">
+        <button 
+          v-for="day in calendarDays" 
+          :key="day.dateStr"
+          type="button"
+          @click="selectDate(day.dateStr)"
+          :disabled="!day.isCurrentMonth || day.isFuture"
+          :class="{
+            'bg-primary text-white': day.isSelected,
+            'ring-2 ring-primary': day.isCurrentDay && !day.isSelected,
+            'text-gray-400': !day.isCurrentMonth || day.isFuture,
+            'hover:bg-gray-100': day.isCurrentMonth && !day.isSelected && !day.isFuture
+          }"
+          class="h-8 text-xs rounded font-medium transition-colors"
+        >
+          {{ day.date }}
+        </button>
+      </div>
+      
+      <!-- 按钮组 -->
+      <div class="flex gap-2">
+        <button 
+          type="button"
+          @click="resetFilter"
+          class="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+        >
+          <i class="fa fa-redo mr-1"></i>今日
+        </button>
+        <button 
+          type="button"
+          @click="clearFilter"
+          class="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+        >
+          全部
+        </button>
+      </div>
     </div>
-    
-    <button 
-      @click="resetFilter" 
-      :disabled="disabled"
-      class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-custom text-sm flex items-center"
-    >
-      <i class="fa fa-redo mr-1"></i>重置
-    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
   modelValue: {
@@ -84,14 +97,32 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'reset']);
+const emit = defineEmits(['update:modelValue', 'reset', 'clear']);
 
 const showCalendar = ref(false);
 const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 const displayDate = ref(new Date(props.modelValue || new Date()));
 
+// 监听 modelValue 变化，同步更新 displayDate
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    const date = new Date(newValue);
+    if (!isNaN(date.getTime())) {
+      displayDate.value = date;
+    }
+  } else {
+    displayDate.value = new Date();
+  }
+});
+
 const formatDisplayDate = computed(() => {
+  if (!props.modelValue) {
+    return '选择日期';
+  }
   const date = new Date(props.modelValue);
+  if (isNaN(date.getTime())) {
+    return '选择日期';
+  }
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -114,6 +145,11 @@ const calendarDays = computed(() => {
   const startDate = new Date(firstDay);
   startDate.setDate(startDate.getDate() - firstDay.getDay());
   
+  // 获取今天的日期
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatDate(today);
+  
   const days = [];
   const currentDate = new Date(startDate);
   
@@ -121,12 +157,16 @@ const calendarDays = computed(() => {
     const dateStr = formatDate(currentDate);
     const isCurrentMonth = currentDate.getMonth() === month;
     const isSelected = dateStr === props.modelValue;
+    const isCurrentDay = dateStr === todayStr;
+    const isFuture = currentDate > today;
     
     days.push({
       date: currentDate.getDate(),
       dateStr: dateStr,
       isCurrentMonth: isCurrentMonth,
-      isSelected: isSelected
+      isSelected: isSelected,
+      isCurrentDay: isCurrentDay,
+      isFuture: isFuture
     });
     
     currentDate.setDate(currentDate.getDate() + 1);
@@ -149,6 +189,11 @@ function selectDate(dateStr) {
 
 function resetFilter() {
   emit('reset');
+  showCalendar.value = false;
+}
+
+function clearFilter() {
+  emit('clear');
   showCalendar.value = false;
 }
 
