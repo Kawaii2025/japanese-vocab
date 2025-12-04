@@ -14,7 +14,7 @@
 
       <!-- 搜索和筛选 -->
       <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-3 items-end">
+        <div class="flex flex-col md:flex-row gap-3 items-end mb-4 pb-4 border-b">
           <div class="flex-1">
             <label class="block text-sm font-medium text-gray-700 mb-1">搜索单词</label>
             <input 
@@ -39,6 +39,18 @@
             重置
           </button>
         </div>
+
+        <!-- 日期筛选 -->
+        <div class="flex flex-col md:flex-row gap-3 items-end">
+          <div class="text-sm font-medium text-gray-700">按添加日期筛选：</div>
+          <DateFilterComponent 
+            :model-value="selectedDate"
+            :disabled="loading"
+            @update:model-value="handleDateChange"
+            @reset="resetDateFilter"
+            @clear="clearDateFilter"
+          />
+        </div>
       </div>
 
       <!-- 单词列表 -->
@@ -60,7 +72,7 @@
                 {{ loading ? '加载中...' : '没有找到单词' }}
               </td>
             </tr>
-            <tr v-for="(word, index) in vocabularyList" :key="word.id" class="border-b hover:bg-gray-50">
+            <tr v-for="word in vocabularyList" :key="word.id" class="border-b hover:bg-gray-50">
               <td class="px-4 py-3">
                 <span v-if="editingId !== word.id" class="text-gray-900">{{ word.original }}</span>
                 <input 
@@ -169,6 +181,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
+import DateFilterComponent from '../components/DateFilterComponent.vue';
 import * as api from '../services/api';
 
 const router = useRouter();
@@ -176,6 +189,7 @@ const toast = useToast();
 
 const vocabularyList = ref([]);
 const searchKeyword = ref('');
+const selectedDate = ref('');
 const loading = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
@@ -239,6 +253,68 @@ async function handleSearch() {
 function resetSearch() {
   searchKeyword.value = '';
   loadVocabulary(1);
+}
+
+// 处理日期改变
+async function handleDateChange(newDate) {
+  selectedDate.value = newDate;
+  vocabularyList.value = [];
+  loading.value = true;
+  await loadVocabularyByDate();
+}
+
+// 按日期筛选单词
+async function loadVocabularyByDate() {
+  if (!selectedDate.value) {
+    toast.warning('请选择日期');
+    loading.value = false;
+    return;
+  }
+  
+  try {
+    const response = await api.getVocabularyByDate(selectedDate.value);
+    vocabularyList.value = response.data || [];
+    pagination.value = {
+      total: response.total || response.data.length,
+      page: 1,
+      pageSize: response.data.length,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false
+    };
+    
+    const dateObj = new Date(selectedDate.value);
+    const dateStr = dateObj.toLocaleDateString('zh-CN');
+    toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
+  } catch (error) {
+    console.error('按日期筛选失败:', error);
+    toast.error('筛选失败: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 重置日期筛选
+async function resetDateFilter() {
+  selectedDate.value = getTodayDate();
+  vocabularyList.value = [];
+  loading.value = true;
+  await loadVocabularyByDate();
+}
+
+// 清空日期条件，查看所有单词
+async function clearDateFilter() {
+  selectedDate.value = '';
+  loadVocabulary(1);
+}
+
+// 获取今天日期（北京时区）
+function getTodayDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // 开始编辑
