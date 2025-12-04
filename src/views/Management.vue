@@ -14,7 +14,7 @@
 
       <!-- 搜索和筛选 -->
       <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-3 items-end mb-4 pb-4 border-b">
+        <div class="flex flex-col md:flex-row gap-3 items-end">
           <div class="flex-1">
             <label class="block text-sm font-medium text-gray-700 mb-1">搜索单词</label>
             <input 
@@ -32,17 +32,7 @@
           >
             <i class="fa fa-search mr-2"></i>{{ loading ? '搜索中...' : '搜索' }}
           </button>
-          <button 
-            @click="resetSearch"
-            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-custom"
-          >
-            重置
-          </button>
-        </div>
-
-        <!-- 日期筛选 -->
-        <div class="flex flex-col md:flex-row gap-3 items-end">
-          <div class="text-sm font-medium text-gray-700">按添加日期筛选：</div>
+          <!-- 日期筛选 -->
           <DateFilterComponent 
             :model-value="selectedDate"
             :disabled="loading"
@@ -50,6 +40,12 @@
             @reset="resetDateFilter"
             @clear="clearDateFilter"
           />
+          <button 
+            @click="resetSearch"
+            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-custom"
+          >
+            重置
+          </button>
         </div>
       </div>
 
@@ -252,6 +248,7 @@ async function handleSearch() {
 // 重置搜索
 function resetSearch() {
   searchKeyword.value = '';
+  selectedDate.value = '';
   loadVocabulary(1);
 }
 
