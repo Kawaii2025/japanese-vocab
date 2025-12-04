@@ -4,6 +4,37 @@
       <!-- 页面标题 -->
       <HeaderComponent />
       
+      <!-- 日期筛选区域 -->
+      <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center">
+          <i class="fa fa-calendar text-primary mr-2"></i>按日期筛选
+        </h2>
+        <div class="flex flex-col sm:flex-row gap-3 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">选择日期</label>
+            <input 
+              v-model="selectedDate" 
+              type="date" 
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          <button 
+            @click="filterByDate" 
+            :disabled="loading"
+            class="flex items-center justify-center px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-400 transition-custom sm:flex-1"
+          >
+            <i class="fa fa-search mr-2"></i>筛选
+          </button>
+          <button 
+            @click="resetFilter" 
+            :disabled="loading"
+            class="flex items-center justify-center px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-custom sm:flex-1"
+          >
+            <i class="fa fa-redo mr-2"></i>重置
+          </button>
+        </div>
+      </section>
+      
       <!-- 功能区域 -->
       <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <template v-if="vocabularyList.length > 0">
@@ -243,7 +274,84 @@ const pagination = ref({
 
 const pageSize = ref(20);
 
-// 加载指定页
+// 日期筛选
+const selectedDate = ref('');
+const isDateFiltering = ref(false);
+
+// 获取今天的日期（北京时区格式：YYYY-MM-DD）
+function getTodayDate() {
+  const now = new Date();
+  const beijingTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  const year = beijingTime.getFullYear();
+  const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+  const day = String(beijingTime.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// 初始化日期为今天
+function initializeDate() {
+  selectedDate.value = getTodayDate();
+}
+
+// 按日期筛选单词
+async function filterByDate() {
+  if (!selectedDate.value) {
+    toast.warning('请选择日期');
+    return;
+  }
+  
+  try {
+    isDateFiltering.value = true;
+    const response = await api.getVocabularyByDate(selectedDate.value);
+    
+    if (response.data && response.data.length > 0) {
+      // 更新词汇列表
+      vocabularyList.value = response.data;
+      userInputs.value = new Array(response.data.length).fill('');
+      practiceResults.value = {};
+      pagination.value = {
+        total: response.total || response.data.length,
+        page: 1,
+        pageSize: response.data.length,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false
+      };
+      
+      const dateObj = new Date(selectedDate.value);
+      const dateStr = dateObj.toLocaleDateString('zh-CN');
+      toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
+    } else {
+      vocabularyList.value = [];
+      toast.info(`${new Date(selectedDate.value).toLocaleDateString('zh-CN')} 没有添加任何单词`);
+    }
+  } catch (error) {
+    console.error('筛选单词失败:', error);
+    toast.error('筛选失败: ' + error.message);
+  } finally {
+    isDateFiltering.value = false;
+  }
+}
+
+// 重置筛选
+async function resetFilter() {
+  try {
+    isDateFiltering.value = true;
+    selectedDate.value = getTodayDate();
+    const response = await loadVocabularyFromAPI({ 
+      page: 1, 
+      pageSize: pageSize.value 
+    });
+    pagination.value = response.pagination;
+    toast.success('已重置为首页列表');
+  } catch (error) {
+    console.error('重置筛选失败:', error);
+    toast.error('重置失败: ' + error.message);
+  } finally {
+    isDateFiltering.value = false;
+  }
+}
+
 async function loadPage(page) {
   try {
     const response = await loadVocabularyFromAPI({ 
@@ -333,6 +441,7 @@ async function loadMistakesFromAPI() {
 // 初始化
 onMounted(async () => {
   console.log('Practice.vue mounted, loading vocabulary...');
+  initializeDate();  // 初始化日期选择器为今天
   try {
     const response = await loadVocabularyFromAPI({ 
       page: 1, 
