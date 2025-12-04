@@ -6,61 +6,58 @@
       
       <!-- 功能区域 -->
       <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <template v-if="vocabularyList.length > 0">
-          <!-- 操作按钮区 -->
-          <div class="flex flex-wrap gap-3 mb-6 items-end">
-            <button 
-              @click="$router.push('/add')"
-              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
-            >
-              <i class="fa fa-plus mr-2"></i>添加单词
-            </button>
-            <button 
-              @click="loadRandomPractice"
-              :disabled="loading"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
-            >
-              <i class="fa fa-random mr-2"></i>
-              {{ loading ? '加载中...' : '随机练习' }}
-            </button>
-            <button 
-              @click="loadTodayReview"
-              :disabled="loading"
-              class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-custom flex items-center relative"
-            >
-              <i class="fa fa-calendar-check-o mr-2"></i>
-              <span>今日复习</span>
-              <span v-if="todayReviewCount > 0" class="absolute top-0 right-0 -mt-2 -mr-2 bg-white text-orange-500 text-xs rounded-full h-5 w-5 flex items-center justify-center border border-orange-300 shadow">{{ todayReviewCount }}</span>
-            </button>
-            
-            <!-- 日期筛选 - 放在右边 -->
-            <div class="ml-auto flex items-end gap-2">
-              <div class="flex items-end gap-2">
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 mb-1">按日期筛选</label>
-                  <input 
-                    v-model="selectedDate" 
-                    type="date" 
-                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-                <button 
-                  @click="filterByDate" 
-                  :disabled="loading"
-                  class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-400 transition-custom text-sm flex items-center"
-                >
-                  <i class="fa fa-search mr-1"></i>筛选
-                </button>
-                <button 
-                  @click="resetFilter" 
-                  :disabled="loading"
-                  class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-custom text-sm flex items-center"
-                >
-                  <i class="fa fa-redo mr-1"></i>重置
-                </button>
+        <!-- 总是显示的操作按钮和日期筛选区 -->
+        <div class="flex flex-wrap gap-3 mb-6 items-end pb-4 border-b border-gray-200">
+          <button 
+            @click="$router.push('/add')"
+            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
+          >
+            <i class="fa fa-plus mr-2"></i>添加单词
+          </button>
+          <button 
+            @click="loadRandomPractice"
+            :disabled="loading"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
+          >
+            <i class="fa fa-random mr-2"></i>
+            {{ loading ? '加载中...' : '随机练习' }}
+          </button>
+          <button 
+            @click="loadTodayReview"
+            :disabled="loading"
+            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-custom flex items-center relative"
+          >
+            <i class="fa fa-calendar-check-o mr-2"></i>
+            <span>今日复习</span>
+            <span v-if="todayReviewCount > 0" class="absolute top-0 right-0 -mt-2 -mr-2 bg-white text-orange-500 text-xs rounded-full h-5 w-5 flex items-center justify-center border border-orange-300 shadow">{{ todayReviewCount }}</span>
+          </button>
+          
+          <!-- 日期筛选 - 放在右边 -->
+          <div class="ml-auto flex items-end gap-2">
+            <div class="flex items-end gap-2">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">按日期筛选</label>
+                <input 
+                  v-model="selectedDate" 
+                  @change="filterByDate"
+                  type="date" 
+                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
               </div>
+              <button 
+                @click="resetFilter" 
+                :disabled="loading || isDateFiltering"
+                class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-custom text-sm flex items-center"
+              >
+                <i class="fa fa-redo mr-1"></i>重置
+              </button>
             </div>
           </div>
+        </div>
+        
+        <!-- 单词列表内容 -->
+        <template v-if="vocabularyList.length > 0">
+          <!-- 之前的操作按钮区（现在只用于显示下方内容） -->
           <VocabTableComponent 
             ref="vocabTableRef"
             :vocabularyList="vocabularyList"
@@ -151,7 +148,7 @@
           </div>
         </template>
         <template v-else>
-          <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+          <div class="bg-white rounded-xl p-12 text-center">
             <i class="fa fa-inbox text-6xl text-gray-300 mb-4"></i>
             <p class="text-gray-600 mb-4">还没有单词，开始添加吧！</p>
             <button 
@@ -273,7 +270,6 @@ const pageSize = ref(20);
 
 // 日期筛选
 const selectedDate = ref('');
-const isDateFiltering = ref(false);
 
 // 获取今天的日期（北京时区格式：YYYY-MM-DD）
 function getTodayDate() {
@@ -298,14 +294,13 @@ async function filterByDate() {
   }
   
   try {
-    isDateFiltering.value = true;
+    loading.value = true;
     const response = await api.getVocabularyByDate(selectedDate.value);
     
     if (response.data && response.data.length > 0) {
-      // 更新词汇列表
-      vocabularyList.value = response.data;
-      userInputs.value = new Array(response.data.length).fill('');
-      practiceResults.value = {};
+      // 更新词汇列表 - 使用正确的初始化方式
+      initVocabulary(response.data);
+      
       pagination.value = {
         total: response.total || response.data.length,
         page: 1,
@@ -320,20 +315,22 @@ async function filterByDate() {
       toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
     } else {
       vocabularyList.value = [];
+      userInputs.value = [];
+      practiceResults.value = {};
       toast.info(`${new Date(selectedDate.value).toLocaleDateString('zh-CN')} 没有添加任何单词`);
     }
   } catch (error) {
     console.error('筛选单词失败:', error);
     toast.error('筛选失败: ' + error.message);
   } finally {
-    isDateFiltering.value = false;
+    loading.value = false;
   }
 }
 
 // 重置筛选
 async function resetFilter() {
   try {
-    isDateFiltering.value = true;
+    loading.value = true;
     selectedDate.value = getTodayDate();
     const response = await loadVocabularyFromAPI({ 
       page: 1, 
@@ -345,7 +342,7 @@ async function resetFilter() {
     console.error('重置筛选失败:', error);
     toast.error('重置失败: ' + error.message);
   } finally {
-    isDateFiltering.value = false;
+    loading.value = false;
   }
 }
 
