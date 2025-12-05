@@ -43,12 +43,6 @@
         >
           <i class="fa fa-files-o mr-1"></i>合并导出
         </button>
-        <button 
-          @click="$emit('clear')"
-          class="bg-gray-200 hover:bg-gray-300 text-dark px-4 py-2 rounded-lg transition-custom flex items-center"
-        >
-          <i class="fa fa-trash mr-1"></i>清空
-        </button>
       </div>
       
       <!-- 移动端：按钮分两行 -->
@@ -90,12 +84,6 @@
           class="flex-1 min-w-20 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
         >
           <i class="fa fa-files-o mr-1"></i><span>合并</span>
-        </button>
-        <button 
-          @click="$emit('clear')"
-          class="flex-1 min-w-20 bg-gray-200 hover:bg-gray-300 text-dark px-2 py-2 rounded text-sm flex items-center justify-center transition-custom"
-        >
-          <i class="fa fa-trash mr-1"></i><span>清空</span>
         </button>
       </div>
     </div>
@@ -236,7 +224,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'shuffle', 'toggleKana', 'toggleOriginal', 'exportUnfinished', 
-  'exportCombined', 'clear', 'checkAnswer', 'enableEditing', 
+  'exportCombined', 'checkAnswer', 'enableEditing', 
   'toggleRowOriginal', 'toggleRowKana', 'updateInput'
 ]);
 

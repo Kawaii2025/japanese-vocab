@@ -67,7 +67,6 @@
             @toggleOriginal="handleToggleOriginal"
             @exportUnfinished="handleExportUnfinished"
             @exportCombined="handleExportCombined"
-            @clear="handleClearAll"
             @checkAnswer="handleCheckAnswer"
             @enableEditing="handleEnableEditing"
             @toggleRowOriginal="handleToggleRowOriginal"
@@ -551,16 +550,6 @@ function handleExportCombined() {
   
   navigator.clipboard.writeText(text);
   toast.success(`已复制${vocabularyList.value.length}个单词`);
-}
-
-async function handleClearAll() {
-  try {
-    await confirm.warning('清空后将无法恢复，确定要清空所有内容吗？', '确认清空');
-    clearAll();
-    toast.info('已清空');
-  } catch (error) {
-    // 用户取消，不做任何操作
-  }
 }
 
 function handleReviewUnfamiliar() {
