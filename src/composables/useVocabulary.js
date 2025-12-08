@@ -79,7 +79,11 @@ export function useVocabulary() {
     practiceResults.value[index].practiced = true;
     stats.value.practiced++;
     
-    const isCorrect = userAnswer === wordData.kana;
+    // 统一处理：都转换为小写并去掉前后空格
+    const normalizedUserAnswer = userAnswer.toLowerCase().trim();
+    const normalizedKana = wordData.kana.toLowerCase().trim();
+    
+    const isCorrect = normalizedUserAnswer === normalizedKana;
     
     if (isCorrect) {
       practiceResults.value[index].correct = true;
