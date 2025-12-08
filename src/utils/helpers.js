@@ -71,9 +71,19 @@ export function getDiff(userAnswer, correctAnswer) {
 export function generateDiffHtml(diff) {
   if (!diff || diff.length === 0) return '';
   
-  let html = '<div class="diff-container">';
+  let html = '<div class="inline-flex flex-wrap gap-1">';
   diff.forEach(item => {
-    html += `<span class="diff-item diff-${item.type}">${item.value}</span>`;
+    let styleClass = '';
+    
+    if (item.type === 'equal') {
+      styleClass = 'bg-gray-100 text-gray-700';
+    } else if (item.type === 'delete') {
+      styleClass = 'bg-red-200 text-red-700 line-through';
+    } else if (item.type === 'insert') {
+      styleClass = 'bg-green-200 text-green-700';
+    }
+    
+    html += `<span class="px-1 py-0.5 rounded text-sm ${styleClass}">${item.value}</span>`;
   });
   html += '</div>';
   return html;
