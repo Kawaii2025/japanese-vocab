@@ -282,9 +282,15 @@ function handleCheck(index) {
   const isCorrect = emit('checkAnswer', index, userAnswer);
   
   if (!isCorrect) {
-    // 规范化两边的数据用于展示对比
-    const normalizedUserAnswer = userAnswer.toLowerCase().trim();
-    const normalizedKana = wordData.kana.toLowerCase().trim();
+    // 规范化两边的数据用于展示对比：Unicode规范化 + 小写 + trim
+    const normalizedUserAnswer = userAnswer
+      .normalize('NFC')
+      .toLowerCase()
+      .trim();
+    const normalizedKana = wordData.kana
+      .normalize('NFC')
+      .toLowerCase()
+      .trim();
     const diff = getDiff(normalizedUserAnswer, normalizedKana);
     const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
     diffHtml.value = [...diffHtml.value];

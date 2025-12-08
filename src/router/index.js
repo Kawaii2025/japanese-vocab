@@ -4,6 +4,7 @@ import AddWords from '../views/AddWords.vue';
 import AddWordsMobile from '../views/AddWordsMobile.vue';
 import AddWordsTable from '../views/AddWordsTable.vue';
 import Management from '../views/Management.vue';
+import DebugAnswer from '../views/DebugAnswer.vue';
 import NotFound from '../views/NotFound.vue';
 
 const routes = [
@@ -31,6 +32,11 @@ const routes = [
     path: '/management',
     name: 'Management',
     component: Management
+  },
+  {
+    path: '/debug-answer',
+    name: 'DebugAnswer',
+    component: DebugAnswer
   },
   {
     path: '/:pathMatch(.*)*',

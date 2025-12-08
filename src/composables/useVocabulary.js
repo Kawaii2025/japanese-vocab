@@ -79,9 +79,26 @@ export function useVocabulary() {
     practiceResults.value[index].practiced = true;
     stats.value.practiced++;
     
-    // 统一处理：都转换为小写并去掉前后空格
-    const normalizedUserAnswer = userAnswer.toLowerCase().trim();
-    const normalizedKana = wordData.kana.toLowerCase().trim();
+    // 统一处理：规范化Unicode、转换为小写并去掉前后空格
+    const normalizedUserAnswer = userAnswer
+      .normalize('NFC')      // Unicode 规范化
+      .toLowerCase()
+      .trim();
+    const normalizedKana = wordData.kana
+      .normalize('NFC')      // Unicode 规范化
+      .toLowerCase()
+      .trim();
+    
+    // 调试输出
+    console.log('🔍 答案检查调试:', {
+      原始用户输入: userAnswer,
+      原始数据库: wordData.kana,
+      规范化用户输入: normalizedUserAnswer,
+      规范化数据库: normalizedKana,
+      长度_用户: normalizedUserAnswer.length,
+      长度_数据库: normalizedKana.length,
+      相等: normalizedUserAnswer === normalizedKana
+    });
     
     const isCorrect = normalizedUserAnswer === normalizedKana;
     
