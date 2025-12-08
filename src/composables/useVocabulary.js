@@ -66,8 +66,8 @@ export function useVocabulary() {
   
   // 保存用户输入
   function saveUserInput(index, value) {
-    userInputs.value[index] = value;
-    if (value.trim() !== '') {
+    userInputs.value[index] = value || '';
+    if (value && value.trim() !== '') {
       lastInputIndex.value = index;
     }
   }

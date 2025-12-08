@@ -154,6 +154,15 @@
                   placeholder="请输入纯假名..."
                   @input="handleInput(index)"
                 />
+                <!-- 答案正确时显示 -->
+                <div 
+                  v-else-if="practiceResults[index].correct"
+                  class="w-full p-2 border border-green-300 bg-green-50 rounded text-sm text-green-700 font-medium flex items-center gap-2"
+                >
+                  <i class="fa fa-check-circle"></i>
+                  <span>{{ localInputs[index] }}</span>
+                </div>
+                <!-- 答案错误时显示对比 -->
                 <div 
                   v-else-if="diffHtml[index]"
                   class="w-full p-2 border border-error bg-red-50 rounded text-sm text-error"
@@ -281,6 +290,9 @@ function handleCheck(index) {
   
   const isCorrect = emit('checkAnswer', index, userAnswer);
   
+  // 更新 diffHtml 数组（保持响应式）
+  diffHtml.value = [...diffHtml.value];
+  
   if (!isCorrect) {
     // 规范化两边的数据用于展示对比：Unicode规范化 + 小写 + trim
     const normalizedUserAnswer = userAnswer
@@ -293,8 +305,10 @@ function handleCheck(index) {
       .trim();
     const diff = getDiff(normalizedUserAnswer, normalizedKana);
     const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
-    diffHtml.value = [...diffHtml.value];
     diffHtml.value[index] = html;
+  } else {
+    // 答案正确时清空 diffHtml
+    diffHtml.value[index] = null;
   }
   
   // 确保响应式更新
