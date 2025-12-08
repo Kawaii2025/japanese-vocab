@@ -1,20 +1,20 @@
 # Use Node.js LTS image
 FROM node:20
 
-# Create app directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json for dependencies
-COPY api/package*.json ./
+# Copy package.json and package-lock.json to workdir
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install --only=production
 
-# Copy the rest of the API source code
-COPY api/ ./
+# Copy everything else (API source code)
+COPY . .
 
-# Expose the API server port (change if needed)
+# Expose API port (change if needed)
 EXPOSE 1337
 
-# Start the API
+# Start the API (change 'server.js' if your entry file is different)
 CMD ["node", "server.js"]
