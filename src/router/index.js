@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Practice from '../views/Practice.vue';
 import AddWords from '../views/AddWords.vue';
+import AddWordsMobile from '../views/AddWordsMobile.vue';
+import AddWordsTable from '../views/AddWordsTable.vue';
 import Management from '../views/Management.vue';
+import NotFound from '../views/NotFound.vue';
 
 const routes = [
   {
@@ -15,9 +18,24 @@ const routes = [
     component: AddWords
   },
   {
+    path: '/add-mobile',
+    name: 'AddWordsMobile',
+    component: AddWordsMobile
+  },
+  {
+    path: '/add-table',
+    name: 'AddWordsTable',
+    component: AddWordsTable
+  },
+  {
     path: '/management',
     name: 'Management',
     component: Management
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound
   }
 ];
 

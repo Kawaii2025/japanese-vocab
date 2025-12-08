@@ -15,6 +15,18 @@
             <i class="fa fa-plus mr-2"></i>添加单词
           </button>
           <button 
+            @click="$router.push('/add-mobile')"
+            class="bg-lime-600 hover:bg-lime-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center md:hidden"
+          >
+            <i class="fa fa-table mr-2"></i>快速添加
+          </button>
+          <button 
+            @click="$router.push('/add-table')"
+            class="bg-lime-600 hover:bg-lime-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center hidden md:flex"
+          >
+            <i class="fa fa-table mr-2"></i>批量添加
+          </button>
+          <button 
             @click="$router.push('/management')"
             class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-custom flex items-center"
           >
