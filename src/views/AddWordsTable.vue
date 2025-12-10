@@ -12,9 +12,9 @@
         <p class="text-gray-600">表格形式快速输入和管理单词</p>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:max-h-[calc(100vh-200px)]">
         <!-- 主输入区域 -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-2 overflow-y-auto">
           <!-- 操作按钮 -->
           <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div class="flex gap-3 mb-6">
@@ -82,9 +82,9 @@
                 <thead>
                   <tr class="bg-gray-100 border-b-2 border-gray-300">
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">日文</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">假名</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
                     <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-16">操作</th>
                   </tr>
                 </thead>
@@ -95,15 +95,6 @@
                     class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
                   >
                     <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
-                    <!-- 中文输入 -->
-                    <td class="px-4 py-3">
-                      <input 
-                        v-model="word.chinese"
-                        type="text"
-                        placeholder="输入中文意思"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                      />
-                    </td>
                     <!-- 日文输入 -->
                     <td class="px-4 py-3">
                       <input 
@@ -119,6 +110,15 @@
                         v-model="word.kana"
                         type="text"
                         placeholder="输入假名"
+                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                      />
+                    </td>
+                    <!-- 中文输入 -->
+                    <td class="px-4 py-3">
+                      <input 
+                        v-model="word.chinese"
+                        type="text"
+                        placeholder="输入中文意思"
                         class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                       />
                     </td>
@@ -168,11 +168,11 @@
           </div>
 
           <!-- 最近添加的单词 -->
-          <div v-if="recentWords.length > 0" class="bg-white rounded-lg shadow-lg p-6">
+          <div v-if="recentWords.length > 0" class="bg-white rounded-lg shadow-lg p-6 lg:sticky lg:top-0 lg:max-h-[calc(100vh-200px)]">
             <h3 class="text-lg font-semibold mb-4 flex items-center">
               <i class="fa fa-history text-primary mr-2"></i>最近添加
             </h3>
-            <div class="space-y-3 max-h-80 overflow-y-auto">
+            <div class="space-y-3 overflow-y-auto" style="max-height: calc(100vh - 300px)">
               <div 
                 v-for="word in recentWords" 
                 :key="word.id"
@@ -200,11 +200,7 @@ import { useToast } from '../composables/useToast.js';
 const router = useRouter();
 const toast = useToast();
 
-const words = ref([
-  { chinese: '', original: '', kana: '' },
-  { chinese: '', original: '', kana: '' },
-  { chinese: '', original: '', kana: '' }
-]);
+const words = ref(Array.from({ length: 10 }, () => ({ chinese: '', original: '', kana: '' })));
 const recentWords = ref([]);
 const loading = ref(false);
 
@@ -241,11 +237,7 @@ const loadRecentWords = async () => {
 
 // 初始化行
 const initializeRows = () => {
-  words.value = [
-    { chinese: '', original: '', kana: '' },
-    { chinese: '', original: '', kana: '' },
-    { chinese: '', original: '', kana: '' }
-  ];
+  words.value = Array.from({ length: 10 }, () => ({ chinese: '', original: '', kana: '' }));
 };
 
 // 加载示例数据

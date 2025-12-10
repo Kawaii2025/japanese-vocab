@@ -13,7 +13,16 @@
       </div>
 
       <!-- 输入表格 -->
-      <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+      <div class="bg-white rounded-lg shadow-lg p-4 mb-4 relative">
+        <!-- 加载覆盖层 -->
+        <div v-if="loading" class="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+          <div class="text-center">
+            <div class="inline-flex items-center justify-center">
+              <i class="fa fa-spinner fa-spin text-primary text-2xl mr-2"></i>
+              <span class="font-semibold text-gray-700">保存中...</span>
+            </div>
+          </div>
+        </div>
         <div class="flex gap-2 mb-4">
           <button 
             @click="addRow"
@@ -52,35 +61,35 @@
 
         <!-- 表格头 -->
         <div class="grid gap-2 mb-3 pb-3 border-b border-gray-200 text-xs font-semibold text-gray-700" style="grid-template-columns: 1fr 1fr 1fr 40px;">
-          <div>中文</div>
           <div>日文</div>
           <div>假名</div>
+          <div>中文</div>
           <div></div>
         </div>
 
         <!-- 输入行 -->
         <div class="space-y-3 max-h-96 overflow-y-auto">
           <div v-for="(word, index) in words" :key="index" class="grid gap-2 items-center" style="grid-template-columns: 1fr 1fr 1fr 40px;">
-            <!-- 中文输入 -->
-            <input 
-              v-model="word.chinese"
-              type="text"
-              placeholder="中文意思"
-              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
             <!-- 日文输入 -->
             <input 
               v-model="word.original"
               type="text"
               placeholder="日文原文"
-              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none"
             />
             <!-- 假名输入 -->
             <input 
               v-model="word.kana"
               type="text"
               placeholder="假名"
-              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none"
+            />
+            <!-- 中文输入 -->
+            <input 
+              v-model="word.chinese"
+              type="text"
+              placeholder="中文意思"
+              class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none"
             />
             <!-- 删除按钮 -->
             <button 
