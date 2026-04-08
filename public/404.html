@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      max-width: 600px;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 72px;
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+    
+    h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+    
+    p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    
+    .tips {
+      background: #f5f5f5;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      text-align: left;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+    
+    .tips ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .tips li {
+      padding: 8px 0;
+      color: #555;
+    }
+    
+    .tips li:before {
+      content: "✓ ";
+      color: #667eea;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+    
+    a {
+      display: inline-block;
+      padding: 12px 30px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-home {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-home:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-practice {
+      background: #f5f5f5;
+      color: #333;
+      border: 2px solid #667eea;
+    }
+    
+    .btn-practice:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  
+  <!-- GitHub Pages SPA 路由处理：404 页面重定向 -->
+  <script>
+    (function() {
+      var l = window.location;
+      
+      // 获取原始请求的路径
+      var pathToRedirect = l.pathname + l.search + l.hash;
+      
+      // 存储重定向路径到 sessionStorage，供 index.html 读取
+      if (pathToRedirect !== '/japanese-vocab/') {
+        sessionStorage.redirect = pathToRedirect;
+        
+        // 重定向到首页，让 Vue 应用加载并处理这个路由
+        l.replace('/japanese-vocab/?redirect=' + encodeURIComponent(pathToRedirect));
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div id="content">
+      <h1>404</h1>
+      <h2>页面未找到</h2>
+      <p>正在重定向到正确的页面...</p>
+      
+      <div class="spinner"></div>
+      
+      <div class="tips">
+        <ul>
+          <li>检查 URL 是否拼写正确</li>
+          <li>提示：您将被自动重定向</li>
+          <li>如果未被重定向，请点击下面的按钮</li>
+        </ul>
+      </div>
+      
+      <div class="buttons">
+        <a href="/japanese-vocab/" class="btn-home">回到首页</a>
+        <a href="/japanese-vocab/?tab=practice" class="btn-practice">开始练习</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
