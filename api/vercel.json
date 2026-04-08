@@ -18,12 +18,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "functions": {
-    "server.js": {
-      "memory": 1024,
-      "maxDuration": 60,
-      "includeFiles": ".env"
-    }
-  }
+  ]
 }
