@@ -516,29 +516,30 @@ async function loadTodayReviewCount() {
 
 // 事件处理器
 async function handleCheckAnswer(index, userAnswer) {
-  const isCorrect = await checkAnswer(index, userAnswer);
   const wordData = vocabularyList.value[index];
   
+  // Normalize answers first to determine if correct
+  const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
+  const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
+  const isCorrect = normalizedUserAnswer === normalizedKana;
+  
+  // Generate diff immediately (before API call) for instant UI feedback
   if (!isCorrect) {
-    // 规范化并生成对比
-    const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
-    const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
     const diff = getDiff(normalizedUserAnswer, normalizedKana);
     const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
     
-    // 确保 diffHtmlList 长度足够
+    // Ensure diffHtmlList has enough slots
     if (diffHtmlList.value.length <= index) {
       diffHtmlList.value = [...diffHtmlList.value, ...new Array(index + 1 - diffHtmlList.value.length).fill('')];
     }
     diffHtmlList.value[index] = html;
     
+    // Add to mistakes list immediately
     addToMistakes(wordData, userAnswer, diff);
-  } else {
-    // 答案正确时清空 diff
-    if (diffHtmlList.value.length > index) {
-      diffHtmlList.value[index] = '';
-    }
   }
+  
+  // Now check the answer (which will update practiceResults and make API call)
+  await checkAnswer(index, userAnswer);
 }
 
 function handleEnableEditing(index) {
