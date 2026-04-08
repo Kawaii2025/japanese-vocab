@@ -25,14 +25,5 @@
       "maxDuration": 60,
       "includeFiles": ".env"
     }
-  },
-  "monitoring": {
-    "metrics": [
-      {
-        "name": "health",
-        "path": "/api/health",
-        "description": "API and Database Health Check"
-      }
-    ]
   }
 }
