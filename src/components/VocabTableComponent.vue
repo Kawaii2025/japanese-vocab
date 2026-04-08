@@ -257,10 +257,10 @@ const inputClasses = computed(() => {
 });
 
 // 初始化本地输入
-watch(() => props.vocabularyList.length, (newLen) => {
-  localInputs.value = new Array(newLen).fill('');
-  isEditing.value = new Array(newLen).fill(false);
-  diffHtml.value = new Array(newLen).fill('');
+watch(() => props.vocabularyList, (newList) => {
+  localInputs.value = new Array(newList.length).fill('');
+  isEditing.value = new Array(newList.length).fill(false);
+  diffHtml.value = new Array(newList.length).fill('');
 }, { immediate: true });
 
 // 监听 practiceResults 的变化，重置编辑状态
