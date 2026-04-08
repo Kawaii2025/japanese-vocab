@@ -18,13 +18,28 @@
 
 ## 快速开始
 
+### 数据库配置（必须）
+
+本项目使用 **Neon** (云托管 PostgreSQL) 作为数据库。
+
+**配置步骤：**
+1. 在 Neon 仪表板获取您的连接字符串
+2. 在 `api/` 目录创建 `.env` 文件：
+   ```env
+   DATABASE_URL=postgresql://username:password@host.neon.tech/dbname?sslmode=require&channel_binding=require
+   PORT=3001
+   ```
+3. **⚠️ 重要**: 不要将 `.env` 提交到 Git（已在 `.gitignore` 中）
+
 ### 方式一：完整功能（前端 + 后端）
+
+**前提条件**: Neon 数据库已配置（见上面的数据库配置）
 
 **1. 启动后端 API 服务器**
 ```bash
 cd api
 npm install
-node server.js
+npm run start
 ```
 服务器运行在 `http://localhost:3001`
 
