@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "^/$",
+      "dest": "/api/health"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "includeFiles": ".env"
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      {
+        "name": "health",
+        "path": "/api/health",
+        "description": "API and Database Health Check"
+      }
+    ]
+  }
+}
