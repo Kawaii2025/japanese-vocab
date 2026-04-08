@@ -153,7 +153,6 @@
                   class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none" 
                   :class="isEditing[index] ? '' : inputClasses[index]"
                   placeholder="请输入纯假名..."
-                  @input="handleInput(index)"
                   @keydown.enter.prevent="handleCheck(index)"
                 />
                 <!-- 答案正确时显示 -->
@@ -240,13 +239,19 @@ const props = defineProps({
 const emit = defineEmits([
   'shuffle', 'toggleKana', 'toggleOriginal', 'exportUnfinished', 
   'exportCombined', 'checkAnswer', 'enableEditing', 
-  'toggleRowOriginal', 'toggleRowKana', 'updateInput'
+  'toggleRowOriginal', 'toggleRowKana'
 ]);
 
 const localInputs = ref([]);
 const isEditing = ref([]);
 const inputRefs = ref([]);
 const rowRefs = ref([]);
+
+// Helper function to add pulse animation
+function addPulseAnimation(element) {
+  element.classList.add('btn-pulse');
+  setTimeout(() => element.classList.remove('btn-pulse'), 500);
+}
 
 const inputClasses = computed(() => {
   return props.practiceResults.map((result, index) => {
@@ -277,10 +282,6 @@ watch(() => props.practiceResults, (newResults) => {
   });
 }, { deep: true });
 
-function handleInput(index) {
-  emit('updateInput', index, localInputs.value[index]);
-}
-
 function handleCheck(index) {
   // Read value directly from DOM to handle Enter key timing issue
   const userAnswer = (inputRefs.value[index]?.value || localInputs.value[index]).trim();
@@ -289,21 +290,14 @@ function handleCheck(index) {
 }
 
 function handleEdit(index, event) {
-  // 确保响应式更新
-  const newEditing = [...isEditing.value];
-  newEditing[index] = true;
-  isEditing.value = newEditing;
-  
+  isEditing.value[index] = true;
+  addPulseAnimation(event.target);
   emit('enableEditing', index);
-  
-  event.target.classList.add('btn-pulse');
-  setTimeout(() => event.target.classList.remove('btn-pulse'), 500);
 }
 
 function handleRead(kana, event) {
   readJapanese(kana);
-  event.target.classList.add('btn-pulse');
-  setTimeout(() => event.target.classList.remove('btn-pulse'), 500);
+  addPulseAnimation(event.target);
 }
 
 function toggleRowOriginal(index) {

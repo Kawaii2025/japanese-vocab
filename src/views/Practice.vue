@@ -84,7 +84,6 @@
             @enableEditing="handleEnableEditing"
             @toggleRowOriginal="handleToggleRowOriginal"
             @toggleRowKana="handleToggleRowKana"
-            @updateInput="handleUpdateInput"
           />
           <!-- 分页控件（表格下方） -->
           <div v-if="pagination.total > 0" class="pagination-container mt-8">
@@ -523,14 +522,17 @@ async function handleCheckAnswer(index, userAnswer) {
   const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
   const isCorrect = normalizedUserAnswer === normalizedKana;
   
+  // Update last input index
+  saveUserInput(index, userAnswer);
+  
   // Generate diff immediately (before API call) for instant UI feedback
   if (!isCorrect) {
     const diff = getDiff(normalizedUserAnswer, normalizedKana);
     const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
     
     // Ensure diffHtmlList has enough slots
-    if (diffHtmlList.value.length <= index) {
-      diffHtmlList.value = [...diffHtmlList.value, ...new Array(index + 1 - diffHtmlList.value.length).fill('')];
+    while (diffHtmlList.value.length <= index) {
+      diffHtmlList.value.push('');
     }
     diffHtmlList.value[index] = html;
     
@@ -544,10 +546,6 @@ async function handleCheckAnswer(index, userAnswer) {
 
 function handleEnableEditing(index) {
   enableEditing(index);
-}
-
-function handleUpdateInput({ index, value }) {
-  saveUserInput(index, value);
 }
 
 function handleToggleRowOriginal(index) {
