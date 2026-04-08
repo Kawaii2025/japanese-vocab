@@ -43,6 +43,34 @@ npm run dev
 ```
 无需后端，手动输入单词即可练习（不保存到数据库）
 
+### 方式三：使用 VS Code Tasks（推荐）
+
+项目包含自动化任务配置，可同时启动前端和后端。
+
+**前提条件**：
+1. 确保 `.env` 文件已正确配置（包含 `DATABASE_URL`）
+2. 在 VS Code 中打开项目
+
+**使用方法**：
+
+**选项 1：使用命令面板（推荐）**
+- 按 `Cmd + Shift + P`（Mac）或 `Ctrl + Shift + P`（Windows/Linux）
+- 输入 "Tasks: Run Task"
+- 选择以下任一选项：
+  - **"Run Both (API + Frontend)"** - 同时启动前端（5173）和后端（3001）
+  - **"Start API Server"** - 仅启动后端 API（3001）
+  - **"Start Frontend Dev Server"** - 仅启动前端（5173）
+
+**选项 2：使用快捷键**
+- 按 `Cmd + Shift + B`（Mac）或 `Ctrl + Shift + B`（Windows/Linux）启动默认任务
+
+**任务详情**：
+| 任务名称 | 命令 | 端口 |
+|--------|------|------|
+| Run Both (API + Frontend) | 同时运行 API 和前端 | 3001 & 5173 |
+| Start API Server | `npm run start` | 3001 |
+| Start Frontend Dev Server | `npm run dev` | 5173 |
+
 ## 项目结构
 
 ```
