@@ -74,6 +74,7 @@
             :originalHidden="originalHidden"
             :hasOriginalText="hasOriginalText"
             :activeMistakes="activeMistakes"
+            :diffHtmlList="diffHtmlList"
             @shuffle="handleShuffle"
             @toggleKana="handleToggleKana"
             @toggleOriginal="handleToggleOriginal"
@@ -215,7 +216,7 @@ import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { useVocabulary } from '../composables/useVocabulary';
 import { useToast } from '../composables/useToast';
 import { useConfirm } from '../composables/useConfirm';
-import { getDiff } from '../utils/helpers';
+import { getDiff, generateDiffHtml } from '../utils/helpers';
 import * as api from '../services/api.js';
 
 const router = useRouter();
@@ -275,6 +276,9 @@ const pagination = ref({
 
 const pageSize = ref(20);
 
+// 错误对比 HTML 列表
+const diffHtmlList = ref([]);
+
 // 日期筛选
 const selectedDate = ref('');
 
@@ -315,6 +319,8 @@ async function filterByDate() {
     if (response.data && response.data.length > 0) {
       // 更新词汇列表 - 使用正确的初始化方式
       initVocabulary(response.data);
+      // Reset diff HTML list
+      diffHtmlList.value = new Array(response.data.length).fill('');
       
       pagination.value = {
         total: response.total || response.data.length,
@@ -330,6 +336,7 @@ async function filterByDate() {
       toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
     } else {
       initVocabulary([]);
+      diffHtmlList.value = [];
       toast.info(`${new Date(selectedDate.value).toLocaleDateString('zh-CN')} 没有添加任何单词`);
     }
   } catch (error) {
@@ -350,6 +357,8 @@ async function resetFilter() {
       pageSize: pageSize.value 
     });
     pagination.value = response.pagination;
+    // Reset diff HTML list
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success('已重置为首页列表');
   } catch (error) {
     console.error('重置筛选失败:', error);
@@ -369,6 +378,8 @@ async function clearFilter() {
       pageSize: pageSize.value 
     });
     pagination.value = response.pagination;
+    // Reset diff HTML list
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success('已清空日期筛选，显示所有单词');
   } catch (error) {
     console.error('清空筛选失败:', error);
@@ -385,6 +396,8 @@ async function loadPage(page) {
       pageSize: pageSize.value 
     });
     pagination.value = response.pagination;
+    // Reset diff HTML list for new page
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success(`已加载第 ${page} 页`);
   } catch (err) {
     toast.error('加载失败: ' + err.message);
@@ -401,6 +414,8 @@ async function changePageSize() {
 async function loadRandomPractice() {
   try {
     await loadRandomWords(20);
+    // Reset diff HTML list
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success('已加载20个随机单词');
   } catch (err) {
     toast.error('加载失败: ' + err.message);
@@ -411,6 +426,8 @@ async function loadRandomPractice() {
 async function loadTodayReview() {
   try {
     const response = await loadTodayReviewAPI();
+    // Reset diff HTML list
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     todayReviewCount.value = response.total || 0; // 更新数量
     if (response.total === 0) {
       toast.info('今天没有需要复习的单词！');
@@ -475,6 +492,8 @@ onMounted(async () => {
     });
     console.log('API response:', response);
     pagination.value = response.pagination;
+    // Initialize diff HTML list
+    diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success(`已加载 ${response.data.length} 个单词`);
     
     // 加载今日复习数量
@@ -505,7 +524,20 @@ async function handleCheckAnswer(index, userAnswer) {
     const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
     const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
     const diff = getDiff(normalizedUserAnswer, normalizedKana);
+    const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
+    
+    // 确保 diffHtmlList 长度足够
+    if (diffHtmlList.value.length <= index) {
+      diffHtmlList.value = [...diffHtmlList.value, ...new Array(index + 1 - diffHtmlList.value.length).fill('')];
+    }
+    diffHtmlList.value[index] = html;
+    
     addToMistakes(wordData, userAnswer, diff);
+  } else {
+    // 答案正确时清空 diff
+    if (diffHtmlList.value.length > index) {
+      diffHtmlList.value[index] = '';
+    }
   }
 }
 

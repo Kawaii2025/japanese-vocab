@@ -146,6 +146,7 @@
             <td class="px-3 py-4 table-cell">
               <div class="practice-container w-full">
                 <input 
+                  :ref="el => inputRefs[index] = el"
                   v-if="!practiceResults[index].practiced || isEditing[index]"
                   v-model="localInputs[index]"
                   type="text" 
@@ -153,6 +154,7 @@
                   :class="isEditing[index] ? '' : inputClasses[index]"
                   placeholder="请输入纯假名..."
                   @input="handleInput(index)"
+                  @keydown.enter.prevent="handleCheck(index)"
                 />
                 <!-- 答案正确时显示 -->
                 <div 
@@ -164,9 +166,9 @@
                 </div>
                 <!-- 答案错误时显示对比 -->
                 <div 
-                  v-else-if="diffHtml[index]"
+                  v-else-if="props.diffHtmlList[index]"
                   class="w-full p-2 border border-error bg-red-50 rounded text-sm text-error"
-                  v-html="diffHtml[index]"
+                  v-html="props.diffHtmlList[index]"
                 ></div>
               </div>
             </td>
@@ -228,6 +230,10 @@ const props = defineProps({
   activeMistakes: {
     type: Number,
     required: true
+  },
+  diffHtmlList: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -239,7 +245,7 @@ const emit = defineEmits([
 
 const localInputs = ref([]);
 const isEditing = ref([]);
-const diffHtml = ref([]);
+const inputRefs = ref([]);
 const rowRefs = ref([]);
 
 const inputClasses = computed(() => {
@@ -256,27 +262,19 @@ const inputClasses = computed(() => {
   });
 });
 
-// 初始化本地输入
+// Reset inputs when vocabulary list changes
 watch(() => props.vocabularyList, (newList) => {
   localInputs.value = new Array(newList.length).fill('');
   isEditing.value = new Array(newList.length).fill(false);
-  diffHtml.value = new Array(newList.length).fill('');
 }, { immediate: true });
 
-// 监听 practiceResults 的变化，重置编辑状态
+// Reset editing state when practice results change
 watch(() => props.practiceResults, (newResults) => {
-  
-  const anyNeedReset = newResults.some((result, index) => !result.practiced && isEditing.value[index]);
-  
-  if (anyNeedReset) {
-    const newEditing = [...isEditing.value];
-    newResults.forEach((result, index) => {
-      if (!result.practiced && isEditing.value[index]) {
-        newEditing[index] = false;
-      }
-    });
-    isEditing.value = newEditing;
-  }
+  newResults.forEach((result, index) => {
+    if (result.practiced && isEditing.value[index]) {
+      isEditing.value[index] = false;
+    }
+  });
 }, { deep: true });
 
 function handleInput(index) {
@@ -284,42 +282,18 @@ function handleInput(index) {
 }
 
 function handleCheck(index) {
-  
-  const userAnswer = localInputs.value[index].trim();
-  const wordData = props.vocabularyList[index];
-  
-  const isCorrect = emit('checkAnswer', index, userAnswer);
-  
-  // 更新 diffHtml 数组（保持响应式）
-  diffHtml.value = [...diffHtml.value];
-  
-  if (!isCorrect) {
-    // 规范化并比较生成对比
-    const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
-    const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
-    const diff = getDiff(normalizedUserAnswer, normalizedKana);
-    const html = `<div class="mb-1 text-xs text-gray-500">你的答案 vs 正确答案</div>${generateDiffHtml(diff)}`;
-    diffHtml.value[index] = html;
-  } else {
-    // 答案正确时清空 diffHtml
-    diffHtml.value[index] = null;
-  }
-  
-  // 确保响应式更新
-  const newEditing = [...isEditing.value];
-  newEditing[index] = false;
-  isEditing.value = newEditing;
+  // Read value directly from DOM to handle Enter key timing issue
+  const userAnswer = (inputRefs.value[index]?.value || localInputs.value[index]).trim();
+  isEditing.value[index] = false;
+  emit('checkAnswer', index, userAnswer);
 }
 
 function handleEdit(index, event) {
-  
   // 确保响应式更新
   const newEditing = [...isEditing.value];
   newEditing[index] = true;
   isEditing.value = newEditing;
   
-  diffHtml.value = [...diffHtml.value];
-  diffHtml.value[index] = '';
   emit('enableEditing', index);
   
   event.target.classList.add('btn-pulse');
