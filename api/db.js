@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { createNeonWrapper } from './utils/neon-wrapper.js';
 
 dotenv.config();
 
@@ -44,17 +45,19 @@ export async function initializeDatabase() {
   if (useNeon) {
     // Production: Use Neon PostgreSQL for Vercel serverless
     console.log('🔄 Initializing Neon PostgreSQL (Production Mode)...');
-    database = neonPool;
     
-    if (!database) {
+    if (!neonPool) {
       throw new Error('DATABASE_URL is not set but trying to use Neon mode');
     }
 
     // Test connection
     try {
-      const result = await database.query('SELECT NOW()');
+      const result = await neonPool.query('SELECT NOW()');
       console.log('✅ Neon PostgreSQL: CONNECTED');
       await initializeNeon();
+      
+      // Return wrapped Neon pool to provide SQLite-compatible API
+      database = createNeonWrapper(neonPool);
       return database;
     } catch (err) {
       console.error('❌ Neon Connection Failed:', err.message);
@@ -281,9 +284,23 @@ export async function initializeNeon() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  if (sqlite) await sqlite.close();
-  if (neonPool) await neonPool.end();
-  console.log('📊 Databases closed');
+  console.log('📊 Shutting down databases...');
+  if (sqlite) {
+    try {
+      await sqlite.close();
+      console.log('📊 SQLite closed');
+    } catch (err) {
+      console.warn('⚠️  Error closing SQLite:', err.message);
+    }
+  }
+  if (neonPool) {
+    try {
+      await neonPool.end();
+      console.log('📊 Neon PostgreSQL closed');
+    } catch (err) {
+      console.warn('⚠️  Error closing Neon:', err.message);
+    }
+  }
   process.exit(0);
 });
 
