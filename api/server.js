@@ -39,6 +39,24 @@ async function startServer() {
   app.use(cors(getCorsOptions()));
   app.use(express.json());
 
+  // Root endpoint - health status for preview/monitoring
+  app.get('/', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Japanese Vocab API is running',
+      status: 'healthy',
+      endpoints: {
+        health: '/health',
+        api_health: '/api/health',
+        vocabulary: '/api/vocabulary',
+        practice: '/api/practice',
+        stats: '/api/stats'
+      },
+      timestamp: new Date().toISOString(),
+      version: '2.0.0'
+    });
+  });
+
   app.use('/api/vocabulary', vocabularyRoutes);
   app.use('/api/practice', practiceRoutes);
   app.use('/api/stats', statsRoutes);
