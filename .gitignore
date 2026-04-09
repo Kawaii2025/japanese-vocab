@@ -27,8 +27,11 @@ npm-debug.log*
 # SQLite Local Database (binary - not for git)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 data/*.db
 data/*.db-journal
+data/*.db-shm
 data/*.db-wal
 
 # BUT allow JSON exports (text-based backups safe for git)
