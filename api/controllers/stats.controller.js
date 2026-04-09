@@ -2,6 +2,7 @@
  * 统计相关业务逻辑控制器 - SQLite (Async) Version
  */
 import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
+import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
 
@@ -95,11 +96,11 @@ export async function getOverview(req, res) {
     const totalWords = await db.get('SELECT COUNT(*) as count FROM vocabulary');
     const todayInput = await db.get(
       'SELECT COUNT(*) as count FROM vocabulary WHERE input_date = ?',
-      BEIJING_CURRENT_DATE
+      wrapRawSQL(BEIJING_CURRENT_DATE)
     );
     const todayReview = await db.get(
       'SELECT COUNT(*) as count FROM vocabulary WHERE next_review_date IS NOT NULL AND next_review_date <= ?',
-      BEIJING_CURRENT_DATE
+      wrapRawSQL(BEIJING_CURRENT_DATE)
     );
     const totalPractice = await db.get(
       'SELECT COUNT(*) as count FROM practice_records WHERE user_id = ?',

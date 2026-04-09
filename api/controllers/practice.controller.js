@@ -3,6 +3,7 @@
  */
 import { trackChange } from '../services/sync.service.js';
 import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
+import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
 
@@ -24,15 +25,15 @@ export async function recordPractice(req, res) {
     
     // Insert practice record
     const practiceResult = await db.run(`
-      INSERT INTO practice_records (user_id, vocabulary_id, user_answer, is_correct, attempt_count, practice_date)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO practice_records (user_id, vocabulary_id, user_answer, is_correct, attempt_count, practice_date, practiced_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
     `,
       user_id, 
       vocabulary_id, 
       user_answer, 
       is_correct ? 1 : 0, 
       attempt_count,
-      BEIJING_CURRENT_DATE
+      wrapRawSQL(BEIJING_CURRENT_DATE)
     );
     
     trackChange('practice_records', practiceResult.lastID, 'INSERT');
@@ -231,18 +232,21 @@ export async function getTodayProgress(req, res) {
         COUNT(DISTINCT vocabulary_id) as unique_words
       FROM practice_records
       WHERE user_id = ? AND practice_date = ?
-    `, user_id, BEIJING_CURRENT_DATE);
+    `, user_id, wrapRawSQL(BEIJING_CURRENT_DATE));
     
     const accuracy = result.total_attempts > 0
       ? Math.round(100 * result.correct_count / result.total_attempts)
       : 0;
+
+    // Get today's date in Beijing timezone
+    const today = new Date().toISOString().split('T')[0];
     
     res.json({
       success: true,
       data: {
         ...result,
         accuracy: accuracy,
-        date: BEIJING_CURRENT_DATE
+        date: today
       }
     });
   } catch (err) {
