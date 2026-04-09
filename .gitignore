@@ -33,6 +33,27 @@ data/*.db
 data/*.db-journal
 data/*.db-shm
 data/*.db-wal
+api/data/
+api/data/**
+
+# Other binary files - NEVER commit these
+*.bin
+*.exe
+*.dll
+*.so
+*.o
+*.obj
+*.a
+*.dylib
+*.class
+*.jar
+*.zip
+*.tar.gz
+*.iso
+*.dmg
+*.pdf
+*.doc
+*.docx
 
 # BUT allow JSON exports (text-based backups safe for git)
 !data/exports/
