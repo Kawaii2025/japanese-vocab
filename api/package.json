@@ -8,7 +8,14 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "export-json": "node export-to-json.js",
-    "import-json": "node import-from-json.js"
+    "import-json": "node import-from-json.js",
+    "backup-neon": "node backup-neon-to-json.js",
+    "sync-to-neon": "node sync-to-neon.js",
+    "sync-to-neon-partial": "node sync-to-neon-partial.js",
+    "sync-vocabulary": "node sync-vocabulary-to-neon.js",
+    "sync-users": "node sync-users-to-neon.js",
+    "sync-practice-records": "node sync-practice-records-to-neon.js",
+    "restore-neon": "node restore-neon-from-json.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

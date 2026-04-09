@@ -1,0 +1,202 @@
+#!/usr/bin/env node
+
+/**
+ * Sync local SQLite data to Neon PostgreSQL
+ * Usage: node sync-to-neon.js
+ * 
+ * This script pushes all data from your local SQLite database to Neon.
+ * IMPORTANT: Run backup-neon-to-json.js FIRST to backup existing Neon data!
+ */
+
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import pg from 'pg';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import readline from 'readline';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const dbPath = path.join(__dirname, '../data/vocabulary.db');
+
+// Helper to ask user for confirmation
+async function askConfirmation(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase().startsWith('y'));
+    });
+  });
+}
+
+async function syncToNeon() {
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL not set. Cannot sync to Neon.');
+    console.error('   Set DATABASE_URL in your .env file to enable Neon sync.');
+    process.exit(1);
+  }
+
+  console.log('🔄 SQLite → Neon Sync Tool\n');
+  console.log('⚠️  WARNING: This will overwrite data in Neon!');
+  console.log('   Make sure you have backed up Neon data first.\n');
+
+  const confirmed = await askConfirmation('Have you backed up Neon data? (y/n): ');
+  if (!confirmed) {
+    console.log('\n❌ Cancelled. Please run: node backup-neon-to-json.js');
+    process.exit(0);
+  }
+
+  const neonPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL
+  });
+
+  const sqliteDb = await open({
+    filename: dbPath,
+    driver: sqlite3.Database
+  });
+
+  try {
+    console.log('\n🔐 Connecting to Neon...');
+    const testConn = await neonPool.query('SELECT NOW()');
+    console.log('✅ Connected to Neon\n');
+
+    console.log('📊 Starting sync process...\n');
+
+    // Get counts before sync
+    const neonVocabBefore = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const neonUsersBefore = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const neonPracticeBefore = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    const sqliteVocab = await sqliteDb.all('SELECT COUNT(*) as count FROM vocabulary');
+    const sqliteUsers = await sqliteDb.all('SELECT COUNT(*) as count FROM users');
+    const sqlitePractice = await sqliteDb.all('SELECT COUNT(*) as count FROM practice_records');
+
+    console.log('📈 Data counts:');
+    console.log(`   SQLite → Neon`);
+    console.log(`   Vocabulary: ${sqliteVocab[0].count} → ${neonVocabBefore.rows[0].count}`);
+    console.log(`   Users: ${sqliteUsers[0].count} → ${neonUsersBefore.rows[0].count}`);
+    console.log(`   Practice Records: ${sqlitePractice[0].count} → ${neonPracticeBefore.rows[0].count}\n`);
+
+    const finalConfirm = await askConfirmation('Proceed with sync? (y/n): ');
+    if (!finalConfirm) {
+      console.log('\n❌ Cancelled.');
+      await neonPool.end();
+      await sqliteDb.close();
+      process.exit(0);
+    }
+
+    // Helper to convert JS milliseconds to date string (YYYY-MM-DD)
+    const msToDate = (ms) => {
+      if (!ms || ms === null || ms === undefined || ms === '') return null;
+      const num = Number(ms);
+      if (isNaN(num)) return null;
+      try {
+        return new Date(num).toISOString().split('T')[0];
+      } catch (e) {
+        console.warn(`⚠️  Invalid date value: ${ms}`);
+        return null;
+      }
+    };
+
+    // Helper to convert JS milliseconds to ISO timestamp
+    const msToTimestamp = (ms) => {
+      if (!ms || ms === null || ms === undefined || ms === '') return null;
+      const num = Number(ms);
+      if (isNaN(num)) return null;
+      try {
+        return new Date(num).toISOString();
+      } catch (e) {
+        console.warn(`⚠️  Invalid timestamp value: ${ms}`);
+        return null;
+      }
+    };
+
+    console.log('\n🔄 Syncing vocabulary...');
+    const vocabularyData = await sqliteDb.all('SELECT * FROM vocabulary ORDER BY id');
+    
+    for (const row of vocabularyData) {
+      await neonPool.query(
+        `INSERT INTO vocabulary 
+        (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (id) DO UPDATE SET
+        chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
+        input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
+        updated_at = $12`,
+        [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
+         msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
+         msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
+      );
+    }
+    console.log(`   ✅ ${vocabularyData.length} vocabulary items synced`);
+
+    // Sync users
+    try {
+      console.log('🔄 Syncing users...');
+      const usersData = await sqliteDb.all('SELECT * FROM users ORDER BY id');
+      
+      for (const row of usersData) {
+        await neonPool.query(
+          `INSERT INTO users (id, username, email, created_at)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (id) DO UPDATE SET
+          username = $2, email = $3`,
+          [row.id, row.username, row.email, msToTimestamp(row.created_at)]
+        );
+      }
+      console.log(`   ✅ ${usersData.length} users synced`);
+    } catch (err) {
+      console.log('   ⚠️  Users table not synced:', err.message);
+    }
+
+    // Sync practice records
+    try {
+      console.log('🔄 Syncing practice records...');
+      const practiceData = await sqliteDb.all('SELECT * FROM practice_records ORDER BY id');
+      
+      for (const row of practiceData) {
+        await neonPool.query(
+          `INSERT INTO practice_records (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (id) DO UPDATE SET
+          is_correct = $4, practice_date = $5, practiced_at = $6`,
+          [row.id, row.user_id, row.vocabulary_id, row.is_correct, msToDate(row.practice_date), msToTimestamp(row.practiced_at)]
+        );
+      }
+      console.log(`   ✅ ${practiceData.length} practice records synced`);
+    } catch (err) {
+      console.log('   ⚠️  Practice records not synced:', err.message);
+    }
+
+    // Get counts after sync
+    const neonVocabAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const neonUsersAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    console.log('\n✅ Sync complete!');
+    console.log('📊 Neon data after sync:');
+    console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count}`);
+    console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count}`);
+    console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count}`);
+
+    await neonPool.end();
+    await sqliteDb.close();
+
+  } catch (err) {
+    console.error('❌ Sync failed:', err.message);
+    await neonPool.end();
+    await sqliteDb.close();
+    process.exit(1);
+  }
+}
+
+syncToNeon();
