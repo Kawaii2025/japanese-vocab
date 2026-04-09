@@ -3,29 +3,82 @@
  * Converts db.get() and db.all() calls to PostgreSQL queries
  */
 
+// Mark a value as raw SQL to be injected directly (not parameterized)
+export class RawSQL {
+  constructor(sql) {
+    this.sql = sql;
+  }
+}
+
+// Helper to detect and wrap raw SQL expressions
+export function wrapRawSQL(value) {
+  if (value instanceof RawSQL) return value;
+  if (typeof value === 'string' && (value.includes('NOW()') || value.includes('date(') || value.includes('strftime('))) {
+    return new RawSQL(value);
+  }
+  return value;
+}
+
 function convertQueryPlaceholders(query, params) {
-  // Replace ? with $1, $2, etc for PostgreSQL
+  // Convert SQLite functions to PostgreSQL equivalents
   let pgQuery = query;
+  
+  // Convert date('now') to CURRENT_DATE
+  pgQuery = pgQuery.replace(/date\('now'\)/gi, 'CURRENT_DATE');
+  
+  // Convert strftime to PostgreSQL to_char
+  pgQuery = pgQuery.replace(/strftime\('%Y-%m-%d', 'now'\)/gi, "CURRENT_DATE");
+  
+  // Convert date math: date('now', '+N days') to CURRENT_DATE + INTERVAL 'N days'
+  pgQuery = pgQuery.replace(/date\('now',\s*'\+'\s*\|\|\s*\?\s*\|\|\s*'days'\)/gi, "(CURRENT_DATE + INTERVAL '1 day' * ?)");
+  
+  // Track which params are raw SQL
+  const rawSQLParams = {};
+  const cleanParams = [];
   let paramIndex = 1;
   
-  // Replace all ? with $1, $2, etc
-  while (pgQuery.includes('?')) {
-    pgQuery = pgQuery.replace('?', `$${paramIndex}`);
-    paramIndex++;
+  // Separate regular params from raw SQL
+  for (let i = 0; i < params.length; i++) {
+    if (params[i] instanceof RawSQL) {
+      rawSQLParams[i] = params[i].sql;
+    } else {
+      cleanParams.push(params[i]);
+    }
   }
   
-  console.log('🔄 Converted query:', { original: query, converted: pgQuery, params });
-  return pgQuery;
+  // Replace ? with $1, $2, etc, handling raw SQL specially
+  let cleanParamIndex = 1;
+  let questionMarkIndex = 0;
+  
+  while (pgQuery.includes('?')) {
+    if (rawSQLParams.hasOwnProperty(questionMarkIndex)) {
+      // Replace with raw SQL (not parameterized)
+      pgQuery = pgQuery.replace('?', rawSQLParams[questionMarkIndex]);
+    } else {
+      // Replace with parameter placeholder
+      pgQuery = pgQuery.replace('?', `$${cleanParamIndex}`);
+      cleanParamIndex++;
+    }
+    questionMarkIndex++;
+  }
+  
+  console.log('🔄 Converted query:', { 
+    original: query, 
+    converted: pgQuery, 
+    cleanParams,
+    rawParams: rawSQLParams
+  });
+  return { pgQuery, cleanParams };
 }
 
 export function createNeonWrapper(pool) {
   return {
     async get(query, ...params) {
       try {
-        const pgQuery = convertQueryPlaceholders(query, params);
-        console.log('📊 Neon GET:', { query: pgQuery, params });
+        const { pgQuery, cleanParams } = convertQueryPlaceholders(query, params);
+        console.log('📊 Neon GET:', { query: pgQuery, params: cleanParams });
         
-        const result = await pool.query(pgQuery, params);
+        const result = await pool.query(pgQuery, cleanParams);
         return result.rows[0] || null;
       } catch (err) {
         console.error('🔴 Neon GET Error:', err.message);
@@ -37,10 +90,10 @@ export function createNeonWrapper(pool) {
 
     async all(query, ...params) {
       try {
-        const pgQuery = convertQueryPlaceholders(query, params);
-        console.log('📊 Neon ALL:', { query: pgQuery, params });
+        const { pgQuery, cleanParams } = convertQueryPlaceholders(query, params);
+        console.log('📊 Neon ALL:', { query: pgQuery, params: cleanParams });
         
-        const result = await pool.query(pgQuery, params);
+        const result = await pool.query(pgQuery, cleanParams);
         return result.rows || [];
       } catch (err) {
         console.error('🔴 Neon ALL Error:', err.message);
@@ -52,10 +105,10 @@ export function createNeonWrapper(pool) {
 
     async run(query, ...params) {
       try {
-        const pgQuery = convertQueryPlaceholders(query, params);
-        console.log('📊 Neon RUN:', { query: pgQuery, params });
+        const { pgQuery, cleanParams } = convertQueryPlaceholders(query, params);
+        console.log('📊 Neon RUN:', { query: pgQuery, params: cleanParams });
         
-        const result = await pool.query(pgQuery, params);
+        const result = await pool.query(pgQuery, cleanParams);
         return {
           lastID: result.rows[0]?.id || null,
           changes: result.rowCount || 0
