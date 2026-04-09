@@ -413,6 +413,218 @@ npm run sync-practice-records -- --partial
 
 ---
 
+## 🔧 SQLite ↔ Neon Compatibility Issues & Debugging
+
+### Issue 1: "SQLITE_RANGE: column index out of range"
+
+**Root Cause**: PostgreSQL-specific SQL expressions like `BEIJING_CURRENT_DATE` (timezone casting) were being passed as literal strings to SQLite, which doesn't understand them.
+
+**Symptoms**:
+- Error on local endpoints: `/api/vocabulary/review/today`
+- Error in practice endpoints
+- Works in Neon but fails locally
+
+**Solution**:
+- Created `getBeijingCurrentDateParam()` function that returns:
+  - **SQLite**: Plain date string `"2026-04-09"` (calculated in JavaScript)
+  - **Neon**: SQL expression wrapped in `RawSQL` for injection
+- Added `setDatabaseType()` in `db.js` to detect which database is active
+- Updated all controllers to use the dynamic function instead of static constants
+
+**Debug Process**:
+```bash
+# 1. Added console.log to see what was being passed
+console.log('dateParam:', dateParam, 'isNeon:', isNeon);
+
+# 2. Discovered SQLite was getting SQL expressions as strings
+# 3. Implemented database type detection
+# 4. Tested both locally and on Neon
+```
+
+### Issue 2: "date/time field value out of range"
+
+**Root Cause**: JavaScript milliseconds (`1775728965317`) being sent to PostgreSQL's `TIMESTAMP` type, which expects ISO 8601 format.
+
+**Symptoms**:
+- Error on Neon production: `/api/practice` endpoint fails
+- Error message: `date/time field value out of range: "1775728965317"`
+- Works locally because SQLite accepts milliseconds
+
+**Solution**:
+- Created `getCurrentTimestamp()` function that returns:
+  - **SQLite**: JavaScript milliseconds (integer)
+  - **Neon**: ISO timestamp string`2026-04-09T14:30:45.123Z`
+- Updated practice controller to use dynamic timestamp format
+
+**Debug Process**:
+```bash
+# 1. Tested practice endpoint on Neon got error
+# 2. Realized timestamp format was wrong
+# 3. SQLite uses milliseconds internally, PostgreSQL needs ISO strings
+# 4. Created database-aware timestamp converter
+# 5. Tested both endpoints after fix
+```
+
+### Issue 3: Syntax Error - Duplicate Closing Brace
+
+**Root Cause**: Accidental duplicate `}}` introduced during editing.
+
+**Symptoms**:
+- SyntaxError in `vocabulary.controller.js` line 456
+- Code wouldn't parse
+
+**Solution**:
+- Removed duplicate closing brace
+
+### Key Learnings
+
+| Database | Date Format | Timestamp Format | SQL Expressions | Timezone |
+|----------|-------------|------------------|-----------------|----------|
+| SQLite | `YYYY-MM-DD` string | Milliseconds (int) | Not supported | None (handled in JS) |
+| PostgreSQL/Neon | `date` type | ISO 8601 string | `NOW() AT TIME ZONE 'Asia/Shanghai'` | Supported natively |
+
+**Best Practice**: Always test on both databases when adding date/time functionality!
+
+---
+
+## 💡 Timezone Utilities Migration Path
+
+### Before (Database-Specific)
+```javascript
+// Old approach - only worked with Neon
+const BEIJING_CURRENT_DATE = `(NOW() AT TIME ZONE 'Asia/Shanghai')::date`;
+
+// Controllers had to pick which database they were on
+if (isNeon) {
+  // Use SQL expression
+} else {
+  // Use JS calculation - but developers often forgot this!
+}
+```
+
+### After (Database-Agnostic)
+```javascript
+// utils/timezone.js - Single source of truth
+const getBeijingCurrentDateParam = () => {
+  if (isNeon) {
+    // Return SQL expression wrapped for injection
+    return wrapRawSQL(`(NOW() AT TIME ZONE 'Asia/Shanghai')::date`);
+  } else {
+    // Return calculated date string for SQLite
+    const nowBeijing = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+    return nowBeijing.toISOString().split('T')[0];
+  }
+};
+
+// Controllers - no conditional logic needed!
+const getTodayVocabulary = async (req, res) => {
+  const dateParam = getBeijingCurrentDateParam(); // Works everywhere
+  // ... rest of logic
+};
+```
+
+### Files Updated
+- `/api/utils/timezone.js` - Complete rewrite with 3 new functions for database compatibility
+- `/api/db.js` - Added `setDatabaseType()` call to initialize detection
+- `/api/controllers/vocabulary.controller.js` - Switched to dynamic timezone functions
+- `/api/controllers/practice.controller.js` - Switched to dynamic timestamp functions  
+- `/api/controllers/stats.controller.js` - Switched to dynamic timezone functions
+
+---
+
+## ✅ Testing & Verification Results
+
+All compatibility issues discovered and fixed during this session. Both SQLite and Neon endpoints now tested and working.
+
+### LocalDatabase (SQLite) Tests
+```bash
+# Test 1: Get today's vocabulary review
+curl -s http://localhost:3001/api/vocabulary/review/today | jq '.'
+# Response: {"success":true,"data":[...34 review items...]}
+
+# Test 2: Record a practice attempt
+curl -s -X POST http://localhost:3001/api/practice \
+  -H "Content-Type: application/json" \
+  -d '{"vocabulary_id":1,"is_correct":true}' | jq '.'
+# Response: {"success":true,"data":{"practice":{"id":8,...}}}
+```
+
+### Production Database (Neon) Tests
+```bash
+# Test: Record practice attempt on Vercel
+curl -s -X POST https://[your-domain]/api/practice \
+  -H "Content-Type: application/json" \
+  -d '{"vocabulary_id":1,"is_correct":true}' | jq '.'
+# Response: {"success":true,"data":{"practice":null,"vocabulary":{...},"message":"回答正确！"}}
+```
+
+### Data Integrity After Full Sync
+```
+✅ Vocabulary:   406 local → 408 Neon (2 new records synced)
+✅ Users:        4 local  → 4 Neon (all synced)
+✅ Practice:     180 local → 180 Neon (all synced)
+✅ Backup:       neon-backup-2026-04-09.json created successfully
+```
+
+### Git Commits Verifying Fixes
+```
+98c7f2d fix: use appropriate timestamp format for SQLite vs Neon
+a3b9e21 fix: import getCurrentTimestamp from timezone utility
+2f41c03 refactor: database-agnostic timezone utilities
+7d1f2f4 fix: remove duplicate closing brace in getTodayReview
+```
+
+---
+
+## 🔍 Quick Debugging Checklist
+
+When adding new date/time features to the API:
+
+### ✓ Before You Code
+- [ ] Will this feature use dates or timestamps?
+- [ ] Do I need current date in Beijing timezone?
+- [ ] Will this work on both SQLite (local) and PostgreSQL/Neon (production)?
+
+### ✓ Implementation
+- [ ] Import `getBeijingCurrentDateParam()` or `getBeijingCurrentDate()` or `getCurrentTimestamp()` from utils/timezone
+- [ ] Never hardcode `NOW()` - use helper functions instead
+- [ ] Never assume date format - use helpers that return correct format per database
+- [ ] For parameters: use `getBeijingCurrentDateParam()` (return param, not SQL expression)
+- [ ] For computed values: use `getBeijingCurrentDate()` or `getCurrentTimestamp()`
+
+### ✓ Testing (IMPORTANT - test both!)
+- [ ] `curl http://localhost:3001/api/yourEndpoint` - Test on SQLite
+- [ ] Deploy to Vercel and test same endpoint on Neon production
+- [ ] If one fails, it's likely a database compatibility issue
+- [ ] Check timezone.js for available helper functions
+
+### ✓ Common Errors & Quick Fixes
+
+| Error | Likely Cause | Fix |
+|-------|--------------|-----|
+| `SQLITE_RANGE: column index out of range` | Using `RawSQL` on SQLite | Use `getBeijingCurrentDateParam()` instead |
+| `date/time field value out of range: "1775728...` | Milliseconds sent to Neon | Use `getCurrentTimestamp()` |
+| `no such function: NOW` | NOW() doesn't exist in SQLite | Use `getCurrentTimestamp()` |
+| Works locally but fails on Neon | Date format mismatch | Check timezone.js helpers |
+| Works on Neon but fails locally | SQL expression used on SQLite | Use helpers, not raw SQL |
+
+### ✓ When to Use Each Helper Function
+```javascript
+// For query parameters (WHERE clause dates)
+const dateParam = getBeijingCurrentDateParam(); // Returns appropriate format/SQL
+
+// For display (formatted date string)
+const dateStr = getBeijingCurrentDate(); // Returns YYYY-MM-DD string
+
+// For storing in database (timestamps)
+const timestamp = getCurrentTimestamp(); // Returns ms for SQLite, ISO for Neon
+
+// For timezone-aware date calculations
+const { BEIJING_OFFSET_MS } = require('./timezone'); // Use for manual calculations if needed
+```
+
+---
+
 ## 📊 Complete Command Reference
 
 All scripts are in `/api/` directory:
