@@ -10,7 +10,7 @@ import { config, getCorsOptions } from './config.js';
 import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';
 import statsRoutes from './routes/stats.routes.js';
-import syncRoutes from './routes/sync.routes.js';
+import syncRoutes, { setSyncDb } from './routes/sync.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -29,6 +29,7 @@ async function startServer() {
     vocabController.setDb(db);
     practiceController.setDb(db);
     statsController.setDb(db);
+    setSyncDb(db);
     console.log('✅ 数据库初始化成功');
   } catch (err) {
     console.error('❌ 数据库初始化失败:', err.message);

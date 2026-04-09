@@ -61,13 +61,72 @@ export async function fullExportToNeon() {
 /**
  * Full import from Neon to SQLite
  */
-export async function fullImportFromNeon() {
+export async function fullImportFromNeon(db) {
   if (!neonPool) {
-    return { success: false };
+    return { success: false, reason: 'Neon not configured. Set DATABASE_URL environment variable.' };
   }
 
-  console.log('📥 Importing from Neon...');
-  return { success: true };
+  try {
+    console.log('📥 Importing from Neon to SQLite...');
+    let imported = 0;
+
+    // Import vocabulary table
+    const vocabResult = await neonPool.query('SELECT * FROM vocabulary ORDER BY id');
+    for (const row of vocabResult.rows) {
+      await db.run(
+        `INSERT OR REPLACE INTO vocabulary 
+        (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty, 
+         row.input_date, row.next_review_date, row.review_count, row.mastery_level, 
+         row.created_at, row.updated_at]
+      );
+    }
+    imported += vocabResult.rows.length;
+    console.log(`✅ Imported ${vocabResult.rows.length} vocabulary items`);
+
+    // Import users table (if exists)
+    try {
+      const usersResult = await neonPool.query('SELECT * FROM users ORDER BY id');
+      for (const row of usersResult.rows) {
+        await db.run(
+          `INSERT OR REPLACE INTO users (id, username, email, created_at)
+          VALUES (?, ?, ?, ?)`,
+          [row.id, row.username, row.email, row.created_at]
+        );
+      }
+      imported += usersResult.rows.length;
+      console.log(`✅ Imported ${usersResult.rows.length} users`);
+    } catch (err) {
+      console.log('⚠️  Users table not found in Neon (skipping)');
+    }
+
+    // Import practice_records table (if exists)
+    try {
+      const practiceResult = await neonPool.query('SELECT * FROM practice_records ORDER BY id');
+      for (const row of practiceResult.rows) {
+        await db.run(
+          `INSERT OR REPLACE INTO practice_records 
+          (id, user_id, vocabulary_id, is_correct, attempted_date, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+          [row.id, row.user_id, row.vocabulary_id, row.is_correct, row.attempted_date, row.created_at]
+        );
+      }
+      imported += practiceResult.rows.length;
+      console.log(`✅ Imported ${practiceResult.rows.length} practice records`);
+    } catch (err) {
+      console.log('⚠️  Practice records table not found in Neon (skipping)');
+    }
+
+    return { 
+      success: true, 
+      imported, 
+      message: `✅ Successfully imported ${imported} records from Neon to SQLite`
+    };
+  } catch (err) {
+    console.error('❌ Import error:', err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 /**

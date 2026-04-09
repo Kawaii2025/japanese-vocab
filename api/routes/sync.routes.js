@@ -5,6 +5,11 @@ import express from 'express';
 import * as syncService from '../services/sync.service.js';
 
 const router = express.Router();
+let syncDb = null;
+
+export function setSyncDb(db) {
+  syncDb = db;
+}
 
 /**
  * GET /api/sync/status
@@ -117,19 +122,28 @@ router.post('/export-to-neon', async (req, res) => {
  * Full restore: Import all data from Neon to local SQLite
  */
 router.post('/import-from-neon', async (req, res) => {
+  if (!syncDb) {
+    return res.status(500).json({
+      success: false,
+      error: 'Database not initialized'
+    });
+  }
+
   try {
-    const result = await syncService.fullImportFromNeon();
+    const result = await syncService.fullImportFromNeon(syncDb);
     
     if (result.success) {
       res.json({
         success: true,
-        message: 'Successfully imported all data from Neon',
+        message: result.message,
+        imported: result.imported,
         data: result
       });
     } else {
       res.status(400).json({
         success: false,
         message: 'Import failed',
+        reason: result.reason,
         error: result.error
       });
     }
