@@ -681,6 +681,21 @@ npm run preview
 
 ### 🔧 开发工具和配置文档
 
+#### [LOCAL_DEBUG_GUIDE.md](./LOCAL_DEBUG_GUIDE.md) - 本地调试 Neon 指南 (新)
+**用途**: 在本地测试 Neon PostgreSQL 代码路径，不需要每次都部署到 Vercel  
+**包含内容**:
+- 如何在本地启用 Neon 进行测试
+- SQLite vs Neon 对比测试
+- 查看 SQL 查询转换日志
+- 常见错误及解决方案
+- 快速调试工作流
+
+**推荐阅读场景**:
+- 开发新功能需要测试 Neon 兼容性
+- 调试 Neon 相关的 SQL 错误
+- 避免频繁部署到 Vercel
+- 理解 SQLite↔PostgreSQL 转换原理
+
 #### [GIT_HOOK_GUIDE.md](./GIT_HOOK_GUIDE.md) - 预推送 Git 钩子指南
 **用途**: 了解自动安全检查如何工作  
 **包含内容**:
@@ -789,14 +804,23 @@ git push origin main
 2. 运行 `npm run dev` 和 `npm run start`
 3. 开始编码!
 
+**调试 Neon 错误** (推荐顺序):
+1. [LOCAL_DEBUG_GUIDE.md](./LOCAL_DEBUG_GUIDE.md) - 在本地测试 Neon
+2. 启用本地 Neon 连接 (编辑 `.env`)
+3. 测试问题端点并查看日志
+4. 使用 SQL 转换信息进行修复
+5. 验证 SQLite 仍然工作
+6. 提交修复
+
 **部署到 GitHub Pages** (推荐顺序):
 1. [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - 第 "生产后端设置" 部分
 2. 在 Vercel/Railway 部署后端
 3. 更新 `.env.production` 中的 API 端点
-4. [SECURITY_CHECK_REPORT.md](./SECURITY_CHECK_REPORT.md) - 验证安全性
-5. [JSON_EXPORT_GUIDE.md](./JSON_EXPORT_GUIDE.md) - 导出最新数据
-6. 执行快速检查清单
-7. 推送并部署!
+4. [LOCAL_DEBUG_GUIDE.md](./LOCAL_DEBUG_GUIDE.md) - 用 Neon 在本地做最后测试
+5. [SECURITY_CHECK_REPORT.md](./SECURITY_CHECK_REPORT.md) - 验证安全性
+6. [JSON_EXPORT_GUIDE.md](./JSON_EXPORT_GUIDE.md) - 导出最新数据
+7. 执行快速检查清单
+8. 推送并部署!
 
 **数据迁移** (推荐顺序):
 1. [DATA_IMPORT_GUIDE.md](./DATA_IMPORT_GUIDE.md) - 步骤说明
