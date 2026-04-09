@@ -4,7 +4,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import initDB from './db.js';
+import initDB, { getDatabaseInfo } from './db.js';
 import { config, getCorsOptions } from './config.js';
 
 import vocabularyRoutes from './routes/vocabulary.routes.js';
@@ -41,10 +41,12 @@ async function startServer() {
 
   // Root endpoint - health status for preview/monitoring
   app.get('/', (req, res) => {
+    const dbInfo = getDatabaseInfo();
     res.json({
       success: true,
       message: 'Japanese Vocab API is running',
       status: 'healthy',
+      database: dbInfo.type,
       endpoints: {
         health: '/health',
         api_health: '/api/health',
@@ -63,10 +65,11 @@ async function startServer() {
   app.use('/api/sync', syncRoutes);
 
   app.get('/health', (req, res) => {
+    const dbInfo = getDatabaseInfo();
     res.json({
       success: true,
       message: 'API 运行正常',
-      database: 'SQLite (Local)',
+      database: dbInfo.type,
       timestamp: new Date().toISOString()
     });
   });
@@ -74,13 +77,14 @@ async function startServer() {
   app.get('/api/health', async (req, res) => {
     try {
       const result = await db.get('SELECT datetime("now") as now');
+      const dbInfo = getDatabaseInfo();
       res.json({
         success: true,
         message: 'API 和数据库运行正常',
         timestamp: new Date().toISOString(),
         database: {
           connected: true,
-          type: 'SQLite (Local)',
+          type: dbInfo.type,
           serverTime: result.now
         }
       });

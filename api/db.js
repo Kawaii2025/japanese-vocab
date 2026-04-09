@@ -39,18 +39,36 @@ let sqlite = null;
 let database = null;
 let useNeon = false;
 
+// Initialize Neon Pool FIRST (before initializeDatabase)
+export const neonPool = process.env.DATABASE_URL ? new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10,
+  keepAlive: true
+}) : null;
+
+if (neonPool) {
+  console.log('✅ Neon Connection Pool: CREATED');
+} else {
+  console.log('⚠️  Neon Connection: NOT CONFIGURED (DATABASE_URL not set)');
+}
+
 export async function initializeDatabase() {
   // Determine which database to use
-  useNeon = !!process.env.DATABASE_URL;
+  const hasDatabaesUrl = !!process.env.DATABASE_URL;
+  console.log(`[DB Init] DATABASE_URL present: ${hasDatabaesUrl}`);
+  console.log(`[DB Init] neonPool exists: ${!!neonPool}`);
+  
+  useNeon = hasDatabaesUrl && neonPool;
 
   if (useNeon) {
     // Production: Use Neon PostgreSQL for Vercel serverless
     setDatabaseType(true);  // Tell timezone utils we're using Neon
     console.log('🔄 Initializing Neon PostgreSQL (Production Mode)...');
-    
-    if (!neonPool) {
-      throw new Error('DATABASE_URL is not set but trying to use Neon mode');
-    }
 
     // Test connection
     try {
@@ -70,6 +88,7 @@ export async function initializeDatabase() {
     setDatabaseType(false);  // Tell timezone utils we're using SQLite
     if (sqlite) return sqlite;
     
+    console.log('🔄 Initializing SQLite Database (Local Mode)...');
     sqlite = await open({
       filename: dbPath,
       driver: sqlite3.Database
@@ -84,24 +103,6 @@ export async function initializeDatabase() {
     console.log('✅ SQLite Database: READY (Local Primary)');
     return sqlite;
   }
-}
-
-// Optional: Neon PostgreSQL for backup/sync
-export const neonPool = process.env.DATABASE_URL ? new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000,
-  max: 10,
-  keepAlive: true
-}) : null;
-
-if (neonPool) {
-  console.log('✅ Neon Connection: AVAILABLE');
-} else {
-  console.log('⚠️  Neon Connection: NOT CONFIGURED');
 }
 
 // Initialize SQLite schema if needed
@@ -306,6 +307,15 @@ process.on('SIGTERM', async () => {
   }
   process.exit(0);
 });
+
+// Helper to get database type info
+export function getDatabaseInfo() {
+  return {
+    type: useNeon ? 'Neon PostgreSQL' : 'SQLite (Local)',
+    isNeon: useNeon,
+    hasUrlSet: !!process.env.DATABASE_URL
+  };
+}
 
 export default async () => {
   return await initializeDatabase();
