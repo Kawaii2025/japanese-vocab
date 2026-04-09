@@ -247,21 +247,84 @@ export async function batchCreateVocabulary(req, res) {
 export async function updateVocabulary(req, res) {
   try {
     const { id } = req.params;
-    const { chinese, original, kana, category, difficulty } = req.body;
     
     const existing = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
     if (!existing) {
       return res.status(404).json({ success: false, error: '单词不存在' });
     }
+
+    // Define updatable and read-only fields
+    // created_at and updated_at are always excluded (read-only)
+    const updatableFields = [
+      'chinese', 'original', 'kana', 'category', 'difficulty',
+      'mastery_level', 'review_count', 'next_review_date', 'input_date'
+    ];
+
+    // Fields with type constraints
+    const fieldConstraints = {
+      kana: (val) => {
+        if (val === null || val === undefined || val === '') {
+          throw new Error('kana 不能为空');
+        }
+        return val;
+      },
+      difficulty: (val) => {
+        if (val !== null && val !== undefined) {
+          const num = parseInt(val);
+          if (isNaN(num)) throw new Error('difficulty 必须是整数');
+          return num;
+        }
+        return val;
+      },
+      mastery_level: (val) => {
+        if (val !== null && val !== undefined) {
+          const num = parseInt(val);
+          if (isNaN(num)) throw new Error('mastery_level 必须是整数');
+          return num;
+        }
+        return val;
+      },
+      review_count: (val) => {
+        if (val !== null && val !== undefined) {
+          const num = parseInt(val);
+          if (isNaN(num)) throw new Error('review_count 必须是整数');
+          return num;
+        }
+        return val;
+      }
+    };
+
+    // Build dynamic update query - only update fields that are provided
+    const updates = [];
+    const values = [];
     
+    for (const field of updatableFields) {
+      if (req.body.hasOwnProperty(field)) {
+        let value = req.body[field];
+        
+        // Apply field-specific constraints if defined
+        if (fieldConstraints[field]) {
+          value = fieldConstraints[field](value);
+        }
+        
+        updates.push(`${field} = ?`);
+        values.push(value);
+      }
+    }
+    
+    // If no fields to update, return the existing record
+    if (updates.length === 0) {
+      return res.json({ success: true, data: existing, message: '没有字段更新' });
+    }
+    
+    // Always update the updated_at timestamp
+    updates.push('updated_at = ?');
     const currentTime = Math.floor(Date.now() / 1000);
-    await db.run(
-      `UPDATE vocabulary 
-       SET chinese = ?, original = ?, kana = ?, category = ?, difficulty = ?, updated_at = ?
-       WHERE id = ?`,
-      chinese, original || null, kana, category, difficulty, currentTime, id
-    );
+    values.push(currentTime);
+    values.push(id);
     
+    const query = `UPDATE vocabulary SET ${updates.join(', ')} WHERE id = ?`;
+    await db.run(query, ...values);
     trackChange('vocabulary', parseInt(id), 'UPDATE');
     
     const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
