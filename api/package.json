@@ -6,7 +6,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "export-json": "node export-to-json.js",
+    "import-json": "node import-from-json.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

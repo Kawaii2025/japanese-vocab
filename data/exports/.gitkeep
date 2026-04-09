@@ -1,0 +1,3 @@
+# This directory stores JSON exports of the database for safe GitHub commits
+# JSON files are text-based and pass corporate security policies
+# See ../export-to-json.js to regenerate exports
