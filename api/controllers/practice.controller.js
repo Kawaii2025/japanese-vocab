@@ -2,7 +2,7 @@
  * 练习记录相关业务逻辑控制器 - SQLite (Async) Version
  */
 import { trackChange } from '../services/sync.service.js';
-import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
+import { getBeijingCurrentDateParam, getBeijingCurrentDate } from '../utils/timezone.js';
 import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
@@ -33,7 +33,7 @@ export async function recordPractice(req, res) {
       user_answer, 
       is_correct ? 1 : 0, 
       attempt_count,
-      wrapRawSQL(BEIJING_CURRENT_DATE)
+      getBeijingCurrentDateParam()
     );
     
     trackChange('practice_records', practiceResult.lastID, 'INSERT');
@@ -232,14 +232,14 @@ export async function getTodayProgress(req, res) {
         COUNT(DISTINCT vocabulary_id) as unique_words
       FROM practice_records
       WHERE user_id = ? AND practice_date = ?
-    `, user_id, wrapRawSQL(BEIJING_CURRENT_DATE));
+    `, user_id, getBeijingCurrentDateParam());
     
     const accuracy = result.total_attempts > 0
       ? Math.round(100 * result.correct_count / result.total_attempts)
       : 0;
 
     // Get today's date in Beijing timezone
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBeijingCurrentDate();
     
     res.json({
       success: true,

@@ -14,6 +14,7 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { createNeonWrapper } from './utils/neon-wrapper.js';
+import { setDatabaseType } from './utils/timezone.js';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ export async function initializeDatabase() {
 
   if (useNeon) {
     // Production: Use Neon PostgreSQL for Vercel serverless
+    setDatabaseType(true);  // Tell timezone utils we're using Neon
     console.log('🔄 Initializing Neon PostgreSQL (Production Mode)...');
     
     if (!neonPool) {
@@ -65,6 +67,7 @@ export async function initializeDatabase() {
     }
   } else {
     // Local: Use SQLite
+    setDatabaseType(false);  // Tell timezone utils we're using SQLite
     if (sqlite) return sqlite;
     
     sqlite = await open({

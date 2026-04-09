@@ -3,7 +3,7 @@
  */
 import { trackChange } from '../services/sync.service.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
-import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
+import { getBeijingCurrentDateParam } from '../utils/timezone.js';
 import { RawSQL, wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
@@ -372,7 +372,7 @@ export async function getAllCategories(req, res) {
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
   try {
-    const dateParam = wrapRawSQL(BEIJING_CURRENT_DATE);
+    const dateParam = getBeijingCurrentDateParam();
     const result = await db.all(
       `SELECT * FROM vocabulary WHERE input_date = ? ORDER BY created_at ASC LIMIT 1000`,
       dateParam
@@ -439,7 +439,7 @@ export async function getVocabularyByDateRange(req, res) {
 // 获取今日待复习的单词
 export async function getTodayReview(req, res) {
   try {
-    const dateParam = wrapRawSQL(BEIJING_CURRENT_DATE);
+    const dateParam = getBeijingCurrentDateParam();
     const result = await db.all(
       `SELECT * FROM vocabulary WHERE next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date ASC, mastery_level ASC`,
       dateParam
@@ -459,7 +459,7 @@ export async function getTodayReview(req, res) {
 export async function getReviewPlan(req, res) {
   try {
     const { days = 7 } = req.query;
-    const dateParam = wrapRawSQL(BEIJING_CURRENT_DATE);
+    const dateParam = getBeijingCurrentDateParam();
     
     const result = await db.all(`
       SELECT 
