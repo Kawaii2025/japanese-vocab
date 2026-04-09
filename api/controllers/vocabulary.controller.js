@@ -453,7 +453,7 @@ export async function getTodayReview(req, res) {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
-}
+}}
 
 // 获取未来N天的复习计划
 export async function getReviewPlan(req, res) {

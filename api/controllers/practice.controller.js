@@ -26,14 +26,15 @@ export async function recordPractice(req, res) {
     // Insert practice record
     const practiceResult = await db.run(`
       INSERT INTO practice_records (user_id, vocabulary_id, user_answer, is_correct, attempt_count, practice_date, practiced_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
       user_id, 
       vocabulary_id, 
       user_answer, 
       is_correct ? 1 : 0, 
       attempt_count,
-      getBeijingCurrentDateParam()
+      getBeijingCurrentDateParam(),
+      new Date().getTime()  // Current timestamp in milliseconds for SQLite
     );
     
     trackChange('practice_records', practiceResult.lastID, 'INSERT');
