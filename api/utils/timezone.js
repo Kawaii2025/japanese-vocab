@@ -78,6 +78,21 @@ export function toBeijingDate(dateField) {
 }
 
 /**
+ * Get current timestamp suitable for the database
+ * SQLite: Returns JavaScript milliseconds (integer)
+ * Neon: Returns ISO timestamp string
+ */
+export function getCurrentTimestamp() {
+  if (isNeon) {
+    // PostgreSQL: ISO timestamp string
+    return new Date().toISOString();
+  } else {
+    // SQLite: milliseconds since epoch (integer)
+    return new Date().getTime();
+  }
+}
+
+/**
  * 获取指定天数后的北京日期 (SQL 表达式)
  * @param {number} days - 天数
  * @returns {string} SQL 表达式

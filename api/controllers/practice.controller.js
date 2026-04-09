@@ -2,7 +2,7 @@
  * 练习记录相关业务逻辑控制器 - SQLite (Async) Version
  */
 import { trackChange } from '../services/sync.service.js';
-import { getBeijingCurrentDateParam, getBeijingCurrentDate } from '../utils/timezone.js';
+import { getBeijingCurrentDateParam, getBeijingCurrentDate, getCurrentTimestamp } from '../utils/timezone.js';
 import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
@@ -34,7 +34,7 @@ export async function recordPractice(req, res) {
       is_correct ? 1 : 0, 
       attempt_count,
       getBeijingCurrentDateParam(),
-      new Date().getTime()  // Current timestamp in milliseconds for SQLite
+      getCurrentTimestamp()  // ISO string for Neon, milliseconds for SQLite
     );
     
     trackChange('practice_records', practiceResult.lastID, 'INSERT');
