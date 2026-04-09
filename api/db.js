@@ -19,34 +19,65 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// SQLite local database
+// SQLite local database path (only used locally, not on Vercel)
 const dbPath = path.join(__dirname, '../data/vocabulary.db');
 
-// Ensure data directory exists
+// Ensure data directory exists (only for local development, not on Vercel)
 const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (!process.env.DATABASE_URL && !fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    console.warn('⚠️  Could not create data directory:', err.message);
+  }
 }
 
 // Initialize SQLite database
 let sqlite = null;
+let database = null;
+let useNeon = false;
 
 export async function initializeDatabase() {
-  if (sqlite) return sqlite;
+  // Determine which database to use
+  useNeon = !!process.env.DATABASE_URL;
 
-  sqlite = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
-  });
+  if (useNeon) {
+    // Production: Use Neon PostgreSQL for Vercel serverless
+    console.log('🔄 Initializing Neon PostgreSQL (Production Mode)...');
+    database = neonPool;
+    
+    if (!database) {
+      throw new Error('DATABASE_URL is not set but trying to use Neon mode');
+    }
 
-  await sqlite.exec('PRAGMA journal_mode = WAL');  // Write-Ahead Logging
-  await sqlite.exec('PRAGMA synchronous = NORMAL'); // Faster writes
-  await sqlite.exec('PRAGMA foreign_keys = ON');    // Enable foreign key constraints
+    // Test connection
+    try {
+      const result = await database.query('SELECT NOW()');
+      console.log('✅ Neon PostgreSQL: CONNECTED');
+      await initializeNeon();
+      return database;
+    } catch (err) {
+      console.error('❌ Neon Connection Failed:', err.message);
+      throw err;
+    }
+  } else {
+    // Local: Use SQLite
+    if (sqlite) return sqlite;
+    
+    sqlite = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
 
-  await initializeSQLite();
-  
-  console.log('✅ SQLite Database: READY (Local Primary)');
-  return sqlite;
+    await sqlite.exec('PRAGMA journal_mode = WAL');  // Write-Ahead Logging
+    await sqlite.exec('PRAGMA synchronous = NORMAL'); // Faster writes
+    await sqlite.exec('PRAGMA foreign_keys = ON');    // Enable foreign key constraints
+
+    await initializeSQLite();
+    
+    console.log('✅ SQLite Database: READY (Local Primary)');
+    return sqlite;
+  }
 }
 
 // Optional: Neon PostgreSQL for backup/sync
@@ -62,9 +93,9 @@ export const neonPool = process.env.DATABASE_URL ? new pg.Pool({
 }) : null;
 
 if (neonPool) {
-  console.log('✅ Neon Connection: CONFIGURED (Backup/Sync)');
+  console.log('✅ Neon Connection: AVAILABLE');
 } else {
-  console.log('⚠️  Neon Connection: NOT CONFIGURED (Local-only mode)');
+  console.log('⚠️  Neon Connection: NOT CONFIGURED');
 }
 
 // Initialize SQLite schema if needed
@@ -161,6 +192,90 @@ export async function initializeSQLite() {
     console.log('✅ SQLite schema initialized');
   } catch (err) {
     console.error('❌ SQLite initialization error:', err.message);
+  }
+}
+
+// Initialize Neon PostgreSQL schema
+export async function initializeNeon() {
+  try {
+    if (!neonPool) return;
+
+    // Create vocabulary table
+    await neonPool.query(`
+      CREATE TABLE IF NOT EXISTS vocabulary (
+        id SERIAL PRIMARY KEY,
+        chinese TEXT NOT NULL,
+        original TEXT,
+        kana TEXT NOT NULL,
+        category TEXT,
+        difficulty INTEGER DEFAULT 1,
+        input_date TEXT DEFAULT CURRENT_DATE,
+        next_review_date TEXT,
+        review_count INTEGER DEFAULT 0,
+        mastery_level INTEGER DEFAULT 0,
+        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        UNIQUE(kana)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
+      CREATE INDEX IF NOT EXISTS idx_vocabulary_input_date ON vocabulary(input_date);
+      CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
+    `);
+
+    // Create users table
+    await neonPool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE,
+        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
+      );
+    `);
+
+    // Create practice_records table
+    await neonPool.query(`
+      CREATE TABLE IF NOT EXISTS practice_records (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        vocabulary_id INTEGER NOT NULL,
+        user_answer TEXT,
+        is_correct BOOLEAN NOT NULL,
+        attempt_count INTEGER DEFAULT 1,
+        practice_date TEXT DEFAULT CURRENT_DATE,
+        practiced_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        FOREIGN KEY (vocabulary_id) REFERENCES vocabulary(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_practice_records_user ON practice_records(user_id);
+      CREATE INDEX IF NOT EXISTS idx_practice_records_vocab ON practice_records(vocabulary_id);
+      CREATE INDEX IF NOT EXISTS idx_practice_records_date ON practice_records(practice_date);
+    `);
+
+    // Create unfamiliar_words table
+    await neonPool.query(`
+      CREATE TABLE IF NOT EXISTS unfamiliar_words (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        vocabulary_id INTEGER NOT NULL,
+        unfamiliar_type TEXT NOT NULL,
+        marked_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        UNIQUE(user_id, vocabulary_id, unfamiliar_type),
+        FOREIGN KEY (vocabulary_id) REFERENCES vocabulary(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_unfamiliar_words_user ON unfamiliar_words(user_id);
+    `);
+
+    console.log('✅ Neon PostgreSQL schema initialized');
+  } catch (err) {
+    if (err.message.includes('already exists')) {
+      console.log('✅ Neon PostgreSQL schema already exists');
+    } else {
+      console.error('❌ Neon initialization error:', err.message);
+    }
   }
 }
 
