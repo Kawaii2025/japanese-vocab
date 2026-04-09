@@ -23,3 +23,8 @@ npm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite Local Database
+data/
+*.db
+*.db-journal

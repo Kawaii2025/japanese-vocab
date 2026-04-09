@@ -1,191 +1,191 @@
 /**
- * 单词相关业务逻辑控制器
+ * 单词相关业务逻辑控制器 - SQLite (Async) Version
  */
-import pool from '../db.js';
+import { trackChange } from '../services/sync.service.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
 import { BEIJING_CURRENT_DATE } from '../utils/timezone.js';
 
+let db = null;
+
+export function setDb(database) {
+  db = database;
+}
+
 // 获取所有单词（带分页，最新添加的单词优先显示）
 export async function getAllVocabulary(req, res) {
-  const { category, difficulty } = req.query;
-  
-  // 构建 WHERE 条件
-  let whereClause = 'WHERE 1=1';
-  const params = [];
-  let paramIndex = 1;
-  
-  if (category) {
-    whereClause += ` AND category = $${paramIndex}`;
-    params.push(category);
-    paramIndex++;
+  try {
+    const { category, difficulty } = req.query;
+    
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+    
+    if (category) {
+      whereClause += ` AND category = ?`;
+      params.push(category);
+    }
+    
+    if (difficulty) {
+      whereClause += ` AND difficulty <= ?`;
+      params.push(difficulty);
+    }
+    
+    // 查询总数
+    const countQuery = `SELECT COUNT(*) as count FROM vocabulary ${whereClause}`;
+    const countResult = await db.get(countQuery, ...params);
+    const totalCount = countResult.count;
+    
+    // 解析分页参数
+    const pagination = parsePaginationParams(req.query, 20);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    
+    // 查询数据（按日期降序，同一天内按创建时间升序）
+    const dataQuery = `
+      SELECT * FROM vocabulary 
+      ${whereClause}
+      ORDER BY input_date DESC, created_at ASC, id ASC
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...params, pagination.pageSize, offset];
+    const dataResult = await db.all(dataQuery, ...dataParams);
+    
+    const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
+    
+    res.json({
+      success: true,
+      data: dataResult,
+      pagination: paginationInfo
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  if (difficulty) {
-    whereClause += ` AND difficulty <= $${paramIndex}`;
-    params.push(difficulty);
-    paramIndex++;
-  }
-  
-  // 1. 先查询总数
-  const countQuery = `SELECT COUNT(*) FROM vocabulary ${whereClause}`;
-  const countResult = await pool.query(countQuery, params);
-  const totalCount = parseInt(countResult.rows[0].count);
-  
-  // 2. 解析分页参数
-  const pagination = parsePaginationParams(req.query, 20);
-  
-  // 3. 计算偏移量
-  const offset = (pagination.page - 1) * pagination.pageSize;
-  
-  // 4. 查询数据（按日期降序，同一天内按创建时间升序，新添加的单词在同一天的最后）
-  const dataQuery = `
-    SELECT * FROM vocabulary 
-    ${whereClause}
-    ORDER BY input_date DESC, created_at ASC, id ASC
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-  `;
-  const dataParams = [...params, pagination.pageSize, offset];
-  const dataResult = await pool.query(dataQuery, dataParams);
-  
-  // 5. 构建分页信息
-  const totalPages = Math.ceil(totalCount / pagination.pageSize);
-  const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
-  
-  res.json({
-    success: true,
-    data: dataResult.rows,
-    pagination: paginationInfo
-  });
 }
 
 // 获取单个单词
 export async function getVocabularyById(req, res) {
-  const { id } = req.params;
-  const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE id = $1',
-    [id]
-  );
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: '单词不存在'
-    });
+  try {
+    const { id } = req.params;
+    const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
+    
+    if (!result) {
+      return res.status(404).json({ success: false, error: '单词不存在' });
+    }
+    
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  res.json({
-    success: true,
-    data: result.rows[0]
-  });
 }
 
 // 随机获取单词（用于练习）
 export async function getRandomVocabulary(req, res) {
-  const { count } = req.params;
-  const { category, difficulty } = req.query;
-  
-  let query = 'SELECT * FROM vocabulary WHERE 1=1';
-  const params = [];
-  let paramIndex = 1;
-  
-  if (category) {
-    query += ` AND category = $${paramIndex}`;
-    params.push(category);
-    paramIndex++;
+  try {
+    const { count } = req.params;
+    const { category, difficulty } = req.query;
+    
+    let query = 'SELECT * FROM vocabulary WHERE 1=1';
+    const params = [];
+    
+    if (category) {
+      query += ` AND category = ?`;
+      params.push(category);
+    }
+    
+    if (difficulty) {
+      query += ` AND difficulty <= ?`;
+      params.push(difficulty);
+    }
+    
+    query += ` ORDER BY RANDOM() LIMIT ?`;
+    params.push(count);
+    
+    const result = await db.all(query, ...params);
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  if (difficulty) {
-    query += ` AND difficulty <= $${paramIndex}`;
-    params.push(difficulty);
-    paramIndex++;
-  }
-  
-  query += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
-  params.push(count);
-  
-  const result = await pool.query(query, params);
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount
-  });
 }
 
 // 搜索单词（带分页）
 export async function searchVocabulary(req, res) {
-  const { keyword } = req.params;
-  const searchPattern = `%${keyword}%`;
-  
-  // 1. 查询总数
-  const countResult = await pool.query(
-    `SELECT COUNT(*) FROM vocabulary 
-     WHERE chinese LIKE $1 OR kana LIKE $1 OR original LIKE $1`,
-    [searchPattern]
-  );
-  const totalCount = parseInt(countResult.rows[0].count);
-  
-  // 2. 解析分页参数
-  const pagination = parsePaginationParams(req.query, 20);
-  
-  // 3. 查询数据
-  const result = await pool.query(
-    `SELECT * FROM vocabulary 
-     WHERE chinese LIKE $1 OR kana LIKE $1 OR original LIKE $1
-     ORDER BY input_date DESC, created_at ASC, id ASC
-     LIMIT $2 OFFSET $3`,
-    [searchPattern, pagination.limit, pagination.offset]
-  );
-  
-  // 4. 构建分页信息
-  const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    keyword: keyword,
-    pagination: paginationInfo
-  });
+  try {
+    const { keyword } = req.params;
+    const searchPattern = `%${keyword}%`;
+    
+    const countResult = await db.get(
+      `SELECT COUNT(*) as count FROM vocabulary 
+       WHERE chinese LIKE ? OR kana LIKE ? OR original LIKE ?`,
+      searchPattern, searchPattern, searchPattern
+    );
+    const totalCount = countResult.count;
+    
+    const pagination = parsePaginationParams(req.query, 20);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    
+    const result = await db.all(
+      `SELECT * FROM vocabulary 
+       WHERE chinese LIKE ? OR kana LIKE ? OR original LIKE ?
+       ORDER BY input_date DESC, created_at ASC, id ASC
+       LIMIT ? OFFSET ?`,
+      searchPattern, searchPattern, searchPattern, pagination.pageSize, offset
+    );
+    
+    const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
+    
+    res.json({
+      success: true,
+      data: result,
+      keyword: keyword,
+      pagination: paginationInfo
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // 创建单词
 export async function createVocabulary(req, res) {
-  const { chinese, original, kana, category, difficulty } = req.body;
-  
-  if (!chinese || !kana) {
-    return res.status(400).json({
-      success: false,
-      error: '中文意思和假名不能为空'
-    });
+  try {
+    const { chinese, original, kana, category, difficulty } = req.body;
+    
+    if (!chinese || !kana) {
+      return res.status(400).json({
+        success: false,
+        error: '中文意思和假名不能为空'
+      });
+    }
+    
+    const result = await db.run(
+      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
+       VALUES (?, ?, ?, ?, ?)`,
+      chinese, original || null, kana, category || null, difficulty || 1
+    );
+    
+    const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
+    trackChange('vocabulary', result.lastID, 'INSERT');
+    
+    res.status(201).json({ success: true, data: inserted });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  const result = await pool.query(
-    `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`,
-    [chinese, original, kana, category || null, difficulty || 1]
-  );
-  
-  res.status(201).json({
-    success: true,
-    data: result.rows[0]
-  });
 }
 
 // 批量创建单词
 export async function batchCreateVocabulary(req, res) {
-  const { words } = req.body;
-  
-  if (!Array.isArray(words) || words.length === 0) {
-    return res.status(400).json({
-      success: false,
-      error: '单词列表不能为空'
-    });
-  }
-  
-  const client = await pool.connect();
-  
   try {
+    const { words } = req.body;
+    
+    if (!Array.isArray(words) || words.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '单词列表不能为空'
+      });
+    }
+    
     const insertedWords = [];
     const skippedWords = [];
     
@@ -195,266 +195,344 @@ export async function batchCreateVocabulary(req, res) {
       if (!chinese || !kana) continue;
       
       try {
-        // 使用 INSERT ... ON CONFLICT DO NOTHING 来优雅地处理重复
-        const result = await client.query(
-          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (chinese, kana) DO NOTHING
-           RETURNING *`,
-          [chinese, original, kana, category || null, difficulty || 1]
+        // Check if already exists
+        const existing = await db.get(
+          'SELECT id FROM vocabulary WHERE kana = ?',
+          kana
         );
         
-        if (result.rows.length > 0) {
-          insertedWords.push(result.rows[0]);
-        } else {
-          // 没有返回行说明发生了冲突（单词已存在）
+        if (existing) {
           skippedWords.push({
             chinese,
             kana,
             reason: '已存在'
           });
+          continue;
         }
-      } catch (insertError) {
-        // 处理单个插入的错误
-        console.error(`插入单词失败: ${chinese} (${kana})`, insertError.message);
+        
+        const result = await db.run(
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
+           VALUES (?, ?, ?, ?, ?)`,
+          chinese, original || null, kana, category || null, difficulty || 1
+        );
+        
+        const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
+        insertedWords.push(inserted);
+        trackChange('vocabulary', result.lastID, 'INSERT');
+      } catch (err) {
+        console.error(`插入单词失败: ${chinese} (${kana})`, err.message);
         skippedWords.push({
           chinese,
           kana,
-          reason: insertError.message
+          reason: err.message
         });
       }
     }
     
     res.status(201).json({
       success: true,
-      data: insertedWords.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+      data: insertedWords,
       total: insertedWords.length,
       skipped: skippedWords.length,
       skippedWords: skippedWords,
       message: `成功添加 ${insertedWords.length} 个单词${skippedWords.length > 0 ? `，跳过 ${skippedWords.length} 个重复单词` : ''}`
     });
-  } catch (error) {
-    throw error;
-  } finally {
-    client.release();
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 }
 
 // 更新单词
 export async function updateVocabulary(req, res) {
-  const { id } = req.params;
-  const { chinese, original, kana, category, difficulty } = req.body;
-  
-  const result = await pool.query(
-    `UPDATE vocabulary 
-     SET chinese = $1, original = $2, kana = $3, category = $4, difficulty = $5
-     WHERE id = $6
-     RETURNING *`,
-    [chinese, original, kana, category, difficulty, id]
-  );
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: '单词不存在'
-    });
+  try {
+    const { id } = req.params;
+    const { chinese, original, kana, category, difficulty } = req.body;
+    
+    const existing = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: '单词不存在' });
+    }
+    
+    const currentTime = Math.floor(Date.now() / 1000);
+    await db.run(
+      `UPDATE vocabulary 
+       SET chinese = ?, original = ?, kana = ?, category = ?, difficulty = ?, updated_at = ?
+       WHERE id = ?`,
+      chinese, original || null, kana, category, difficulty, currentTime, id
+    );
+    
+    trackChange('vocabulary', parseInt(id), 'UPDATE');
+    
+    const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  res.json({
-    success: true,
-    data: result.rows[0]
-  });
 }
 
 // 删除单词
 export async function deleteVocabulary(req, res) {
-  const { id } = req.params;
-  const result = await pool.query(
-    'DELETE FROM vocabulary WHERE id = $1 RETURNING *',
-    [id]
-  );
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: '单词不存在'
-    });
+  try {
+    const { id } = req.params;
+    
+    const existing = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: '单词不存在' });
+    }
+    
+    await db.run('DELETE FROM vocabulary WHERE id = ?', id);
+    trackChange('vocabulary', parseInt(id), 'DELETE');
+    
+    res.json({ success: true, message: '删除成功' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  res.json({
-    success: true,
-    message: '删除成功'
-  });
 }
 
 // 获取所有分类
 export async function getAllCategories(req, res) {
-  const result = await pool.query(
-    'SELECT DISTINCT category FROM vocabulary WHERE category IS NOT NULL ORDER BY category'
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows.map(row => row.category)
-  });
+  try {
+    const result = await db.all(
+      'SELECT DISTINCT category FROM vocabulary WHERE category IS NOT NULL ORDER BY category'
+    );
+    
+    res.json({
+      success: true,
+      data: result.map(row => row.category)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
-
-// ==================== 日期相关功能 ====================
 
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
-  const result = await pool.query(
-    `SELECT * FROM vocabulary WHERE input_date = ${BEIJING_CURRENT_DATE} ORDER BY created_at ASC LIMIT 1000`
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount
-  });
+  try {
+    const result = await db.all(
+      `SELECT * FROM vocabulary WHERE input_date = ? ORDER BY created_at ASC LIMIT 1000`,
+      BEIJING_CURRENT_DATE
+    );
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // 获取指定日期的单词
 export async function getVocabularyByDate(req, res) {
-  const { date } = req.params;
-  const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE input_date = $1 ORDER BY created_at ASC',
-    [date]
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount,
-    date: date
-  });
+  try {
+    const { date } = req.params;
+    const result = await db.all(
+      'SELECT * FROM vocabulary WHERE input_date = ? ORDER BY created_at ASC',
+      date
+    );
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length,
+      date: date
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // 获取日期范围内的单词
 export async function getVocabularyByDateRange(req, res) {
-  const { start, end } = req.query;
-  
-  if (!start || !end) {
-    return res.status(400).json({
-      success: false,
-      error: '请提供 start 和 end 参数'
+  try {
+    const { start, end } = req.query;
+    
+    if (!start || !end) {
+      return res.status(400).json({
+        success: false,
+        error: '请提供 start 和 end 参数'
+      });
+    }
+    
+    const result = await db.all(
+      'SELECT * FROM vocabulary WHERE input_date BETWEEN ? AND ? ORDER BY input_date DESC, created_at ASC',
+      start, end
+    );
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length,
+      dateRange: { start, end }
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  const result = await pool.query(
-    'SELECT * FROM vocabulary WHERE input_date BETWEEN $1 AND $2 ORDER BY input_date DESC, created_at ASC',
-    [start, end]
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount,
-    dateRange: { start, end }
-  });
 }
 
 // 获取今日待复习的单词
 export async function getTodayReview(req, res) {
-  const result = await pool.query(
-    `SELECT * FROM vocabulary WHERE next_review_date <= ${BEIJING_CURRENT_DATE} ORDER BY next_review_date ASC, mastery_level ASC`
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount
-  });
+  try {
+    const result = await db.all(
+      `SELECT * FROM vocabulary WHERE next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date ASC, mastery_level ASC`,
+      BEIJING_CURRENT_DATE
+    );
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // 获取未来N天的复习计划
 export async function getReviewPlan(req, res) {
-  const { days = 7 } = req.query;
-  const result = await pool.query(
-    `SELECT 
-      next_review_date as date,
-      COUNT(*) as word_count,
-      json_agg(json_build_object('id', id, 'chinese', chinese, 'kana', kana, 'mastery_level', mastery_level)) as words
-    FROM vocabulary 
-    WHERE next_review_date BETWEEN ${BEIJING_CURRENT_DATE} AND ${BEIJING_CURRENT_DATE} + $1::integer
-    GROUP BY next_review_date
-    ORDER BY next_review_date`,
-    [days]
-  );
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount,
-    days: parseInt(days)
-  });
+  try {
+    const { days = 7 } = req.query;
+    
+    const result = await db.all(`
+      SELECT 
+        next_review_date as date,
+        COUNT(*) as word_count
+      FROM vocabulary 
+      WHERE next_review_date IS NOT NULL 
+        AND next_review_date >= ?
+        AND next_review_date <= date('now', '+' || ? || ' days')
+      GROUP BY next_review_date
+      ORDER BY next_review_date
+    `, BEIJING_CURRENT_DATE, days);
+    
+    // Get words for each date
+    const reviewPlan = [];
+    for (const row of result) {
+      const words = await db.all(
+        `SELECT id, chinese, kana, mastery_level FROM vocabulary 
+         WHERE next_review_date = ?`,
+        row.date
+      );
+      reviewPlan.push({ ...row, words });
+    }
+    
+    res.json({
+      success: true,
+      data: reviewPlan,
+      total: reviewPlan.length,
+      days: parseInt(days)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // 标记单词为不熟悉
 export async function markAsUnfamiliar(req, res) {
-  const { id } = req.params;
-  const { user_id = 1 } = req.body; // 默认用户ID为1
-  
-  // 检查是否已存在
-  const checkResult = await pool.query(
-    'SELECT id FROM unfamiliar_words WHERE user_id = $1 AND vocabulary_id = $2',
-    [user_id, id]
-  );
-  
-  if (checkResult.rows.length > 0) {
-    return res.json({
+  try {
+    const { id } = req.params;
+    const { user_id = 1 } = req.body;
+    
+    // Check if already marked
+    const existing = await db.get(
+      'SELECT id FROM unfamiliar_words WHERE user_id = ? AND vocabulary_id = ?',
+      user_id, id
+    );
+    
+    if (existing) {
+      return res.json({
+        success: true,
+        message: '该单词已在不熟悉列表中'
+      });
+    }
+    
+    // Add to unfamiliar_words
+    const result = await db.run(
+      'INSERT INTO unfamiliar_words (user_id, vocabulary_id, unfamiliar_type) VALUES (?, ?, ?)',
+      user_id, id, 'both'
+    );
+    
+    trackChange('unfamiliar_words', result.lastID, 'INSERT');
+    
+    res.json({
       success: true,
-      message: '该单词已在不熟悉列表中'
+      message: '已添加到不熟悉单词列表'
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-  
-  // 添加到不熟悉单词表
-  await pool.query(
-    'INSERT INTO unfamiliar_words (user_id, vocabulary_id) VALUES ($1, $2)',
-    [user_id, id]
-  );
-  
-  res.json({
-    success: true,
-    message: '已标记为不熟悉'
-  });
 }
 
-// 移除不熟悉标记
-export async function removeUnfamiliarMark(req, res) {
-  const { id } = req.params;
-  const { user_id = 1 } = req.body; // 默认用户ID为1
-  
-  const result = await pool.query(
-    'DELETE FROM unfamiliar_words WHERE user_id = $1 AND vocabulary_id = $2',
-    [user_id, id]
-  );
-  
-  res.json({
-    success: true,
-    message: '已移除不熟悉标记',
-    deleted: result.rowCount
-  });
-}
-
-// 获取不熟悉单词列表
+// 获取不熟悉的单词列表
 export async function getUnfamiliarWords(req, res) {
-  const { user_id = 1 } = req.query;
-  
-  const result = await pool.query(`
-    SELECT 
-      v.*,
-      uw.marked_at,
-      uw.review_count
-    FROM unfamiliar_words uw
-    JOIN vocabulary v ON uw.vocabulary_id = v.id
-    WHERE uw.user_id = $1
-    ORDER BY uw.marked_at DESC
-  `, [user_id]);
-  
-  res.json({
-    success: true,
-    data: result.rows,
-    total: result.rowCount
-  });
+  try {
+    const { user_id = 1 } = req.query;
+    
+    const result = await db.all(`
+      SELECT 
+        v.*,
+        uw.unfamiliar_type,
+        uw.marked_at
+      FROM unfamiliar_words uw
+      JOIN vocabulary v ON uw.vocabulary_id = v.id
+      WHERE uw.user_id = ?
+      ORDER BY uw.marked_at DESC
+    `, user_id);
+    
+    res.json({
+      success: true,
+      data: result,
+      total: result.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
+
+// 取消标记单词为不熟悉
+export async function unmarkAsUnfamiliar(req, res) {
+  try {
+    const { id } = req.params;
+    const { user_id = 1 } = req.body;
+    
+    await db.run(
+      'DELETE FROM unfamiliar_words WHERE user_id = ? AND vocabulary_id = ?',
+      user_id, id
+    );
+    
+    trackChange('unfamiliar_words', parseInt(id), 'DELETE');
+    
+    res.json({
+      success: true,
+      message: '已从不熟悉单词列表中移除'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+export default {
+  setDb,
+  getAllVocabulary,
+  getVocabularyById,
+  getRandomVocabulary,
+  searchVocabulary,
+  createVocabulary,
+  batchCreateVocabulary,
+  updateVocabulary,
+  deleteVocabulary,
+  getAllCategories,
+  getTodayVocabulary,
+  getVocabularyByDate,
+  getVocabularyByDateRange,
+  getTodayReview,
+  getReviewPlan,
+  markAsUnfamiliar,
+  getUnfamiliarWords,
+  unmarkAsUnfamiliar
+};
+/**
+ * 单词相关业务逻辑控制器 - SQLite Version
+ */
+import sqlite from '../db.js';
