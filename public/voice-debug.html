@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Voices</title>
+    <style>
+        body { font-family: Arial; margin: 30px; max-width: 600px; }
+        .voice-btn { 
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: left;
+        }
+        .voice-btn:hover { background: #0056b3; }
+        .voice-btn.active { background: #28a745; }
+        hr { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎙️ Japanese Voices (ja-JP)</h1>
+    <div id="list"></div>
+    <hr>
+    <input type="text" id="testText" value="こんにちは、お疲れ様です" style="width: 100%; padding: 10px; font-size: 14px;">
+    <br><br>
+    <button onclick="stopVoice()" style="width: 100%; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Stop</button>
+
+    <script>
+        let currentVoice = null;
+
+        function listVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            const jaVoices = voices.filter(v => v.lang === 'ja-JP');
+            const list = document.getElementById('list');
+            
+            if (jaVoices.length === 0) {
+                list.innerHTML = '<p>No ja-JP voices found</p>';
+                return;
+            }
+            
+            list.innerHTML = '<p>Found ' + jaVoices.length + ' ja-JP voices:</p>';
+            
+            jaVoices.forEach(voice => {
+                const btn = document.createElement('button');
+                btn.className = 'voice-btn';
+                btn.textContent = voice.name;
+                btn.onclick = () => playVoice(voice, btn);
+                list.appendChild(btn);
+            });
+        }
+        
+        function playVoice(voice, btn) {
+            const text = document.getElementById('testText').value;
+            
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+            
+            const u = new SpeechSynthesisUtterance(text);
+            u.voice = voice;
+            u.lang = 'ja-JP';
+            u.rate = 0.8;
+            u.pitch = 1.5;
+            
+            currentVoice = voice;
+            
+            // Highlight active button
+            document.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            window.speechSynthesis.speak(u);
+            console.log('Playing with:', voice.name);
+        }
+        
+        function stopVoice() {
+            window.speechSynthesis.cancel();
+            document.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+        }
+        
+        setTimeout(() => listVoices(), 500);
+        window.speechSynthesis.onvoiceschanged = listVoices;
+    </script>
+</body>
+</html>

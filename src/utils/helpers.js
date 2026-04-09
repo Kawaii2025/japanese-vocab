@@ -149,8 +149,8 @@ function performSpeechSynthesis(text) {
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ja-JP';
-  utterance.rate = 0.9;
-  utterance.pitch = 1.1;
+  utterance.rate = 0.7;   // Clear pronunciation speed
+  utterance.pitch = 1.2;  // Natural pitch for Kyoko voice
   utterance.volume = 1;
 
   // 获取所有可用声音并选择日语声音
@@ -158,33 +158,29 @@ function performSpeechSynthesis(text) {
     const voices = window.speechSynthesis.getVoices();
     console.log(`📢 Total voices available: ${voices.length}`);
     
-    if (voices.length > 0) {
-      const voiceList = voices.map(v => `${v.name} (${v.lang})`).join('\n   ');
-      console.log('   Available voices:\n   ' + voiceList);
-    }
-    
     if (voices.length === 0) {
       console.warn('⚠️ No voices available yet');
       return null;
     }
     
-    // 优先选择日语(日本)的声音
-    const jaJPVoice = voices.find(v => v.lang === 'ja-JP');
-    if (jaJPVoice) {
-      console.log('✓ Found ja-JP voice:', jaJPVoice.name);
-      return jaJPVoice;
+    // 优先使用 Kyoko (日语声音 - 清晰自然)
+    const kyokoVoice = voices.find(v => v.name.toLowerCase().includes('kyoko'));
+    if (kyokoVoice) {
+      console.log('✓ Using Kyoko voice:', kyokoVoice.name, kyokoVoice.lang);
+      return kyokoVoice;
+    }
+    
+    // 备用：查找任何 ja-JP 声音
+    const jaJPVoices = voices.filter(v => v.lang === 'ja-JP');
+    if (jaJPVoices.length > 0) {
+      console.log('✓ Using first ja-JP voice:', jaJPVoices[0].name);
+      return jaJPVoices[0];
     }
     
     const jaVoice = voices.find(v => v.lang.startsWith('ja-'));
     if (jaVoice) {
       console.log('✓ Found ja-* voice:', jaVoice.name, jaVoice.lang);
       return jaVoice;
-    }
-    
-    const jaInclude = voices.find(v => v.lang.includes('ja'));
-    if (jaInclude) {
-      console.log('✓ Found voice with ja:', jaInclude.name, jaInclude.lang);
-      return jaInclude;
     }
     
     console.warn('⚠️ No Japanese voice found, using first available');
