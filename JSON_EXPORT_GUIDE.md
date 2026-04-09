@@ -115,8 +115,8 @@ npm run start
 ```json
 {
   "id": 4,
-  "kana": "さようなら",
-  "chinese": "再见",
+  "kana": "こううん",
+  "chinese": "好运",
   "category": "基础",
   "mastery_level": 1,
   "review_count": 18,
