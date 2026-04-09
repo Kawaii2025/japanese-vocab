@@ -18,5 +18,11 @@ export default defineConfig({
   base: basePath,
   server: {
     port: 5173
+  },
+  // Ensure environment variables are loaded
+  // .env.development loaded for dev
+  // .env.production loaded for build (NODE_ENV=production)
+  define: {
+    __ENVIRONMENT__: JSON.stringify(process.env.NODE_ENV || 'development')
   }
 })

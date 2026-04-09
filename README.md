@@ -29,6 +29,61 @@
 
 ---
 
+## 🌍 多环境配置 (Local vs GitHub Pages)
+
+本项目使用 **智能环境切换** 支持不同场景：
+
+### 本地开发 (SQLite) ⚡
+```bash
+npm run dev
+# ✅ 连接到: http://localhost:3001/api
+# 📊 使用: 本地 SQLite 数据库
+# 🚀 速度: <10ms 查询
+# ⚙️ 配置: .env.development
+```
+
+### GitHub Pages (Neon) 🚀
+```bash
+npm run build
+# ✅ 连接到: https://japanese-vocab-three.vercel.app/api
+# 📊 使用: Neon PostgreSQL 数据库
+# 🌍 地域: 云部署（全球可访问）
+# ⚙️ 配置: .env.production
+```
+
+### 环境文件对比
+
+| 文件 | 用途 | 后端 | 数据库 |
+|------|------|------|--------|
+| `.env.development` | 本地开发 | `http://localhost:3001/api` | SQLite |
+| `.env.production` | GitHub Pages | `https://japanese-vocab-three.vercel.app/api` | Neon PostgreSQL |
+
+**📖 详细说明**: 参考 [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md)
+
+### 自动切换如何工作
+
+```
+运行 npm run dev
+    ↓
+读取 .env.development
+    ↓
+前端连接本地 SQLite
+    ↓
+完整功能 + 最快速度 ✅
+
+---
+
+运行 npm run build (Node_ENV=production)
+    ↓
+读取 .env.production
+    ↓
+前端连接 Neon PostgreSQL
+    ↓
+GitHub Pages 部署 ✅
+```
+
+---
+
 ## 🔐 二进制文件安全政策 (Company Security Compliance)
 
 本项目遵循严格的数据安全政策，确保公司隐私和 GitHub 合规性。
@@ -556,6 +611,24 @@ npm run preview
 
 本项目包含详细的文档用于各种场景。请根据需求选择阅读：
 
+### 🌍 环境配置和部署文档
+
+#### [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - 多环境配置指南 (新)
+**用途**: 理解本地 SQLite 和 GitHub Pages Neon 的配置  
+**包含内容**:
+- 本地开发 (SQLite) 环境配置
+- GitHub Pages 生产 (Neon) 环境配置
+- `.env.development` 和 `.env.production` 说明
+- 自动环境切换如何工作
+- 部署到 Vercel 的步骤
+- CORS 和常见问题排查
+
+**推荐阅读场景**:
+- 设置本地开发环境
+- 部署到 GitHub Pages
+- 配置生产后端
+- 理解环境变量如何工作
+
 ### 🔐 安全和数据管理文档
 
 #### [BINARY_SAFETY_POLICY.md](./BINARY_SAFETY_POLICY.md) - 二进制文件安全策略
@@ -706,16 +779,24 @@ git push origin main
 
 **首次使用** (推荐顺序):
 1. 本 README (当前文件) - 获得总体理解
-2. [BINARY_SAFETY_POLICY.md](./BINARY_SAFETY_POLICY.md) - 理解安全规则
-3. [GIT_HOOK_GUIDE.md](./GIT_HOOK_GUIDE.md) - 学会使用 git 钩子
-4. 开始开发!
+2. [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - 理解本地 vs 生产环境
+3. [BINARY_SAFETY_POLICY.md](./BINARY_SAFETY_POLICY.md) - 理解安全规则
+4. [GIT_HOOK_GUIDE.md](./GIT_HOOK_GUIDE.md) - 学会使用 git 钩子
+5. 开始开发!
 
-**部署前检查** (推荐顺序):
-1. [SECURITY_CHECK_REPORT.md](./SECURITY_CHECK_REPORT.md) - 验证安全性
-2. [JSON_EXPORT_GUIDE.md](./JSON_EXPORT_GUIDE.md) - 导出最新数据
-3. [BINARY_SAFETY_POLICY.md](./BINARY_SAFETY_POLICY.md) - 最终检查
-4. 执行快速检查清单
-5. 部署!
+**本地开发设置** (推荐顺序):
+1. [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - 第 "本地开发设置" 部分
+2. 运行 `npm run dev` 和 `npm run start`
+3. 开始编码!
+
+**部署到 GitHub Pages** (推荐顺序):
+1. [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - 第 "生产后端设置" 部分
+2. 在 Vercel/Railway 部署后端
+3. 更新 `.env.production` 中的 API 端点
+4. [SECURITY_CHECK_REPORT.md](./SECURITY_CHECK_REPORT.md) - 验证安全性
+5. [JSON_EXPORT_GUIDE.md](./JSON_EXPORT_GUIDE.md) - 导出最新数据
+6. 执行快速检查清单
+7. 推送并部署!
 
 **数据迁移** (推荐顺序):
 1. [DATA_IMPORT_GUIDE.md](./DATA_IMPORT_GUIDE.md) - 步骤说明
@@ -723,8 +804,9 @@ git push origin main
 3. 完成迁移!
 
 **故障排除** (按优先级):
-1. 查看相关文档的"常见问题"部分
-2. 查看 [GIT_HOOK_GUIDE.md](./GIT_HOOK_GUIDE.md) 或 [DATA_IMPORT_GUIDE.md](./DATA_IMPORT_GUIDE.md)
+1. [ENVIRONMENT_CONFIG.md](./ENVIRONMENT_CONFIG.md) - "常见问题" 部分
+2. 查看相关文档的"常见问题"部分
+3. 查看 [GIT_HOOK_GUIDE.md](./GIT_HOOK_GUIDE.md) 或 [DATA_IMPORT_GUIDE.md](./DATA_IMPORT_GUIDE.md)
 3. 运行 `bash verify-no-binaries.sh` 进行诊断
 4. 检查 API 日志 `npm run start` 输出
 
