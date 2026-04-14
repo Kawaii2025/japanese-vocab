@@ -447,10 +447,50 @@ If the same record fails repeatedly on every sync:
 
 ---
 
+## Audit System Integration
+
+All sync operations are automatically tracked in the **Audit System** for complete visibility and debugging:
+
+### What Gets Tracked
+
+- **Operation metadata**: start/end times, duration, sync type (full/partial)
+- **Per-table metrics**: succeeded/failed counts, success rates
+- **Individual errors**: record ID, error message, error code, timestamp
+- **Verification**: expected vs actual record counts
+
+### Accessing Audit Data
+
+**Local JSON audits** (for quick inspection):
+```bash
+cat api/data/audits/vocabulary_full-*.json | jq '.summary'
+# {
+#   "totalRecordsProcessed": 419,
+#   "totalSucceeded": 419,
+#   "totalFailed": 0,
+#   "successRate": "100.00%"
+# }
+```
+
+**Neon database views** (for historical analysis):
+```sql
+-- View recent sync performance
+SELECT * FROM sync_stats;
+
+-- View detailed history
+SELECT * FROM recent_sync_history LIMIT 10;
+
+-- Find unresolved errors
+SELECT * FROM unresolved_sync_errors;
+```
+
+See **[AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md)** for complete audit documentation.
+
+---
+
 ## Next Steps for Implementation
 
 1. Update `sync-to-neon-partial.js` to use per-record error handling
 2. Update individual table syncs (vocabulary, users, practice)
 3. Update full sync (`sync-to-neon.js`)
 4. Test error scenarios (intentional failures)
-5. Update ERROR_HANDLING_GUIDE.md with new progress format
+5. Review audit data in [AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md)

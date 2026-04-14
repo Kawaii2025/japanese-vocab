@@ -4,6 +4,37 @@
 
 When the sync operation encounters an error, you'll now see detailed, helpful error messages instead of cryptic messages. This guide explains what to look for and how to debug issues.
 
+**🆕 NEW**: All errors are automatically captured in the **Audit System** (both local JSON files and Neon database) for comprehensive error tracking and post-mortem analysis.
+
+## Audit System
+
+For complete audit logging details, see **[AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md)**.
+
+### Quick Audit Checks
+
+After any sync, check the audit data:
+
+**Local JSON audit:**
+```bash
+# View latest audit
+cat api/data/audits/vocabulary_full-*.json | jq '.summary'
+
+# See all errors
+cat api/data/audits/vocabulary_full-*.json | jq '.errors'
+```
+
+**Neon database audit:**
+```bash
+# View recent syncs
+SELECT * FROM sync_stats;
+
+# View detailed history  
+SELECT * FROM recent_sync_history LIMIT 5;
+
+# Find unresolved errors
+SELECT * FROM unresolved_sync_errors;
+```
+
 ## Error Message Format
 
 When a sync fails, you'll see a structured error message:

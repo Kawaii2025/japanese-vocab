@@ -84,7 +84,36 @@ GitHub Pages 部署 ✅
 
 ---
 
-## 🔐 二进制文件安全政策 (Company Security Compliance)
+## � 数据同步审计 (Audit & Monitoring)
+
+所有 SQLite ↔ Neon 同步操作都被自动跟踪和记录：
+
+### 功能特点
+- ✅ **实时进度** - 同步时显示逐条记录成功/失败状态
+- ❌ **错误追踪** - 每个失败的记录都记录错误代码和消息
+- 📊 **同步统计** - 成功率、处理时间、表级别指标
+- 📁 **双重存储** - JSON 文件 + Neon 数据库审计表
+- 🔍 **验证检查** - 同步后自动验证数据完整性
+
+### 查看审计数据
+
+**本地 JSON 审计:**
+```bash
+cat api/data/audits/vocabulary_full-*.json | jq '.summary'
+```
+
+**Neon 数据库审计:**
+```sql
+SELECT * FROM sync_stats;           -- 同步性能统计
+SELECT * FROM sync_errors;          -- 错误记录
+SELECT * FROM recent_sync_history;  -- 最近同步历史
+```
+
+**📖 详细文档**: 参考 [AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md) 
+
+---
+
+## �🔐 二进制文件安全政策 (Company Security Compliance)
 
 本项目遵循严格的数据安全政策，确保公司隐私和 GitHub 合规性。
 

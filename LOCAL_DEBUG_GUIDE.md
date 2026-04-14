@@ -426,3 +426,51 @@ ssl: {
 ✅ **Fix errors faster with immediate feedback**
 
 This saves you from having to deploy to Vercel for every test! 🚀
+
+---
+
+## Debug Scripts
+
+### Find Data Discrepancies Between SQLite and Neon
+
+After syncing, you may want to verify that SQLite and Neon have the same data:
+
+```bash
+# Find records that exist in Neon but not in SQLite
+cd api
+node scripts/debug/find-extra-neon-records.js
+```
+
+**Output example:**
+```
+🔍 Comparing vocabulary records...
+
+✅ SQLite: 419 records
+✅ Neon: 421 records
+
+⚠️  Found 2 extra record(s) at Neon:
+
+ID | Chinese | Original | Kana | Category | Difficulty
+---|---------|----------|------|----------|----------
+44 | 老师 | 先生 | せんせい | N5 | 1
+553 | 火 | 火 | ひ | null | 1
+✅ All SQLite records exist at Neon
+```
+
+**What this script does:**
+- Compares record IDs between SQLite and Neon
+- Lists any "extra" records at Neon (shouldn't exist)
+- Lists any "missing" records at Neon (should be there)
+- Shows full record details for discrepancies
+
+**Why you might have extra records:**
+1. Made updates in Neon directly (not through app)
+2. Previous sync added records that were later deleted
+3. Manual testing data that should be cleaned up
+
+**Resolution:**
+- Option A: Delete extra records from Neon
+- Option B: Add them to SQLite (if they're valid)
+- Option C: Keep as-is (if they're intentional)
+
+See [AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md) for more debugging tools and audit queries.
