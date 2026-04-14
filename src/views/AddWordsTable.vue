@@ -82,8 +82,8 @@
                 <thead>
                   <tr class="bg-gray-100 border-b-2 border-gray-300">
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">かな</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">日文</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">假名</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
                     <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-16">操作</th>
                   </tr>
@@ -95,21 +95,21 @@
                     class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
                   >
                     <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
-                    <!-- 日文输入 -->
+                    <!-- かな输入 -->
+                    <td class="px-4 py-3">
+                      <input 
+                        v-model="word.kana"
+                        type="text"
+                        placeholder="输入かな"
+                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                      />
+                    </td>
+                    <!-- 日文原文输入 -->
                     <td class="px-4 py-3">
                       <input 
                         v-model="word.original"
                         type="text"
                         placeholder="输入日文原文"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                      />
-                    </td>
-                    <!-- 假名输入 -->
-                    <td class="px-4 py-3">
-                      <input 
-                        v-model="word.kana"
-                        type="text"
-                        placeholder="输入假名"
                         class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                       />
                     </td>
