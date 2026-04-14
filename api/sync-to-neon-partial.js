@@ -219,18 +219,32 @@ async function partialSyncToNeon() {
     try {
       console.log('📊 Checking practice records...');
       
-      const neonPractice = await neonPool.query('SELECT id, practiced_at FROM practice_records ORDER BY id');
-      const neonPracticeMap = new Map(neonPractice.rows.map(r => [r.id, new Date(r.practiced_at)]));
+      // Get Neon timestamps as milliseconds using EXTRACT(EPOCH) to avoid timezone interpretation issues
+      const neonPractice = await neonPool.query(
+        `SELECT id, EXTRACT(EPOCH FROM practiced_at) * 1000 as practiced_at_ms FROM practice_records ORDER BY id`
+      );
+      const neonPracticeMap = new Map(neonPractice.rows.map(r => [r.id, Math.floor(r.practiced_at_ms)]));
 
       const sqlitePractice = await sqliteDb.all('SELECT id, practiced_at FROM practice_records ORDER BY id');
       
       let practiceToSync = [];
+      
       for (const row of sqlitePractice) {
-        const neonPracticed = neonPracticeMap.get(row.id);
-        const sqlitePracticed = new Date(msToTimestamp(row.practiced_at));
+        const neonPracticedMs = neonPracticeMap.get(row.id);
+        const sqlitePracticedMs = row.practiced_at;
         
-        if (!neonPracticed || sqlitePracticed > neonPracticed) {
+        // If record doesn't exist in Neon, sync it
+        if (neonPracticedMs === undefined) {
           practiceToSync.push(row.id);
+        } 
+        // Compare timestamps - if within 1 second, they match
+        else {
+          const diff = sqlitePracticedMs - neonPracticedMs;
+          
+          // If SQLite is newer (>1hr), sync it
+          if (diff > 3600000) {
+            practiceToSync.push(row.id);
+          }
         }
       }
 
