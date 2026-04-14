@@ -62,6 +62,20 @@ const msToTimestamp = (ms) => {
   }
 };
 
+// Helper to check if timestamp is epoch/invalid and return current time if so
+const ensureValidTimestamp = (ms) => {
+  const timestamp = msToTimestamp(ms);
+  if (!timestamp) return new Date().toISOString();
+  
+  // Check if it's the epoch time (1970-01-21 or similar invalid dates)
+  const date = new Date(timestamp);
+  if (date.getFullYear() < 2000) {
+    return new Date().toISOString();
+  }
+  
+  return timestamp;
+};
+
 async function partialSyncToNeon() {
   if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL not set. Cannot sync to Neon.');
@@ -90,19 +104,25 @@ async function partialSyncToNeon() {
     console.log('📝 Checking vocabulary...');
     
     // Get all Neon vocabulary
-    const neonVocab = await neonPool.query('SELECT id, updated_at FROM vocabulary ORDER BY id');
-    const neonVocabMap = new Map(neonVocab.rows.map(r => [r.id, new Date(r.updated_at)]));
+    const neonVocab = await neonPool.query('SELECT id, created_at, updated_at FROM vocabulary ORDER BY id');
+    const neonVocabMap = new Map(neonVocab.rows.map(r => [r.id, { 
+      updated_at: new Date(r.updated_at),
+      created_at: new Date(r.created_at)
+    }]));
 
     // Get all SQLite vocabulary
     const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
     
     let vocabToSync = [];
     for (const row of sqliteVocab) {
-      const neonUpdated = neonVocabMap.get(row.id);
+      const neonData = neonVocabMap.get(row.id);
       const sqliteUpdated = new Date(msToTimestamp(row.updated_at));
       
-      // Sync if: record doesn't exist in Neon OR SQLite version is newer
-      if (!neonUpdated || sqliteUpdated > neonUpdated) {
+      // Check if Neon has epoch timestamp (needs fixing)
+      const hasEpochTimestamp = neonData && neonData.created_at.getFullYear() < 2000;
+      
+      // Sync if: record doesn't exist in Neon OR SQLite version is newer OR Neon has invalid epoch timestamp
+      if (!neonData || sqliteUpdated > neonData.updated_at || hasEpochTimestamp) {
         vocabToSync.push(row.id);
       }
     }
@@ -115,9 +135,9 @@ async function partialSyncToNeon() {
       `);
 
       for (const row of sqliteVocabData) {
-        // Use NOW() if timestamps are null/invalid
-        const createdAtValue = msToTimestamp(row.created_at) || new Date().toISOString();
-        const updatedAtValue = msToTimestamp(row.updated_at) || new Date().toISOString();
+        // Ensure timestamps are valid (not epoch/null)
+        const createdAtValue = ensureValidTimestamp(row.created_at);
+        const updatedAtValue = ensureValidTimestamp(row.updated_at);
         
         await neonPool.query(
           `INSERT INTO vocabulary 
