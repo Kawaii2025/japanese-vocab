@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from './utils/timestamp-sync.js';
+import { logSyncError } from './utils/error-handler.js';
 
 dotenv.config();
 
@@ -50,12 +51,25 @@ const msToTimestamp = (ms) => {
 
 async function syncVocabulary() {
   if (!process.env.DATABASE_URL) {
-    console.error('❌ DATABASE_URL not set');
+    const err = new Error('DATABASE_URL environment variable not set');
+    err.code = 'ENV_CONFIG_ERROR';
+    logSyncError(err, 'Cannot start vocabulary sync - missing database configuration', {
+      operation: 'initialize sync'
+    });
     process.exit(1);
   }
 
-  const neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  const sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
+  let neonPool;
+  let sqliteDb;
+  try {
+    neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
+  } catch (err) {
+    logSyncError(err, 'Failed to initialize database connections', {
+      operation: 'database initialization'
+    });
+    process.exit(1);
+  }
 
   try {
     console.log(`📝 Syncing vocabulary table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
@@ -92,9 +106,17 @@ async function syncVocabulary() {
     await sqliteDb.close();
 
   } catch (err) {
-    console.error('❌ Vocabulary sync failed:', err.message);
-    await neonPool.end();
-    await sqliteDb.close();
+    logSyncError(err, 'Vocabulary sync encountered an error', {
+      table: 'vocabulary',
+      operation: isPartial ? 'partial sync changed records' : 'full sync all records',
+      attemptedRecordCount: toSync?.length
+    });
+    try {
+      await neonPool.end();
+      await sqliteDb.close();
+    } catch (cleanupErr) {
+      console.error('⚠️  Cleanup failed:', cleanupErr.message);
+    }
     process.exit(1);
   }
 }

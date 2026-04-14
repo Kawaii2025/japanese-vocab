@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import readline from 'readline';
+import { logSyncError } from './utils/error-handler.js';
 
 dotenv.config();
 
@@ -40,7 +41,11 @@ async function askConfirmation(question) {
 
 async function syncToNeon() {
   if (!process.env.DATABASE_URL) {
-    console.error('❌ DATABASE_URL not set. Cannot sync to Neon.');
+    const err = new Error('DATABASE_URL environment variable not set');
+    err.code = 'ENV_CONFIG_ERROR';
+    logSyncError(err, 'Cannot start full sync - missing database configuration', {
+      operation: 'initialize sync'
+    });
     console.error('   Set DATABASE_URL in your .env file to enable Neon sync.');
     process.exit(1);
   }
@@ -55,19 +60,35 @@ async function syncToNeon() {
     process.exit(0);
   }
 
-  const neonPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL
-  });
+  let neonPool;
+  let sqliteDb;
+  try {
+    neonPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL
+    });
 
-  const sqliteDb = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
-  });
+    sqliteDb = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+  } catch (err) {
+    logSyncError(err, 'Failed to initialize database connections', {
+      operation: 'database initialization'
+    });
+    process.exit(1);
+  }
 
   try {
     console.log('\n🔐 Connecting to Neon...');
-    const testConn = await neonPool.query('SELECT NOW()');
-    console.log('✅ Connected to Neon\n');
+    try {
+      const testConn = await neonPool.query('SELECT NOW()');
+      console.log('✅ Connected to Neon\n');
+    } catch (connErr) {
+      logSyncError(connErr, 'Failed to connect to Neon database', {
+        operation: 'Neon connection test'
+      });
+      throw connErr;
+    }
 
     console.log('📊 Starting sync process...\n');
 
@@ -155,7 +176,11 @@ async function syncToNeon() {
       }
       console.log(`   ✅ ${usersData.length} users synced`);
     } catch (err) {
-      console.log('   ⚠️  Users table not synced:', err.message);
+      console.log('   ⚠️  Users sync encountered an issue:');
+      logSyncError(err, 'Users table sync failed (continuing with other tables)', {
+        table: 'users',
+        operation: 'full sync all users'
+      });
     }
 
     // Sync practice records
@@ -174,7 +199,11 @@ async function syncToNeon() {
       }
       console.log(`   ✅ ${practiceData.length} practice records synced`);
     } catch (err) {
-      console.log('   ⚠️  Practice records not synced:', err.message);
+      console.log('   ⚠️  Practice records sync encountered an issue:');
+      logSyncError(err, 'Practice records table sync failed (continuing)', {
+        table: 'practice_records',
+        operation: 'full sync all practice records'
+      });
     }
 
     // Get counts after sync
@@ -192,9 +221,15 @@ async function syncToNeon() {
     await sqliteDb.close();
 
   } catch (err) {
-    console.error('❌ Sync failed:', err.message);
-    await neonPool.end();
-    await sqliteDb.close();
+    logSyncError(err, 'Full sync encountered a critical error', {
+      operation: 'full sync to Neon'
+    });
+    try {
+      await neonPool.end();
+      await sqliteDb.close();
+    } catch (cleanupErr) {
+      console.error('⚠️  Cleanup failed:', cleanupErr.message);
+    }
     process.exit(1);
   }
 }
