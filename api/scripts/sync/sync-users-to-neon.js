@@ -62,8 +62,14 @@ async function syncUsers() {
   try {
     console.log(`👤 Syncing users table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
 
-    // Get users data
-    let sqliteUsers = await sqliteDb.all('SELECT * FROM users ORDER BY id');
+    // Get counts before sync
+    const neonCountBefore = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const sqliteUsersAll = await sqliteDb.all('SELECT * FROM users ORDER BY id');
+    
+    console.log(`📋 Before sync: SQLite=${sqliteUsersAll.length} | Neon=${neonCountBefore.rows[0].count}\n`);
+
+    // Get users data - declare toSync at function level to avoid scoping issues
+    const sqliteUsers = sqliteUsersAll;
     let toSync = [...sqliteUsers];
 
     if (isPartial) {
@@ -84,7 +90,17 @@ async function syncUsers() {
       );
     }
 
-    console.log(`✅ Users sync complete! ${toSync.length} records synced`);
+    // Verify sync
+    const neonCountAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const match = neonCountAfter.rows[0].count === sqliteUsersAll.length;
+    
+    console.log(`\n🔍 After sync: Neon=${neonCountAfter.rows[0].count} ${match ? '✅' : '⚠️'}`);
+    
+    if (!match) {
+      console.log(`   Expected ${sqliteUsersAll.length}, got ${neonCountAfter.rows[0].count}`);
+    }
+
+    console.log(`✅ Users sync complete! ${toSync.length} records synced\n`);
     await neonPool.end();
     await sqliteDb.close();
 

@@ -125,6 +125,25 @@ async function partialSyncToNeon() {
 
     console.log('📊 Comparing changes...\n');
 
+    // Get counts before sync
+    const sqliteVocabBefore = await sqliteDb.all('SELECT COUNT(*) as count FROM vocabulary');
+    const sqliteUsersBefore = await sqliteDb.all('SELECT COUNT(*) as count FROM users');
+    const sqlitePracticeBefore = await sqliteDb.all('SELECT COUNT(*) as count FROM practice_records');
+
+    const neonVocabBefore = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const neonUsersBefore = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const neonPracticeBefore = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    console.log('📋 Record counts before sync:');
+    console.log(`   Vocabulary: SQLite=${sqliteVocabBefore[0].count} | Neon=${neonVocabBefore.rows[0].count}`);
+    console.log(`   Users: SQLite=${sqliteUsersBefore[0].count} | Neon=${neonUsersBefore.rows[0].count}`);
+    console.log(`   Practice Records: SQLite=${sqlitePracticeBefore[0].count} | Neon=${neonPracticeBefore.rows[0].count}\n`);
+
+    // Track how many records were synced
+    let vocabSyncedCount = 0;
+    let usersSyncedCount = 0;
+    let practiceSyncedCount = 0;
+
     // ============ VOCABULARY ============
     try {
       console.log('📝 Checking vocabulary...');
@@ -132,6 +151,7 @@ async function partialSyncToNeon() {
       const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
       const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
       let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
+      vocabSyncedCount = vocabToSync.length;
       
       logSyncStatus(sqliteVocab.length, vocabToSync);
 
@@ -173,6 +193,7 @@ async function partialSyncToNeon() {
       const sqliteUsers = await sqliteDb.all('SELECT id, created_at FROM users ORDER BY id');
       const neonUsersMap = await getNeonTimestampMap(neonPool, 'users', 'created_at');
       let usersToSync = getRecordsToSync(sqliteUsers, neonUsersMap, 'created_at');
+      usersSyncedCount = usersToSync.length;
       
       logSyncStatus(sqliteUsers.length, usersToSync);
 
@@ -209,6 +230,7 @@ async function partialSyncToNeon() {
       const sqlitePractice = await sqliteDb.all('SELECT id, practiced_at FROM practice_records ORDER BY id');
       const neonPracticeMap = await getNeonTimestampMap(neonPool, 'practice_records', 'practiced_at');
       let practiceToSync = getRecordsToSync(sqlitePractice, neonPracticeMap, 'practiced_at');
+      practiceSyncedCount = practiceToSync.length;
       
       logSyncStatus(sqlitePractice.length, practiceToSync);
 
@@ -236,6 +258,40 @@ async function partialSyncToNeon() {
         operation: 'fetch and sync practice records',
         attemptedRecordCount: sqlitePracticeData?.length
       });
+    }
+
+    // ============ VERIFICATION ============
+    console.log('🔍 Verifying sync results...\n');
+    
+    const neonVocabAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const neonUsersAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    const totalSynced = vocabSyncedCount + usersSyncedCount + practiceSyncedCount;
+
+    console.log('📊 Sync Summary:');
+    console.log(`   Vocabulary: ${vocabSyncedCount} records synced (${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count})`);
+    console.log(`   Users: ${usersSyncedCount} records synced (${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count})`);
+    console.log(`   Practice Records: ${practiceSyncedCount} records synced (${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count})\n`);
+
+    // For partial sync, we're OK as long as:
+    // 1. No records were removed
+    // 2. Only new/updated records were added
+    const vocabOK = neonVocabAfter.rows[0].count >= neonVocabBefore.rows[0].count;
+    const usersOK = neonUsersAfter.rows[0].count >= neonUsersBefore.rows[0].count;
+    const practiceOK = neonPracticeAfter.rows[0].count >= neonPracticeBefore.rows[0].count;
+
+    if (vocabOK && usersOK && practiceOK) {
+      console.log('✅ Sync verification PASSED - No records were lost\n');
+      if (totalSynced === 0) {
+        console.log('📌 Note: Zero records needed syncing (all up to date)\n');
+      }
+    } else {
+      console.log('⚠️  Sync verification WARNING - Record count decreased:\n');
+      if (!vocabOK) console.log(`   • Vocabulary: ${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count} ❌`);
+      if (!usersOK) console.log(`   • Users: ${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count} ❌`);
+      if (!practiceOK) console.log(`   • Practice Records: ${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count} ❌`);
+      console.log('\n   Please investigate data loss!\n');
     }
 
     console.log('✅ Partial sync complete!\n');

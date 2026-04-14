@@ -212,10 +212,24 @@ async function syncToNeon() {
     const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
 
     console.log('\n✅ Sync complete!');
-    console.log('📊 Neon data after sync:');
-    console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count}`);
-    console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count}`);
-    console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count}`);
+    console.log('📊 Data verification:');
+    console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count} (expected: ${sqliteVocab[0].count}) ${neonVocabAfter.rows[0].count === sqliteVocab[0].count ? '✅' : '⚠️'}`);
+    console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count} (expected: ${sqliteUsers[0].count}) ${neonUsersAfter.rows[0].count === sqliteUsers[0].count ? '✅' : '⚠️'}`);
+    console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count} (expected: ${sqlitePractice[0].count}) ${neonPracticeAfter.rows[0].count === sqlitePractice[0].count ? '✅' : '⚠️'}`);
+
+    const vocabMatch = neonVocabAfter.rows[0].count === sqliteVocab[0].count;
+    const usersMatch = neonUsersAfter.rows[0].count === sqliteUsers[0].count;
+    const practiceMatch = neonPracticeAfter.rows[0].count === sqlitePractice[0].count;
+
+    if (vocabMatch && usersMatch && practiceMatch) {
+      console.log('\n✅ Full verification PASSED - All counts match SQLite exactly!\n');
+    } else {
+      console.log('\n⚠️  Verification WARNING - Counts do not match SQLite:\n');
+      if (!vocabMatch) console.log(`   • Vocabulary: expected ${sqliteVocab[0].count}, got ${neonVocabAfter.rows[0].count}`);
+      if (!usersMatch) console.log(`   • Users: expected ${sqliteUsers[0].count}, got ${neonUsersAfter.rows[0].count}`);
+      if (!practiceMatch) console.log(`   • Practice Records: expected ${sqlitePractice[0].count}, got ${neonPracticeAfter.rows[0].count}`);
+      console.log('');
+    }
 
     await neonPool.end();
     await sqliteDb.close();

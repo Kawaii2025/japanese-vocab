@@ -74,8 +74,14 @@ async function syncVocabulary() {
   try {
     console.log(`📝 Syncing vocabulary table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
 
-    // Get vocabulary data
-    let sqliteVocab = await sqliteDb.all('SELECT * FROM vocabulary ORDER BY id');
+    // Get counts before sync
+    const neonCountBefore = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const sqliteVocabAll = await sqliteDb.all('SELECT * FROM vocabulary ORDER BY id');
+    
+    console.log(`📋 Before sync: SQLite=${sqliteVocabAll.length} | Neon=${neonCountBefore.rows[0].count}\n`);
+
+    // Get vocabulary data - declare toSync at function level to avoid scoping issues
+    const sqliteVocab = sqliteVocabAll;
     let toSync = [...sqliteVocab];
 
     if (isPartial) {
@@ -101,7 +107,17 @@ async function syncVocabulary() {
       );
     }
 
-    console.log(`✅ Vocabulary sync complete! ${toSync.length} records synced`);
+    // Verify sync
+    const neonCountAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
+    const match = neonCountAfter.rows[0].count === sqliteVocabAll.length;
+    
+    console.log(`\n🔍 After sync: Neon=${neonCountAfter.rows[0].count} ${match ? '✅' : '⚠️'}`);
+    
+    if (!match) {
+      console.log(`   Expected ${sqliteVocabAll.length}, got ${neonCountAfter.rows[0].count}`);
+    }
+
+    console.log(`✅ Vocabulary sync complete! ${toSync.length} records synced\n`);
     await neonPool.end();
     await sqliteDb.close();
 
