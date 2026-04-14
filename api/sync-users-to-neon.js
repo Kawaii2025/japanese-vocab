@@ -53,13 +53,21 @@ async function syncUsers() {
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
-      const neonUsers = await neonPool.query('SELECT id, created_at FROM users ORDER BY id');
-      const neonUsersMap = new Map(neonUsers.rows.map(r => [r.id, new Date(r.created_at)]));
+      const neonUsers = await neonPool.query(
+        `SELECT id, EXTRACT(EPOCH FROM created_at) * 1000 as created_at_ms FROM users ORDER BY id`
+      );
+      const neonUsersMap = new Map(neonUsers.rows.map(r => [r.id, Math.floor(r.created_at_ms)]));
 
       toSync = sqliteUsers.filter(row => {
-        const neonCreated = neonUsersMap.get(row.id);
-        const sqliteCreated = new Date(msToTimestamp(row.created_at));
-        return !neonCreated || sqliteCreated > neonCreated;
+        const neonMs = neonUsersMap.get(row.id);
+        const sqliteMs = row.created_at;
+        
+        // If record doesn't exist in Neon, sync it
+        if (neonMs === undefined) return true;
+        
+        // Compare timestamps - sync if SQLite is newer (>1hr)
+        const diff = sqliteMs - neonMs;
+        return diff > 3600000;
       });
 
       console.log(`   Total: ${sqliteUsers.length} | To sync: ${toSync.length} | Skipped: ${sqliteUsers.length - toSync.length}\n`);

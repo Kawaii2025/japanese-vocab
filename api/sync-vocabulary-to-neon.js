@@ -65,13 +65,21 @@ async function syncVocabulary() {
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
-      const neonVocab = await neonPool.query('SELECT id, updated_at FROM vocabulary ORDER BY id');
-      const neonVocabMap = new Map(neonVocab.rows.map(r => [r.id, new Date(r.updated_at)]));
+      const neonVocab = await neonPool.query(
+        `SELECT id, EXTRACT(EPOCH FROM updated_at) * 1000 as updated_at_ms FROM vocabulary ORDER BY id`
+      );
+      const neonVocabMap = new Map(neonVocab.rows.map(r => [r.id, Math.floor(r.updated_at_ms)]));
 
       toSync = sqliteVocab.filter(row => {
-        const neonUpdated = neonVocabMap.get(row.id);
-        const sqliteUpdated = new Date(msToTimestamp(row.updated_at));
-        return !neonUpdated || sqliteUpdated > neonUpdated;
+        const neonMs = neonVocabMap.get(row.id);
+        const sqliteMs = row.updated_at;
+        
+        // If record doesn't exist in Neon, sync it
+        if (neonMs === undefined) return true;
+        
+        // Compare timestamps - sync if SQLite is newer (>1hr)
+        const diff = sqliteMs - neonMs;
+        return diff > 3600000;
       });
 
       console.log(`   Total: ${sqliteVocab.length} | To sync: ${toSync.length} | Skipped: ${sqliteVocab.length - toSync.length}\n`);

@@ -65,13 +65,21 @@ async function syncPracticeRecords() {
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
-      const neonPractice = await neonPool.query('SELECT id, practiced_at FROM practice_records ORDER BY id');
-      const neonPracticeMap = new Map(neonPractice.rows.map(r => [r.id, new Date(r.practiced_at)]));
+      const neonPractice = await neonPool.query(
+        `SELECT id, EXTRACT(EPOCH FROM practiced_at) * 1000 as practiced_at_ms FROM practice_records ORDER BY id`
+      );
+      const neonPracticeMap = new Map(neonPractice.rows.map(r => [r.id, Math.floor(r.practiced_at_ms)]));
 
       toSync = sqlitePractice.filter(row => {
-        const neonPracticed = neonPracticeMap.get(row.id);
-        const sqlitePracticed = new Date(msToTimestamp(row.practiced_at));
-        return !neonPracticed || sqlitePracticed > neonPracticed;
+        const neonMs = neonPracticeMap.get(row.id);
+        const sqliteMs = row.practiced_at;
+        
+        // If record doesn't exist in Neon, sync it
+        if (neonMs === undefined) return true;
+        
+        // Compare timestamps - sync if SQLite is newer (>1hr)
+        const diff = sqliteMs - neonMs;
+        return diff > 3600000;
       });
 
       console.log(`   Total: ${sqlitePractice.length} | To sync: ${toSync.length} | Skipped: ${sqlitePractice.length - toSync.length}\n`);
