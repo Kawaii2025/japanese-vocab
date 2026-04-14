@@ -17,9 +17,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Database is in parent/data directory
-const dbPath = path.join(__dirname, '../data/vocabulary.db');
-const exportDir = path.join(__dirname, '../data/exports');
+// Database is in parent/parent/data directory
+const dbPath = path.join(__dirname, '../../data/vocabulary.db');
+const exportDir = path.join(__dirname, '../../data/exports');
 
 // Ensure export directory exists
 if (!fs.existsSync(exportDir)) {

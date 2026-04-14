@@ -3,7 +3,7 @@
  * 用法: node debug-kana.js
  */
 
-import pool from './db.js';
+import pool from '../../db.js';
 
 async function debugKanaCharacters() {
   let client;

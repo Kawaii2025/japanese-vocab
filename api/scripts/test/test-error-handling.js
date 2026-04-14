@@ -6,7 +6,7 @@
  * Usage: DEBUG_SYNC=1 node test-error-handling.js
  */
 
-import { formatSyncError, logSyncError } from './utils/error-handler.js';
+import { formatSyncError, logSyncError } from '../../utils/error-handler.js';
 
 console.log('\n📋 Testing Error Handling System\n');
 console.log('=' .repeat(70));

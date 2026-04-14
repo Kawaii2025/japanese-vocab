@@ -15,15 +15,15 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import readline from 'readline';
-import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from './utils/timestamp-sync.js';
-import { logSyncError, formatSyncError } from './utils/error-handler.js';
+import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
+import { logSyncError, formatSyncError } from '../../utils/error-handler.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, '../data/vocabulary.db');
+const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 // Helper to ask user for confirmation
 async function askConfirmation(question) {

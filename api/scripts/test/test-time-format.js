@@ -1,7 +1,7 @@
 /**
  * 测试时间格式化功能
  */
-import { formatBeijingTime, isToday, getTodayBeijing } from '../src/utils/dateFormatter.js';
+import { formatBeijingTime, isToday, getTodayBeijing } from '../../src/utils/dateFormatter.js';
 
 console.log('🕐 时间格式化测试\n');
 console.log('当前时区: Asia/Shanghai (UTC+8)\n');

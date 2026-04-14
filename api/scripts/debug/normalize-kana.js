@@ -3,7 +3,7 @@
  * 用法: node normalize-kana.js
  */
 
-import pool from './db.js';
+import pool from '../../db.js';
 
 async function normalizeKanaInDatabase() {
   let client;

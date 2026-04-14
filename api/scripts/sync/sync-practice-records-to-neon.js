@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Sync only users table to Neon
- * Usage: node sync-users-to-neon.js [--partial]
+ * Sync only practice_records table to Neon
+ * Usage: node sync-practice-records-to-neon.js [--partial]
  * 
  * --partial flag: Only sync changed records
- * Without flag: Full sync all users
+ * Without flag: Full sync all practice records
  */
 
 import sqlite3 from 'sqlite3';
@@ -14,16 +14,28 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from './utils/timestamp-sync.js';
-import { logSyncError } from './utils/error-handler.js';
+import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
+import { logSyncError } from '../../utils/error-handler.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, '../data/vocabulary.db');
+const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 const isPartial = process.argv.includes('--partial');
+
+// Helper to convert JS milliseconds to date string (YYYY-MM-DD)
+const msToDate = (ms) => {
+  if (!ms || ms === null || ms === undefined || ms === '') return null;
+  const num = Number(ms);
+  if (isNaN(num)) return null;
+  try {
+    return new Date(num).toISOString().split('T')[0];
+  } catch (e) {
+    return null;
+  }
+};
 
 // Helper to convert JS milliseconds to ISO timestamp
 const msToTimestamp = (ms) => {
@@ -37,11 +49,11 @@ const msToTimestamp = (ms) => {
   }
 };
 
-async function syncUsers() {
+async function syncPracticeRecords() {
   if (!process.env.DATABASE_URL) {
     const err = new Error('DATABASE_URL environment variable not set');
     err.code = 'ENV_CONFIG_ERROR';
-    logSyncError(err, 'Cannot start users sync - missing database configuration', {
+    logSyncError(err, 'Cannot start practice records sync - missing database configuration', {
       operation: 'initialize sync'
     });
     process.exit(1);
@@ -60,37 +72,37 @@ async function syncUsers() {
   }
 
   try {
-    console.log(`👤 Syncing users table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
+    console.log(`📊 Syncing practice_records table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
 
-    // Get users data
-    let sqliteUsers = await sqliteDb.all('SELECT * FROM users ORDER BY id');
-    let toSync = [...sqliteUsers];
+    // Get practice records data
+    let sqlitePractice = await sqliteDb.all('SELECT * FROM practice_records ORDER BY id');
+    let toSync = [...sqlitePractice];
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
-      const neonUsersMap = await getNeonTimestampMap(neonPool, 'users', 'created_at');
-      toSync = getRecordsToSync(sqliteUsers, neonUsersMap, 'created_at');
-      logSyncStatus(sqliteUsers.length, toSync);
+      const neonPracticeMap = await getNeonTimestampMap(neonPool, 'practice_records', 'practiced_at');
+      toSync = getRecordsToSync(sqlitePractice, neonPracticeMap, 'practiced_at');
+      logSyncStatus(sqlitePractice.length, toSync);
     }
 
     console.log(`🔄 Syncing ${toSync.length} records...`);
     for (const row of toSync) {
       await neonPool.query(
-        `INSERT INTO users (id, username, email, created_at)
-        VALUES ($1, $2, $3, $4)
+        `INSERT INTO practice_records (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (id) DO UPDATE SET
-        username = $2, email = $3`,
-        [row.id, row.username, row.email, msToTimestamp(row.created_at)]
+        is_correct = $4, practice_date = $5, practiced_at = $6`,
+        [row.id, row.user_id, row.vocabulary_id, row.is_correct, msToDate(row.practice_date), msToTimestamp(row.practiced_at)]
       );
     }
 
-    console.log(`✅ Users sync complete! ${toSync.length} records synced`);
+    console.log(`✅ Practice records sync complete! ${toSync.length} records synced`);
     await neonPool.end();
     await sqliteDb.close();
 
   } catch (err) {
-    logSyncError(err, 'Users sync encountered an error', {
-      table: 'users',
+    logSyncError(err, 'Practice records sync encountered an error', {
+      table: 'practice_records',
       operation: isPartial ? 'partial sync changed records' : 'full sync all records',
       attemptedRecordCount: toSync?.length
     });
@@ -104,4 +116,4 @@ async function syncUsers() {
   }
 }
 
-syncUsers();
+syncPracticeRecords();

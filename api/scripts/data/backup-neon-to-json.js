@@ -18,7 +18,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const exportDir = path.join(__dirname, '../data/exports');
+const exportDir = path.join(__dirname, '../../data/exports');
 
 // Ensure export directory exists
 if (!fs.existsSync(exportDir)) {

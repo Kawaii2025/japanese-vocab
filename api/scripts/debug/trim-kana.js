@@ -3,7 +3,7 @@
  * 用法: node trim-kana.js
  */
 
-import pool from './db.js';
+import pool from '../../db.js';
 
 async function trimKanaInDatabase() {
   let client;

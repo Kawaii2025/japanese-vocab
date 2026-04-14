@@ -7,16 +7,16 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "export-json": "node export-to-json.js",
-    "import-json": "node import-from-json.js",
-    "backup-neon": "node backup-neon-to-json.js",
-    "sync-neon": "node sync-neon.js",
-    "sync-to-neon": "node sync-to-neon.js",
-    "sync-to-neon-partial": "node sync-to-neon-partial.js",
-    "sync-vocabulary": "node sync-vocabulary-to-neon.js",
-    "sync-users": "node sync-users-to-neon.js",
-    "sync-practice-records": "node sync-practice-records-to-neon.js",
-    "restore-neon": "node restore-neon-from-json.js"
+    "export-json": "node scripts/data/export-to-json.js",
+    "import-json": "node scripts/data/import-from-json.js",
+    "backup-neon": "node scripts/data/backup-neon-to-json.js",
+    "sync-neon": "node scripts/sync/sync-neon.js",
+    "sync-to-neon": "node scripts/sync/sync-to-neon.js",
+    "sync-to-neon-partial": "node scripts/sync/sync-to-neon-partial.js",
+    "sync-vocabulary": "node scripts/sync/sync-vocabulary-to-neon.js",
+    "sync-users": "node scripts/sync/sync-users-to-neon.js",
+    "sync-practice-records": "node scripts/sync/sync-practice-records-to-neon.js",
+    "restore-neon": "node scripts/data/restore-neon-from-json.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

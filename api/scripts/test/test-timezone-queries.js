@@ -1,5 +1,5 @@
-import pool from './db.js';
-import { BEIJING_CURRENT_DATE } from './utils/timezone.js';
+import pool from '../../db.js';
+import { BEIJING_CURRENT_DATE } from '../../utils/timezone.js';
 
 async function testTimezoneQueries() {
   try {

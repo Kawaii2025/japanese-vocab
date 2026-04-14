@@ -15,8 +15,8 @@ import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const envNeonPath = path.join(__dirname, '.env.neon');
-const envNeonExamplePath = path.join(__dirname, '.env.neon.example');
+const envNeonPath = path.join(__dirname, '../../.env.neon');
+const envNeonExamplePath = path.join(__dirname, '../../.env.neon.example');
 
 // Load .env.neon
 if (!fs.existsSync(envNeonPath)) {
