@@ -16,6 +16,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError } from '../../utils/error-handler.js';
+import { AuditTracker } from '../../utils/audit-tracker.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ async function syncUsers() {
 
   let neonPool;
   let sqliteDb;
+  let audit;
   try {
     neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -61,6 +63,10 @@ async function syncUsers() {
 
   try {
     console.log(`👤 Syncing users table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
+
+    // ✨ Start audit tracking
+    audit = new AuditTracker(`users_${isPartial ? 'partial' : 'full'}`, { neonPool });
+    await audit.start();
 
     // Get counts before sync
     const neonCountBefore = await neonPool.query('SELECT COUNT(*) as count FROM users');
@@ -80,14 +86,22 @@ async function syncUsers() {
     }
 
     console.log(`🔄 Syncing ${toSync.length} records...`);
+    let syncedCount = 0;
+    let failedCount = 0;
+    
     for (const row of toSync) {
-      await neonPool.query(
-        `INSERT INTO users (id, username, email, created_at)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (id) DO UPDATE SET
-        username = $2, email = $3`,
-        [row.id, row.username, row.email, msToTimestamp(row.created_at)]
-      );
+      try {
+        await neonPool.query(
+          `INSERT INTO users (id, username, email, created_at)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (id) DO UPDATE SET
+          username = $2, email = $3`,
+          [row.id, row.username, row.email, msToTimestamp(row.created_at)]
+        );
+        syncedCount++;
+      } catch (err) {
+        failedCount++;
+      }
     }
 
     // Verify sync
@@ -101,6 +115,13 @@ async function syncUsers() {
     }
 
     console.log(`✅ Users sync complete! ${toSync.length} records synced\n`);
+    
+    // ✨ Print and save audit
+    if (audit) {
+      audit.printSummary();
+      await audit.save();
+    }
+
     await neonPool.end();
     await sqliteDb.close();
 
@@ -110,6 +131,17 @@ async function syncUsers() {
       operation: isPartial ? 'partial sync changed records' : 'full sync all records',
       attemptedRecordCount: toSync?.length
     });
+
+    // ✨ Print and save audit before exit
+    if (audit) {
+      audit.printSummary();
+      try {
+        await audit.save();
+      } catch (saveErr) {
+        console.error('⚠️  Failed to save audit:', saveErr.message);
+      }
+    }
+
     try {
       await neonPool.end();
       await sqliteDb.close();

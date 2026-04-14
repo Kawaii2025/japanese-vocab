@@ -16,8 +16,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError } from '../../utils/error-handler.js';
+import { AuditTracker } from '../../utils/audit-tracker.js';
 
 dotenv.config();
+dotenv.config({ path: '.env.neon' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +63,7 @@ async function syncVocabulary() {
 
   let neonPool;
   let sqliteDb;
+  let audit;
   try {
     neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -73,6 +76,10 @@ async function syncVocabulary() {
 
   try {
     console.log(`📝 Syncing vocabulary table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
+
+    // ✨ Start audit tracking
+    audit = new AuditTracker(`vocabulary_${isPartial ? 'partial' : 'full'}`, { neonPool });
+    await audit.start();
 
     // Get counts before sync
     const neonCountBefore = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
@@ -92,19 +99,35 @@ async function syncVocabulary() {
     }
 
     console.log(`🔄 Syncing ${toSync.length} records...`);
+    let syncedCount = 0;
+    let failedCount = 0;
+    
     for (const row of toSync) {
-      await neonPool.query(
-        `INSERT INTO vocabulary 
-        (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        ON CONFLICT (id) DO UPDATE SET
-        chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-        input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
-        updated_at = $12`,
-        [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-         msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
-         msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
-      );
+      try {
+        await neonPool.query(
+          `INSERT INTO vocabulary 
+          (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (id) DO UPDATE SET
+          chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
+          input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
+          updated_at = $12`,
+          [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
+           msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
+           msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
+        );
+        syncedCount++;
+      } catch (err) {
+        failedCount++;
+        if (audit) await audit.recordError(row.id, 'vocabulary', err.message, err.code);
+      }
+    }
+
+    // ✨ Update audit with progress
+    if (audit) {
+      await audit.updateProgress({
+        vocabulary: { succeeded: syncedCount, failed: failedCount }
+      });
     }
 
     // Verify sync
@@ -117,7 +140,24 @@ async function syncVocabulary() {
       console.log(`   Expected ${sqliteVocabAll.length}, got ${neonCountAfter.rows[0].count}`);
     }
 
+    // ✨ Update audit with verification results
+    if (audit) {
+      await audit.verify({
+        table: 'vocabulary',
+        expectedCount: sqliteVocabAll.length,
+        actualCount: neonCountAfter.rows[0].count,
+        match: match
+      });
+    }
+
     console.log(`✅ Vocabulary sync complete! ${toSync.length} records synced\n`);
+    
+    // ✨ Print and save audit
+    if (audit) {
+      audit.printSummary();
+      await audit.save();
+    }
+
     await neonPool.end();
     await sqliteDb.close();
 
@@ -127,6 +167,17 @@ async function syncVocabulary() {
       operation: isPartial ? 'partial sync changed records' : 'full sync all records',
       attemptedRecordCount: toSync?.length
     });
+
+    // ✨ Print and save audit before exit
+    if (audit) {
+      audit.printSummary();
+      try {
+        await audit.save();
+      } catch (saveErr) {
+        console.error('⚠️  Failed to save audit:', saveErr.message);
+      }
+    }
+
     try {
       await neonPool.end();
       await sqliteDb.close();

@@ -16,6 +16,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError } from '../../utils/error-handler.js';
+import { AuditTracker } from '../../utils/audit-tracker.js';
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ async function syncPracticeRecords() {
 
   let neonPool;
   let sqliteDb;
+  let audit;
   try {
     neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -73,6 +75,10 @@ async function syncPracticeRecords() {
 
   try {
     console.log(`📊 Syncing practice_records table ${isPartial ? '(partial mode)' : '(full sync)'}...\n`);
+
+    // ✨ Start audit tracking
+    audit = new AuditTracker(`practice_records_${isPartial ? 'partial' : 'full'}`, { neonPool });
+    await audit.start();
 
     // Get counts before sync
     const neonCountBefore = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
@@ -92,14 +98,22 @@ async function syncPracticeRecords() {
     }
 
     console.log(`🔄 Syncing ${toSync.length} records...`);
+    let syncedCount = 0;
+    let failedCount = 0;
+    
     for (const row of toSync) {
-      await neonPool.query(
-        `INSERT INTO practice_records (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (id) DO UPDATE SET
-        is_correct = $4, practice_date = $5, practiced_at = $6`,
-        [row.id, row.user_id, row.vocabulary_id, row.is_correct, msToDate(row.practice_date), msToTimestamp(row.practiced_at)]
-      );
+      try {
+        await neonPool.query(
+          `INSERT INTO practice_records (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (id) DO UPDATE SET
+          is_correct = $4, practice_date = $5, practiced_at = $6`,
+          [row.id, row.user_id, row.vocabulary_id, row.is_correct, msToDate(row.practice_date), msToTimestamp(row.practiced_at)]
+        );
+        syncedCount++;
+      } catch (err) {
+        failedCount++;
+      }
     }
 
     // Verify sync
@@ -113,6 +127,13 @@ async function syncPracticeRecords() {
     }
 
     console.log(`✅ Practice records sync complete! ${toSync.length} records synced\n`);
+    
+    // ✨ Print and save audit
+    if (audit) {
+      audit.printSummary();
+      await audit.save();
+    }
+
     await neonPool.end();
     await sqliteDb.close();
 
@@ -122,6 +143,17 @@ async function syncPracticeRecords() {
       operation: isPartial ? 'partial sync changed records' : 'full sync all records',
       attemptedRecordCount: toSync?.length
     });
+
+    // ✨ Print and save audit before exit
+    if (audit) {
+      audit.printSummary();
+      try {
+        await audit.save();
+      } catch (saveErr) {
+        console.error('⚠️  Failed to save audit:', saveErr.message);
+      }
+    }
+
     try {
       await neonPool.end();
       await sqliteDb.close();
