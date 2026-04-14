@@ -115,6 +115,10 @@ async function partialSyncToNeon() {
       `);
 
       for (const row of sqliteVocabData) {
+        // Use NOW() if timestamps are null/invalid
+        const createdAtValue = msToTimestamp(row.created_at) || new Date().toISOString();
+        const updatedAtValue = msToTimestamp(row.updated_at) || new Date().toISOString();
+        
         await neonPool.query(
           `INSERT INTO vocabulary 
           (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
@@ -125,7 +129,7 @@ async function partialSyncToNeon() {
           updated_at = $12`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
            msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
-           msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
+           createdAtValue, updatedAtValue]
         );
       }
       console.log(`   ✅ ${vocabToSync.length} vocabulary items synced\n`);
