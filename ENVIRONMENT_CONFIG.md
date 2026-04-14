@@ -175,6 +175,42 @@ npm run dev
 # This will use the API endpoint from .env.development
 ```
 
+## 🔐 Syncing Configuration: `.env.neon`
+
+For syncing data between SQLite and Neon, you need a separate `.env.neon` file:
+
+### What is `.env.neon`?
+
+- **Purpose**: Stores Neon database credentials for syncing operations only
+- **Location**: `api/.env.neon`
+- **Security**: Added to `.gitignore` - never committed to git
+- **Why separate**: Keeps production credentials out of version control
+
+### Setup `.env.neon`
+
+1. Navigate to the API folder:
+```bash
+cd api
+```
+
+2. Get your Neon connection string from your Neon dashboard
+
+3. Create `.env.neon`:
+```env
+DATABASE_URL=postgresql://neondb_owner:npg_xxxxxxxxxxxx@ep-damp-math-ahvdmdkf-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+```
+
+### Using `.env.neon`
+
+Once set up, syncing is automatic - no need to manually edit `.env`:
+
+```bash
+cd api
+npm run sync-neon  # Automatically loads DATABASE_URL from .env.neon
+```
+
+For detailed sync instructions, see [NEON_BACKUP_SYNC_GUIDE.md](./NEON_BACKUP_SYNC_GUIDE.md#%EF%B8%8F-initial-setup-configure-neon)
+
 ## Troubleshooting
 
 ### ❓ GitHub Pages shows blank page or "Cannot GET"

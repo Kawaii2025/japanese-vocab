@@ -10,12 +10,60 @@ Local SQLite → Backup Neon → Sync to Neon (Full or Partial)
 
 ---
 
+## ⚙️ Initial Setup: Configure .env.neon
+
+Before syncing, you need to set up your Neon database credentials.
+
+### Step 1: Create `.env.neon` file
+
+Navigate to the `api` folder and create a `.env.neon` file with your Neon connection string:
+
+```bash
+cd api
+# Create the file (replace with your actual Neon connection string)
+echo 'DATABASE_URL=postgresql://username:password@host/database?sslmode=require&channel_binding=require' > .env.neon
+```
+
+### Step 2: Example `.env.neon` content:
+
+```env
+# Neon Database URL (for syncing only)
+# Keep this separate from .env to avoid loading it in normal development
+DATABASE_URL=postgresql://neondb_owner:npg_xxxxxxxxxxxx@ep-damp-math-ahvdmdkf-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+```
+
+### Step 3: Security - `.env.neon` is protected
+
+✅ **Good news**: `.env.neon` is added to `.gitignore` automatically
+- Your credentials will **never** be committed to git
+- The file only exists on your local machine
+- Safe to store sensitive database credentials
+
+### Step 4: Verify setup
+
+Test that the connection works:
+
+```bash
+cd api
+npm run sync-neon  # This loads DATABASE_URL from .env.neon automatically
+```
+
+Expected output:
+```
+✅ Loaded DATABASE_URL from .env.neon
+🔄 Starting Neon sync...
+🔐 Connecting to Neon...
+✅ Connected
+```
+
+---
+
 ## 📊 Sync Modes Quick Reference
 
 | Mode | Command | Use Case | Speed | Data Synced |
 |------|---------|----------|-------|------------|
+| **Partial Sync** | `npm run sync-neon` | Daily updates, incremental changes | ⚡ Fast | Only changed records |
 | **Full Sync** | `npm run sync-to-neon` | Initial setup, complete refresh | Slower | All records |
-| **Partial Sync** | `npm run sync-to-neon-partial` | Daily updates, incremental changes | ⚡ Fast | Only changed records |
 | **Sync Vocabulary** | `npm run sync-vocabulary` | Fix vocabulary table only | Very Fast | Vocabulary table |
 | **Sync Users** | `npm run sync-users` | Fix users table only | Very Fast | Users table |
 | **Sync Practice Records** | `npm run sync-practice-records` | Fix practice records only | Very Fast | Practice records table |
