@@ -17,8 +17,10 @@ import { fileURLToPath } from 'url';
 import readline from 'readline';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError, formatSyncError } from '../../utils/error-handler.js';
+import { SyncAudit } from '../../utils/sync-audit.js';
 
 dotenv.config();
+dotenv.config({ path: '.env.neon' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,6 +96,7 @@ async function partialSyncToNeon() {
 
   let neonPool;
   let sqliteDb;
+  let audit;
 
   try {
     neonPool = new pg.Pool({
@@ -123,6 +126,11 @@ async function partialSyncToNeon() {
       throw connErr;
     }
 
+    // ✨ Start audit tracking
+    audit = new SyncAudit(neonPool, 'partial');
+    const auditId = await audit.start();
+    console.log(`📋 Audit started (ID: ${auditId})\n`);
+
     console.log('📊 Comparing changes...\n');
 
     // Get counts before sync
@@ -141,8 +149,11 @@ async function partialSyncToNeon() {
 
     // Track how many records were synced
     let vocabSyncedCount = 0;
+    let vocabFailedCount = 0;
     let usersSyncedCount = 0;
+    let usersFailedCount = 0;
     let practiceSyncedCount = 0;
+    let practiceFailedCount = 0;
 
     // ============ VOCABULARY ============
     try {
@@ -184,6 +195,8 @@ async function partialSyncToNeon() {
         operation: 'fetch and sync vocabulary items',
         attemptedRecordCount: vocabToSync?.length
       });
+      vocabFailedCount = vocabToSync?.length || 0;
+      if (audit) await audit.recordError(0, 'vocabulary', err.message, err.code);
     }
 
     // ============ USERS ============
@@ -221,6 +234,8 @@ async function partialSyncToNeon() {
         operation: 'fetch and sync users',
         attemptedRecordCount: sqliteUsersData?.length
       });
+      usersFailedCount = usersToSync?.length || 0;
+      if (audit) await audit.recordError(0, 'users', err.message, err.code);
     }
 
     // ============ PRACTICE RECORDS ============
@@ -257,6 +272,17 @@ async function partialSyncToNeon() {
         table: 'practice_records',
         operation: 'fetch and sync practice records',
         attemptedRecordCount: sqlitePracticeData?.length
+      });
+      practiceFailedCount = practiceToSync?.length || 0;
+      if (audit) await audit.recordError(0, 'practice_records', err.message, err.code);
+    }
+
+    // ✨ Update audit with progress
+    if (audit) {
+      await audit.updateProgress({
+        vocabulary: { succeeded: vocabSyncedCount, failed: vocabFailedCount },
+        users: { succeeded: usersSyncedCount, failed: usersFailedCount },
+        practice_records: { succeeded: practiceSyncedCount, failed: practiceFailedCount }
       });
     }
 
@@ -296,6 +322,10 @@ async function partialSyncToNeon() {
 
     console.log('✅ Partial sync complete!\n');
 
+    // ✨ Mark audit as completed
+    const totalFailed = vocabFailedCount + usersFailedCount + practiceFailedCount;
+    if (audit) await audit.completeWithFailures(totalFailed);
+
     await neonPool.end();
     await sqliteDb.close();
 
@@ -303,6 +333,8 @@ async function partialSyncToNeon() {
     logSyncError(err, 'Partial sync encountered a critical error', {
       operation: 'partial sync to Neon'
     });
+    // ✨ Record the fatal error
+    if (audit) await audit.fail(err.message, err.code);
     try {
       await neonPool.end();
       await sqliteDb.close();

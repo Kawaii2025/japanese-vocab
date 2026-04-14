@@ -1,6 +1,9 @@
 /**
- * 数据库迁移脚本
- * 为 vocabulary 表添加唯一约束
+ * Generic Database Migration Runner
+ * Usage: node run-migration.js <sql-file-name>
+ * Examples:
+ *   node run-migration.js add-unique-constraint.sql
+ *   node run-migration.js sync-audit-tables.sql
  */
 import pg from 'pg';
 import dotenv from 'dotenv';
@@ -11,7 +14,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Get SQL file from command line arguments
+const sqlFileName = process.argv[2];
+if (!sqlFileName) {
+  console.error('❌ Usage: node run-migration.js <sql-file-name>');
+  console.error('Examples:');
+  console.error('  node run-migration.js add-unique-constraint.sql');
+  console.error('  node run-migration.js sync-audit-tables.sql');
+  process.exit(1);
+}
+
 dotenv.config();
+dotenv.config({ path: '.env.neon' });
 
 const { Pool } = pg;
 
@@ -21,34 +35,48 @@ const pool = new Pool({
 });
 
 async function runMigration() {
-  console.log('🔄 开始执行数据库迁移...\n');
+  console.log(`🔄 Running migration: ${sqlFileName}\n`);
   
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL not set');
+    console.error('   Create .env.neon file with your Neon database URL');
+    process.exit(1);
+  }
+
   const client = await pool.connect();
   
   try {
-    // 读取 SQL 文件
-    const sqlPath = path.join(__dirname, 'add-unique-constraint.sql');
+    // Read SQL file
+    const sqlPath = path.join(__dirname, sqlFileName);
+    
+    if (!fs.existsSync(sqlPath)) {
+      console.error(`❌ Migration file not found: ${sqlFileName}`);
+      console.error(`   Looking in: ${sqlPath}`);
+      process.exit(1);
+    }
+
     const sql = fs.readFileSync(sqlPath, 'utf8');
     
-    console.log('📄 执行 SQL:\n');
+    console.log('📄 Executing SQL:\n');
     console.log(sql);
     console.log('\n');
     
-    // 执行迁移
+    // Execute migration
     await client.query(sql);
     
-    console.log('✅ 迁移成功完成！');
-    console.log('📊 已为 vocabulary 表添加唯一约束 (chinese + kana)');
+    console.log('✅ Migration completed successfully!');
     
   } catch (error) {
-    console.error('❌ 迁移失败:', error.message);
+    console.error('❌ Migration failed:', error.message);
     
-    if (error.code === '23505') {
-      console.log('\n提示: 约束已存在，无需重复添加');
+    if (error.code === '42P01') {
+      console.log('\n💡 Tip: Table does not exist');
+    } else if (error.code === '23505') {
+      console.log('\n💡 Tip: Constraint already exists');
     } else if (error.code === '42P07') {
-      console.log('\n提示: 约束名称已存在');
+      console.log('\n💡 Tip: Constraint name already exists');
     } else {
-      console.error('\n详细错误:', error);
+      console.error('\nFull error:', error);
     }
     
     process.exit(1);
@@ -58,5 +86,5 @@ async function runMigration() {
   }
 }
 
-// 执行迁移
+// Run migration
 runMigration();
