@@ -78,7 +78,22 @@ const ensureValidTimestamp = (ms) => {
 
 async function partialSyncToNeon() {
   if (!process.env.DATABASE_URL) {
-    console.error('❌ DATABASE_URL not set. Cannot sync to Neon.');
+    console.error('\n❌ DATABASE_URL not set. Cannot sync to Neon.\n');
+    console.log('📝 Setup Instructions:');
+    console.log('─'.repeat(50));
+    console.log('Option 1: Use .env.neon (Recommended)');
+    console.log('  • Copy template: cp .env.neon.example .env.neon');
+    console.log('  • Edit file: nano .env.neon');
+    console.log('  • Add your Neon connection URL');
+    console.log('  • Run again: npm run sync-neon\n');
+    console.log('Option 2: Use .env file');
+    console.log('  • Copy template: cp .env.example .env');
+    console.log('  • Edit file: nano .env');
+    console.log('  • Uncomment DATABASE_URL and add your connection URL');
+    console.log('  • Run directly: npx node sync-to-neon-partial.js\n');
+    console.log('🔗 Get your Neon URL from: https://console.neon.tech/\n');
+    console.log('📌 Reference: .env.neon.example shows the format needed');
+    console.log('─'.repeat(50) + '\n');
     process.exit(1);
   }
 
