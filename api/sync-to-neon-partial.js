@@ -146,7 +146,7 @@ async function partialSyncToNeon() {
           ON CONFLICT (id) DO UPDATE SET
           chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
           input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
-          updated_at = $12`,
+          created_at = $11, updated_at = $12`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
            msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
            createdAtValue, updatedAtValue]
