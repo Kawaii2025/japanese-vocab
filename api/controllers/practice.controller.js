@@ -3,6 +3,7 @@
  */
 import { trackChange } from '../services/sync.service.js';
 import { getBeijingCurrentDateParam, getBeijingCurrentDate, getCurrentTimestamp } from '../utils/timezone.js';
+import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
@@ -48,11 +49,15 @@ export async function recordPractice(req, res) {
     // Get the inserted record
     const practiceRecord = await db.get('SELECT * FROM practice_records WHERE id = ?', practiceResult.lastID);
     
+    // Convert timestamps to Beijing time
+    const practiceWithBeijingTime = convertTimestampsToBeijing(practiceRecord, ['practiced_at']);
+    const vocabWithBeijingTime = convertTimestampsToBeijing(vocabResult);
+    
     res.json({
       success: true,
       data: {
-        practice: practiceRecord,
-        vocabulary: vocabResult
+        practice: practiceWithBeijingTime,
+        vocabulary: vocabWithBeijingTime
       },
       message: is_correct ? '回答正确！' : '继续加油！'
     });
@@ -84,10 +89,13 @@ export async function getMistakes(req, res) {
       LIMIT ?
     `, user_id, limit);
     
+    // Convert timestamps to Beijing time
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result, ['practiced_at', 'created_at', 'updated_at']);
+    
     res.json({
       success: true,
-      data: result,
-      total: result.length
+      data: dataWithBeijingTime,
+      total: dataWithBeijingTime.length
     });
   } catch (err) {
     res.status(500).json({
@@ -203,9 +211,12 @@ export async function getPracticeHistory(req, res) {
     
     const countResult = await db.get(countQuery, ...countParams);
     
+    // Convert timestamps to Beijing time
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result, ['practiced_at', 'created_at', 'updated_at']);
+    
     res.json({
       success: true,
-      data: result,
+      data: dataWithBeijingTime,
       pagination: {
         total: countResult.count,
         limit: parseInt(limit),

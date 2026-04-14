@@ -4,6 +4,7 @@
 import { trackChange } from '../services/sync.service.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
 import { getBeijingCurrentDateParam } from '../utils/timezone.js';
+import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { RawSQL, wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
@@ -49,11 +50,14 @@ export async function getAllVocabulary(req, res) {
     const dataParams = [...params, pagination.pageSize, offset];
     const dataResult = await db.all(dataQuery, ...dataParams);
     
+    // Convert timestamps to Beijing time
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(dataResult);
+    
     const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
     
     res.json({
       success: true,
-      data: dataResult,
+      data: dataWithBeijingTime,
       pagination: paginationInfo
     });
   } catch (err) {
@@ -71,7 +75,10 @@ export async function getVocabularyById(req, res) {
       return res.status(404).json({ success: false, error: '单词不存在' });
     }
     
-    res.json({ success: true, data: result });
+    // Convert timestamps to Beijing time
+    const resultWithBeijingTime = convertTimestampsToBeijing(result);
+    
+    res.json({ success: true, data: resultWithBeijingTime });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -101,10 +108,13 @@ export async function getRandomVocabulary(req, res) {
     
     const result = await db.all(query, ...params);
     
+    // Convert timestamps to Beijing time
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result);
+    
     res.json({
       success: true,
-      data: result,
-      total: result.length
+      data: dataWithBeijingTime,
+      total: dataWithBeijingTime.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -137,9 +147,12 @@ export async function searchVocabulary(req, res) {
     
     const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
     
+    // Convert timestamps to Beijing time
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result);
+    
     res.json({
       success: true,
-      data: result,
+      data: dataWithBeijingTime,
       keyword: keyword,
       pagination: paginationInfo
     });
@@ -169,7 +182,10 @@ export async function createVocabulary(req, res) {
     const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
     trackChange('vocabulary', result.lastID, 'INSERT');
     
-    res.status(201).json({ success: true, data: inserted });
+    // Convert timestamps to Beijing time
+    const insertedWithBeijingTime = convertTimestampsToBeijing(inserted);
+    
+    res.status(201).json({ success: true, data: insertedWithBeijingTime });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -232,7 +248,7 @@ export async function batchCreateVocabulary(req, res) {
     
     res.status(201).json({
       success: true,
-      data: insertedWords,
+      data: convertArrayTimestampsToBeijing(insertedWords),
       total: insertedWords.length,
       skipped: skippedWords.length,
       skippedWords: skippedWords,
@@ -328,7 +344,7 @@ export async function updateVocabulary(req, res) {
     trackChange('vocabulary', parseInt(id), 'UPDATE');
     
     const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: convertTimestampsToBeijing(result) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -347,7 +363,7 @@ export async function deleteVocabulary(req, res) {
     await db.run('DELETE FROM vocabulary WHERE id = ?', id);
     trackChange('vocabulary', parseInt(id), 'DELETE');
     
-    res.json({ success: true, message: '删除成功' });
+    res.json({ success: true, data: convertTimestampsToBeijing(existing), message: '删除成功' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
