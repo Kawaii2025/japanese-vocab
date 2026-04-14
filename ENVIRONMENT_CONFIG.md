@@ -253,6 +253,62 @@ console.log(date.toLocaleString('zh-CN'));  // Works correctly!
 
 For more details, see [docs/TIMEZONE.md](./docs/TIMEZONE.md)
 
+### Backward Compatibility Analysis
+
+**✅ No Breaking Changes**: Switching from UTC to Beijing time in API responses is **fully backward compatible**.
+
+#### Why Existing Code Still Works
+
+JavaScript's `Date` constructor automatically parses both formats:
+
+```javascript
+// Both formats parse to the same instant in time
+const utcDate = new Date("2026-04-14T07:43:15.73Z");        // Old format (UTC)
+const beijingDate = new Date("2026-04-14T15:43:15.000+08:00"); // New format (Beijing+08:00)
+
+// Both represent the same moment
+console.log(utcDate.getTime() === beijingDate.getTime()); // true
+```
+
+#### Frontend Display Always Correct
+
+```javascript
+// Old frontend code (still works)
+import { formatBeijingTime } from './utils/dateFormatter.js';
+
+// Works with both UTC and Beijing+08:00 formats
+const formatted = formatBeijingTime(apiTimestamp);
+// Output: Correct Beijing time (e.g., "2026-04-14 15:43:15")
+```
+
+#### Why This Works
+
+| Item | Behavior |
+|------|----------|
+| **Date Parsing** | JavaScript recognizes both UTC (`Z`) and timezone offset (`+08:00`) |
+| **Timezone Formatting** | `toLocaleString(..., { timeZone: 'Asia/Shanghai' })` always displays Beijing time correctly |
+| **Date Calculations** | All timestamps represent the same moment, so comparisons/calculations work identically |
+| **Sync Operations** | Sync uses raw UTC directly from database, bypasses API layer—completely unaffected |
+
+#### Migration Checklist
+
+- ✅ No frontend code changes required
+- ✅ No API client code changes required
+- ✅ No database queries need updating
+- ✅ Date formatting functions work as-is
+- ✅ Backward compatible with old UTC format
+- ✅ Sync function unaffected
+
+#### Before & After Comparison
+
+| Aspect | Before (UTC) | After (Beijing Time) |
+|--------|------|------|
+| **API Response** | `"2026-04-14T07:43:15.73Z"` | `"2026-04-14T15:43:15.000+08:00"` |
+| **Frontend Parse** | ✅ Works (UTC) | ✅ Works (Beijing+08:00) |
+| **Display Result** | Shows correct Beijing time | Shows correct Beijing time |
+| **Date Comparison** | ✅ Works | ✅ Works |
+| **Sync Function** | Uses raw UTC | Uses raw UTC |
+
 ## Troubleshooting
 
 ### ❓ GitHub Pages shows blank page or "Cannot GET"
