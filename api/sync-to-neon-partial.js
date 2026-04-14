@@ -16,6 +16,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import readline from 'readline';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from './utils/timestamp-sync.js';
+import { logSyncError, formatSyncError } from './utils/error-handler.js';
 
 dotenv.config();
 
@@ -66,7 +67,11 @@ const msToTimestamp = (ms) => {
 
 async function partialSyncToNeon() {
   if (!process.env.DATABASE_URL) {
-    console.error('\n❌ DATABASE_URL not set. Cannot sync to Neon.\n');
+    const err = new Error('DATABASE_URL environment variable not set');
+    err.code = 'ENV_CONFIG_ERROR';
+    logSyncError(err, 'Cannot start partial sync - missing database configuration', {
+      operation: 'initialize sync'
+    });
     console.log('📝 Setup Instructions:');
     console.log('─'.repeat(50));
     console.log('Option 1: Use .env.neon (Recommended)');
@@ -87,53 +92,78 @@ async function partialSyncToNeon() {
 
   console.log('⚡ Partial Sync: Only sync changed records\n');
 
-  const neonPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL
-  });
+  let neonPool;
+  let sqliteDb;
 
-  const sqliteDb = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
-  });
+  try {
+    neonPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL
+    });
+
+    sqliteDb = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+  } catch (err) {
+    logSyncError(err, 'Failed to initialize database connections', {
+      operation: 'database initialization'
+    });
+    process.exit(1);
+  }
 
   try {
     console.log('🔐 Connecting to Neon...');
-    await neonPool.query('SELECT NOW()');
-    console.log('✅ Connected\n');
+    try {
+      await neonPool.query('SELECT NOW()');
+      console.log('✅ Connected\n');
+    } catch (connErr) {
+      logSyncError(connErr, 'Failed to connect to Neon database', {
+        operation: 'Neon connection test'
+      });
+      throw connErr;
+    }
 
     console.log('📊 Comparing changes...\n');
 
     // ============ VOCABULARY ============
-    console.log('📝 Checking vocabulary...');
-    
-    const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
-    const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
-    let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
-    
-    logSyncStatus(sqliteVocab.length, vocabToSync);
+    try {
+      console.log('📝 Checking vocabulary...');
+      
+      const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
+      const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
+      let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
+      
+      logSyncStatus(sqliteVocab.length, vocabToSync);
 
-    if (vocabToSync.length > 0) {
-      const sqliteVocabData = await sqliteDb.all(`
-        SELECT * FROM vocabulary WHERE id IN (${vocabToSync.join(',')}) ORDER BY id
-      `);
+      if (vocabToSync.length > 0) {
+        const sqliteVocabData = await sqliteDb.all(`
+          SELECT * FROM vocabulary WHERE id IN (${vocabToSync.join(',')}) ORDER BY id
+        `);
 
-      for (const row of sqliteVocabData) {
-        await neonPool.query(
-          `INSERT INTO vocabulary 
-          (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          ON CONFLICT (id) DO UPDATE SET
-          chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-          input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
-          created_at = $11, updated_at = $12`,
-          [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-           msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
-           msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
-        );
+        for (const row of sqliteVocabData) {
+          await neonPool.query(
+            `INSERT INTO vocabulary 
+            (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (id) DO UPDATE SET
+            chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
+            input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
+            created_at = $11, updated_at = $12`,
+            [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
+             msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
+             msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
+          );
+        }
+        console.log(`   ✅ ${vocabToSync.length} vocabulary items synced\n`);
+      } else {
+        console.log(`   ✅ No changes needed\n`);
       }
-      console.log(`   ✅ ${vocabToSync.length} vocabulary items synced\n`);
-    } else {
-      console.log(`   ✅ No changes needed\n`);
+    } catch (err) {
+      logSyncError(err, 'Syncing vocabulary failed', {
+        table: 'vocabulary',
+        operation: 'fetch and sync vocabulary items',
+        attemptedRecordCount: vocabToSync?.length
+      });
     }
 
     // ============ USERS ============
@@ -165,7 +195,11 @@ async function partialSyncToNeon() {
         console.log(`   ✅ No changes needed\n`);
       }
     } catch (err) {
-      console.log('   ⚠️  Users check failed:', err.message, '\n');
+      logSyncError(err, 'Syncing users failed', {
+        table: 'users',
+        operation: 'fetch and sync users',
+        attemptedRecordCount: sqliteUsersData?.length
+      });
     }
 
     // ============ PRACTICE RECORDS ============
@@ -197,7 +231,11 @@ async function partialSyncToNeon() {
         console.log(`   ✅ No changes needed\n`);
       }
     } catch (err) {
-      console.log('   ⚠️  Practice records check failed:', err.message, '\n');
+      logSyncError(err, 'Syncing practice records failed', {
+        table: 'practice_records',
+        operation: 'fetch and sync practice records',
+        attemptedRecordCount: sqlitePracticeData?.length
+      });
     }
 
     console.log('✅ Partial sync complete!\n');
@@ -206,9 +244,15 @@ async function partialSyncToNeon() {
     await sqliteDb.close();
 
   } catch (err) {
-    console.error('❌ Partial sync failed:', err.message);
-    await neonPool.end();
-    await sqliteDb.close();
+    logSyncError(err, 'Partial sync encountered a critical error', {
+      operation: 'partial sync to Neon'
+    });
+    try {
+      await neonPool.end();
+      await sqliteDb.close();
+    } catch (cleanupErr) {
+      console.error('⚠️  Cleanup failed:', cleanupErr.message);
+    }
     process.exit(1);
   }
 }
