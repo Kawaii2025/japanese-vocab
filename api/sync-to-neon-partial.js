@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import readline from 'readline';
+import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from './utils/timestamp-sync.js';
 
 dotenv.config();
 
@@ -62,19 +63,6 @@ const msToTimestamp = (ms) => {
   }
 };
 
-// Helper to check if timestamp is epoch/invalid and return current time if so
-const ensureValidTimestamp = (ms) => {
-  const timestamp = msToTimestamp(ms);
-  if (!timestamp) return new Date().toISOString();
-  
-  // Check if it's the epoch time (1970-01-21 or similar invalid dates)
-  const date = new Date(timestamp);
-  if (date.getFullYear() < 2000) {
-    return new Date().toISOString();
-  }
-  
-  return timestamp;
-};
 
 async function partialSyncToNeon() {
   if (!process.env.DATABASE_URL) {
@@ -118,31 +106,11 @@ async function partialSyncToNeon() {
     // ============ VOCABULARY ============
     console.log('📝 Checking vocabulary...');
     
-    // Get all Neon vocabulary
-    const neonVocab = await neonPool.query('SELECT id, created_at, updated_at FROM vocabulary ORDER BY id');
-    const neonVocabMap = new Map(neonVocab.rows.map(r => [r.id, { 
-      updated_at: new Date(r.updated_at),
-      created_at: new Date(r.created_at)
-    }]));
-
-    // Get all SQLite vocabulary
     const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
+    const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
+    let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
     
-    let vocabToSync = [];
-    for (const row of sqliteVocab) {
-      const neonData = neonVocabMap.get(row.id);
-      const sqliteUpdated = new Date(msToTimestamp(row.updated_at));
-      
-      // Check if Neon has epoch timestamp (needs fixing)
-      const hasEpochTimestamp = neonData && neonData.created_at.getFullYear() < 2000;
-      
-      // Sync if: record doesn't exist in Neon OR SQLite version is newer OR Neon has invalid epoch timestamp
-      if (!neonData || sqliteUpdated > neonData.updated_at || hasEpochTimestamp) {
-        vocabToSync.push(row.id);
-      }
-    }
-
-    console.log(`   Total: ${sqliteVocab.length} | To sync: ${vocabToSync.length} | Skipped: ${sqliteVocab.length - vocabToSync.length}`);
+    logSyncStatus(sqliteVocab.length, vocabToSync);
 
     if (vocabToSync.length > 0) {
       const sqliteVocabData = await sqliteDb.all(`
@@ -150,10 +118,6 @@ async function partialSyncToNeon() {
       `);
 
       for (const row of sqliteVocabData) {
-        // Ensure timestamps are valid (not epoch/null)
-        const createdAtValue = ensureValidTimestamp(row.created_at);
-        const updatedAtValue = ensureValidTimestamp(row.updated_at);
-        
         await neonPool.query(
           `INSERT INTO vocabulary 
           (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
@@ -164,7 +128,7 @@ async function partialSyncToNeon() {
           created_at = $11, updated_at = $12`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
            msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
-           createdAtValue, updatedAtValue]
+           msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
         );
       }
       console.log(`   ✅ ${vocabToSync.length} vocabulary items synced\n`);
@@ -176,22 +140,11 @@ async function partialSyncToNeon() {
     try {
       console.log('👤 Checking users...');
       
-      const neonUsers = await neonPool.query('SELECT id, created_at FROM users ORDER BY id');
-      const neonUsersMap = new Map(neonUsers.rows.map(r => [r.id, new Date(r.created_at)]));
-
       const sqliteUsers = await sqliteDb.all('SELECT id, created_at FROM users ORDER BY id');
+      const neonUsersMap = await getNeonTimestampMap(neonPool, 'users', 'created_at');
+      let usersToSync = getRecordsToSync(sqliteUsers, neonUsersMap, 'created_at');
       
-      let usersToSync = [];
-      for (const row of sqliteUsers) {
-        const neonCreated = neonUsersMap.get(row.id);
-        const sqliteCreated = new Date(msToTimestamp(row.created_at));
-        
-        if (!neonCreated || sqliteCreated > neonCreated) {
-          usersToSync.push(row.id);
-        }
-      }
-
-      console.log(`   Total: ${sqliteUsers.length} | To sync: ${usersToSync.length} | Skipped: ${sqliteUsers.length - usersToSync.length}`);
+      logSyncStatus(sqliteUsers.length, usersToSync);
 
       if (usersToSync.length > 0) {
         const sqliteUsersData = await sqliteDb.all(`
@@ -219,36 +172,11 @@ async function partialSyncToNeon() {
     try {
       console.log('📊 Checking practice records...');
       
-      // Get Neon timestamps as milliseconds using EXTRACT(EPOCH) to avoid timezone interpretation issues
-      const neonPractice = await neonPool.query(
-        `SELECT id, EXTRACT(EPOCH FROM practiced_at) * 1000 as practiced_at_ms FROM practice_records ORDER BY id`
-      );
-      const neonPracticeMap = new Map(neonPractice.rows.map(r => [r.id, Math.floor(r.practiced_at_ms)]));
-
       const sqlitePractice = await sqliteDb.all('SELECT id, practiced_at FROM practice_records ORDER BY id');
+      const neonPracticeMap = await getNeonTimestampMap(neonPool, 'practice_records', 'practiced_at');
+      let practiceToSync = getRecordsToSync(sqlitePractice, neonPracticeMap, 'practiced_at');
       
-      let practiceToSync = [];
-      
-      for (const row of sqlitePractice) {
-        const neonPracticedMs = neonPracticeMap.get(row.id);
-        const sqlitePracticedMs = row.practiced_at;
-        
-        // If record doesn't exist in Neon, sync it
-        if (neonPracticedMs === undefined) {
-          practiceToSync.push(row.id);
-        } 
-        // Compare timestamps - if within 1 second, they match
-        else {
-          const diff = sqlitePracticedMs - neonPracticedMs;
-          
-          // If SQLite is newer (>1hr), sync it
-          if (diff > 3600000) {
-            practiceToSync.push(row.id);
-          }
-        }
-      }
-
-      console.log(`   Total: ${sqlitePractice.length} | To sync: ${practiceToSync.length} | Skipped: ${sqlitePractice.length - practiceToSync.length}`);
+      logSyncStatus(sqlitePractice.length, practiceToSync);
 
       if (practiceToSync.length > 0) {
         const sqlitePracticeData = await sqliteDb.all(`
