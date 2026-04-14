@@ -134,6 +134,50 @@ Invoke-RestMethod -Uri "http://localhost:3001/api/practice" `
 }
 ```
 
+## ⏰ 时区说明
+
+所有 API 返回的时间戳都转换为**北京时间（UTC+8）**，格式为 **ISO 8601 字符串**。
+
+### 时间戳格式
+
+```json
+{
+  "created_at": "2026-04-14T15:43:15.000+08:00",
+  "updated_at": "2026-04-14T15:43:15.123+08:00",
+  "practiced_at": "2026-04-14T15:43:15.000+08:00"
+}
+```
+
+### 底层存储
+
+- **数据库 (Neon)**: 存储 UTC 时间（国际标准）
+- **API 响应**: 转换为北京时间（用户友好）
+- **同步函数**: 使用原始 UTC 时间（数据一致性）
+
+### 前端使用
+
+JavaScript 可以直接解析 ISO 格式的时间戳：
+
+```javascript
+// API 返回的时间戳
+const timestamp = "2026-04-14T15:43:15.000+08:00";
+
+// 直接转换为本地时间（JavaScript 自动处理时区信息）
+const date = new Date(timestamp);
+console.log(date.toLocaleString('zh-CN'));  // 2026/4/14 15:43:15
+
+// 也可以格式化
+const formatted = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+}).format(date);
+console.log(formatted);  // 2026-04-14 15:43:15
+```
+
 ---
 
 ## 分页参数说明

@@ -211,6 +211,48 @@ npm run sync-neon  # Automatically loads DATABASE_URL from .env.neon
 
 For detailed sync instructions, see [NEON_BACKUP_SYNC_GUIDE.md](./NEON_BACKUP_SYNC_GUIDE.md#%EF%B8%8F-initial-setup-configure-neon)
 
+## 🕐 API Timestamps: Beijing Time (UTC+8)
+
+**Important**: All API responses return timestamps in **Beijing time (UTC+8)**, not UTC.
+
+### Why Beijing Time?
+
+- ✅ User-friendly: No frontend conversion needed
+- ✅ Clear timezone info: ISO format with +08:00 offset
+- ✅ Database consistency: Neon stores UTC, API displays Beijing time
+
+### Example API Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 661,
+    "chinese": "达慎",
+    "kana": "つつしむ",
+    "created_at": "2026-04-14T15:43:15.000+08:00",
+    "updated_at": "2026-04-14T15:43:15.000+08:00"
+  }
+}
+```
+
+### Frontend Usage
+
+JavaScript handles Beijing time ISO strings automatically:
+
+```javascript
+// API returns: "2026-04-14T15:43:15.000+08:00"
+const timestamp = "2026-04-14T15:43:15.000+08:00";
+
+// Create date (JavaScript recognizes +08:00 offset)
+const date = new Date(timestamp);
+
+// Display in local format
+console.log(date.toLocaleString('zh-CN'));  // Works correctly!
+```
+
+For more details, see [docs/TIMEZONE.md](./docs/TIMEZONE.md)
+
 ## Troubleshooting
 
 ### ❓ GitHub Pages shows blank page or "Cannot GET"

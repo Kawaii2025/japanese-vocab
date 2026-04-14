@@ -2,52 +2,92 @@
 
 ## 概述
 
-本应用采用**数据库存储 UTC 时间，前端显示北京时间**的标准方案。
+本应用采用**数据库存储 UTC 时间、API 返回北京时间、同步保持 UTC** 的三层时区方案。
+
+```
+Database (Neon)
+    ↓
+    存储 UTC 时间 (2026-04-14T07:43:15Z)
+    ↓
+API Controllers
+    ↓
+    转换为北京时间 (2026-04-14T15:43:15+08:00)
+    ↓
+Frontend Client
+    ↓
+    显示北京时间给用户
+```
+
+## 架构设计
+
+### 三层时区处理
+
+| 层 | 时间格式 | 用途 | 文件 |
+|---|---------|------|------|
+| **数据库** | UTC/ISO (2026-04-14T07:43:15Z) | 标准存储格式 | Neon PostgreSQL |
+| **API** | 北京时间 ISO (2026-04-14T15:43:15+08:00) | 用户看到的时间 | `api/utils/beijing-time.js` |
+| **同步** | UTC 原始值 | 数据库同步（无影响） | `api/sync-neon.js` |
+
+### 为什么这样设计？
+
+✅ **数据库 UTC**: 国际标准，方便管理，与其他服务兼容  
+✅ **API 北京时间**: 用户友好，无需前端转换  
+✅ **同步不受影响**: 直接读写数据库，不经过 API 层
 
 ## 技术细节
 
-### 数据库层
-- **存储格式**: UTC 时间（协调世界时）
-- **字段类型**: TIMESTAMP
-- **PostgreSQL 默认**: 自动转换为 UTC 存储
+### 后端 API 转换
 
-### 前端层
-- **显示时区**: Asia/Shanghai (UTC+8)
-- **自动转换**: JavaScript Date API 自动根据浏览器时区显示
-- **工具函数**: `src/utils/dateFormatter.js`
-
-## 使用方法
-
-### 导入工具函数
+所有 API 响应自动转换为北京时间。使用 `beijing-time.js` 工具函数：
 
 ```javascript
-import { formatBeijingTime, isToday, getTodayBeijing } from '../utils/dateFormatter.js';
+// api/utils/beijing-time.js
+import { getBeijingTimeISO, convertArrayTimestampsToBeijing } from '../utils/beijing-time.js';
+
+// 单个对象转换
+const vocabWithBeijingTime = convertTimestampsToBeijing(vocabRecord);
+
+// 数组转换
+const dataWithBeijingTime = convertArrayTimestampsToBeijing(vocabArray);
 ```
 
-### 格式化选项
+**API 返回示例：**
 
-```javascript
-// 1. 完整格式：2025-11-22 18:30:45
-formatBeijingTime(utcTime, 'full')
-
-// 2. 仅日期：2025-11-22
-formatBeijingTime(utcTime, 'date')
-
-// 3. 仅时间：18:30:45
-formatBeijingTime(utcTime, 'time')
-
-// 4. 日期时间（无秒）：2025-11-22 18:30
-formatBeijingTime(utcTime, 'datetime')
-
-// 5. 相对时间：刚刚、5分钟前、3小时前、昨天、3天前
-formatBeijingTime(utcTime, 'relative')
+```json
+{
+  "id": 661,
+  "chinese": "达慎",
+  "kana": "つつしむ",
+  "created_at": "2026-04-14T15:43:15.000+08:00",
+  "updated_at": "2026-04-14T15:43:15.000+08:00"
+}
 ```
 
-### 示例：在 Vue 组件中使用
+### 前端时间显示
+
+与新 API 时间格式兼容的 Vue 组件示例：
 
 ```vue
 <template>
   <div>
+    <!-- 直接显示 API 返回的北京时间 -->
+    <p>添加时间: {{ formatTime(word.created_at) }}</p>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return '-';
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+};</script>
+```
+
+### 过期的时间相关信息
+
+不需要前端手动计算北京时间了，因为 API 已经返回北京时间格式！
     <!-- 显示相对时间 -->
     <span>{{ formatTime(word.created_at) }}</span>
     
