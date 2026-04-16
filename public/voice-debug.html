@@ -66,8 +66,9 @@
             const u = new SpeechSynthesisUtterance(text);
             u.voice = voice;
             u.lang = 'ja-JP';
-            u.rate = 0.8;
-            u.pitch = 1.5;
+            u.rate = 1;     // Faster, more energetic speech
+            u.pitch = 1.5;  // Higher pitch for louder, clearer sound
+            u.volume = 1;   // Maximum volume
             
             currentVoice = voice;
             

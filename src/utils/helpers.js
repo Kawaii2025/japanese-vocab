@@ -149,9 +149,9 @@ function performSpeechSynthesis(text) {
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ja-JP';
-  utterance.rate = 0.7;   // Clear pronunciation speed
-  utterance.pitch = 1.2;  // Natural pitch for Kyoko voice
-  utterance.volume = 1;
+  utterance.rate = 1;     // Faster, more energetic speech
+  utterance.pitch = 1.5;  // Higher pitch for louder, clearer sound
+  utterance.volume = 1;   // Maximum volume
 
   // 获取所有可用声音并选择日语声音
   const getJapaneseVoice = () => {
