@@ -106,7 +106,8 @@
                         />
                         <button 
                           @click="handleVoiceClick(word.kana, $event)"
-                          class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded transition-custom font-medium"
+                          :disabled="isKanaEmpty(word)"
+                          class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded transition-custom font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-accent/10"
                           title="朗读假名"
                         >
                           <i class="fa fa-volume-up"></i>
@@ -135,7 +136,8 @@
                     <td class="px-4 py-3 text-center">
                       <button 
                         @click="deleteRow(index)"
-                        class="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors font-medium text-sm"
+                        :disabled="isRowCompletelyEmpty(word)"
+                        class="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-100"
                       >
                         <i class="fa fa-trash"></i>
                       </button>
@@ -208,16 +210,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../services/api.js';
 import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
+import { useConfirm } from '../composables/useConfirm.js';
 
 const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 
-const words = ref(Array.from({ length: 10 }, () => ({ chinese: '', original: '', kana: '' })));
+const DRAFT_KEY = 'add-words-table-draft-v1';
+const DEFAULT_ROW_COUNT = 10;
+
+const createEmptyRows = (count = DEFAULT_ROW_COUNT) =>
+  Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '' }));
+
+const words = ref(createEmptyRows());
 const recentWords = ref([]);
 const loading = ref(false);
 
@@ -254,7 +264,56 @@ const loadRecentWords = async () => {
 
 // 初始化行
 const initializeRows = () => {
-  words.value = Array.from({ length: 10 }, () => ({ chinese: '', original: '', kana: '' }));
+  words.value = createEmptyRows();
+};
+
+const saveDraftToLocal = () => {
+  const hasContent = words.value.some(w => w.chinese || w.original || w.kana);
+  if (!hasContent) {
+    localStorage.removeItem(DRAFT_KEY);
+    return;
+  }
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(words.value));
+};
+
+const restoreDraftFromLocal = () => {
+  const rawDraft = localStorage.getItem(DRAFT_KEY);
+  if (!rawDraft) return;
+
+  try {
+    const parsed = JSON.parse(rawDraft);
+    if (!Array.isArray(parsed)) return;
+
+    const sanitized = parsed
+      .map(item => ({
+        chinese: (item?.chinese || '').toString(),
+        original: (item?.original || '').toString(),
+        kana: (item?.kana || '').toString()
+      }))
+      .filter(item => item.chinese || item.original || item.kana);
+
+    if (sanitized.length > 0) {
+      words.value = sanitized;
+      toast.success('已恢复未保存输入');
+    }
+  } catch (error) {
+    console.error('恢复草稿失败:', error);
+    localStorage.removeItem(DRAFT_KEY);
+  }
+};
+
+const clearDraftCache = () => {
+  localStorage.removeItem(DRAFT_KEY);
+};
+
+const isKanaEmpty = (word) => {
+  return !word?.kana || word.kana.trim() === '';
+};
+
+const isRowCompletelyEmpty = (word) => {
+  return (!word?.chinese || word.chinese.trim() === '') &&
+    (!word?.original || word.original.trim() === '') &&
+    (!word?.kana || word.kana.trim() === '');
 };
 
 // 加载示例数据
@@ -294,8 +353,15 @@ const addMultipleRows = (count) => {
 };
 
 // 删除行
-const deleteRow = (index) => {
-  words.value.splice(index, 1);
+const deleteRow = async (index) => {
+  try {
+    await confirm.danger('删除后无法恢复，确定要删除这一行吗？', '确认删除');
+    words.value.splice(index, 1);
+  } catch (error) {
+    if (error !== false) {
+      toast.error('删除失败: ' + (error?.message || error));
+    }
+  }
 };
 
 // 清空空行
@@ -346,6 +412,7 @@ const saveAll = async () => {
         message += `\n\n已存在的单词：${dupList}`;
       }
       toast.success(message);
+      clearDraftCache();
       // 清空输入
       initializeRows();
       // 重新加载最近添加的单词
@@ -361,8 +428,13 @@ const saveAll = async () => {
 
 // 页面初始化
 onMounted(() => {
+  restoreDraftFromLocal();
   loadRecentWords();
 });
+
+watch(words, () => {
+  saveDraftToLocal();
+}, { deep: true });
 </script>
 
 <style scoped>
