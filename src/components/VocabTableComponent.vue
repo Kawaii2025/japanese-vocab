@@ -97,7 +97,7 @@
             <th v-if="hasOriginalText || !originalHidden" scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日语原文</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">纯假名</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名）</th>
+            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名或原文）</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
           </tr>
         </thead>
@@ -152,7 +152,7 @@
                   type="text" 
                   class="practice-input w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom outline-none" 
                   :class="isEditing[index] ? '' : inputClasses[index]"
-                  placeholder="请输入纯假名..."
+                  placeholder="请输入假名或原文..."
                   @keydown.enter.prevent="handleCheck(index)"
                 />
                 <!-- 答案正确时显示 -->
@@ -290,9 +290,16 @@ function handleCheck(index) {
 }
 
 function handleEdit(index, event) {
+  const wasWrongAnswer = props.practiceResults[index]?.practiced && !props.practiceResults[index]?.correct;
   isEditing.value[index] = true;
+  if (wasWrongAnswer) {
+    localInputs.value[index] = '';
+  }
   addPulseAnimation(event.target);
   emit('enableEditing', index);
+  requestAnimationFrame(() => {
+    inputRefs.value[index]?.focus();
+  });
 }
 
 function handleRead(kana, event) {

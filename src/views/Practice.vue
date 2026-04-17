@@ -520,7 +520,9 @@ async function handleCheckAnswer(index, userAnswer) {
   // Normalize answers first to determine if correct
   const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
   const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
-  const isCorrect = normalizedUserAnswer === normalizedKana;
+  const normalizedOriginal = (wordData.original || '').normalize('NFC').toLowerCase().trim();
+  const isCorrect = normalizedUserAnswer === normalizedKana ||
+    (normalizedOriginal !== '' && normalizedUserAnswer === normalizedOriginal);
   
   // Update last input index
   saveUserInput(index, userAnswer);

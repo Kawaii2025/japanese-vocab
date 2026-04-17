@@ -82,8 +82,10 @@ export function useVocabulary() {
     // 规范化处理：NFC + 小写 + trim
     const normalizedUserAnswer = userAnswer.normalize('NFC').toLowerCase().trim();
     const normalizedKana = wordData.kana.normalize('NFC').toLowerCase().trim();
-    
-    const isCorrect = normalizedUserAnswer === normalizedKana;
+    const normalizedOriginal = (wordData.original || '').normalize('NFC').toLowerCase().trim();
+
+    const isCorrect = normalizedUserAnswer === normalizedKana ||
+      (normalizedOriginal !== '' && normalizedUserAnswer === normalizedOriginal);
     
     if (isCorrect) {
       practiceResults.value[index].correct = true;
