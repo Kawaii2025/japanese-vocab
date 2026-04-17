@@ -95,14 +95,23 @@
                     class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
                   >
                     <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
-                    <!-- かな输入 -->
+                    <!-- かな输入 + 朗读按钮 -->
                     <td class="px-4 py-3">
-                      <input 
-                        v-model="word.kana"
-                        type="text"
-                        placeholder="输入かな"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                      />
+                      <div class="flex gap-2 items-center">
+                        <input 
+                          v-model="word.kana"
+                          type="text"
+                          placeholder="输入かな"
+                          class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                        />
+                        <button 
+                          @click="handleVoiceClick(word.kana, $event)"
+                          class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded transition-custom font-medium"
+                          title="朗读假名"
+                        >
+                          <i class="fa fa-volume-up"></i>
+                        </button>
+                      </div>
                     </td>
                     <!-- 日文原文输入 -->
                     <td class="px-4 py-3">
@@ -195,6 +204,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../services/api.js';
+import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
 
 const router = useRouter();
@@ -287,6 +297,17 @@ const clearEmpty = () => {
   if (words.value.length === 0) {
     initializeRows();
   }
+};
+
+// 朗读假名
+const handleVoiceClick = (kana, event) => {
+  if (!kana) {
+    toast.warning('请输入假名');
+    return;
+  }
+  readJapanese(kana);
+  event.target.closest('button').classList.add('btn-pulse');
+  setTimeout(() => event.target.closest('button').classList.remove('btn-pulse'), 500);
 };
 
 // 保存所有单词
