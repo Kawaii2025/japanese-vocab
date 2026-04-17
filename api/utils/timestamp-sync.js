@@ -21,7 +21,7 @@ export async function getNeonTimestampMap(neonPool, table, column) {
  * Compare and filter records for syncing
  * Syncs records that are:
  * - Missing in Neon, OR
- * - Genuinely newer in SQLite (>1hr difference)
+ * - Updated in SQLite (newer timestamp than Neon)
  * 
  * @param {Array} sqliteRecords - SQLite records with timestamp field
  * @param {Map} neonTimestampMap - Map from getNeonTimestampMap
@@ -39,12 +39,9 @@ export function getRecordsToSync(sqliteRecords, neonTimestampMap, timestampField
     if (neonMs === undefined) {
       toSync.push(row.id);
     } 
-    // Compare timestamps - sync if SQLite is newer (>1hr)
-    else {
-      const diff = sqliteMs - neonMs;
-      if (diff > 3600000) {
-        toSync.push(row.id);
-      }
+    // Sync if SQLite timestamp is newer than Neon (any difference)
+    else if (sqliteMs > neonMs) {
+      toSync.push(row.id);
     }
   }
   
