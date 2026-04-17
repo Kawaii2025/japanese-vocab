@@ -494,3 +494,99 @@ See **[AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md)** for complete audit documentation.
 3. Update full sync (`sync-to-neon.js`)
 4. Test error scenarios (intentional failures)
 5. Review audit data in [AUDIT_SYSTEM.md](./AUDIT_SYSTEM.md)
+
+---
+
+## Merge Conflict Detection (Git-Like)
+
+### New Feature: Interactive Conflict Resolution
+
+When both local and remote databases update the same word, the partial sync now detects and asks you to resolve conflicts (similar to `git merge`).
+
+### How It Works
+
+1. **Detects conflicts** when:
+   - Word exists in both databases
+   - Both have different `updated_at` timestamps
+   - Difference > 1 second (filters noise)
+
+2. **Shows user**:
+   - LOCAL version (SQLite) with timestamp
+   - REMOTE version (Neon) with timestamp
+   - Which is newer
+
+3. **Asks for resolution**:
+   ```
+   l) Keep LOCAL (sync to Neon)
+   r) Keep REMOTE (skip local)
+   s) Skip this record
+   L) Apply LOCAL to all remaining
+   R) Apply REMOTE to all remaining
+   S) Skip all remaining
+   ```
+
+### Example
+
+```bash
+npm run sync-to-neon-partial
+
+🔀 MERGE CONFLICTS DETECTED - 2 word(s) changed in both LOCAL and REMOTE
+
+⚠️  CONFLICT 1/2 - Word ID: 44
+
+🔵 LOCAL (Newer)
+  Updated: 2026-04-17T15:30:00Z
+  Difficulty: 2
+
+🔴 REMOTE (Older)
+  Updated: 2026-04-16T10:00:00Z
+  Difficulty: 1
+
+Options:
+  l) Keep LOCAL (newer: yes)
+  r) Keep REMOTE (newer: no)
+  s) Skip this record
+  L) Apply LOCAL to all remaining
+  R) Apply REMOTE to all remaining
+  S) Skip all remaining
+Enter choice [l/r/s/L/R/S]: l
+
+⭕ Applying LOCAL to ID 44
+
+After conflict resolution: 2 records to sync
+✅ 2 vocabulary items synced
+```
+
+### Implementation
+
+- **Detection**: `api/utils/sync-merge-conflicts.js` - `detectMergeConflicts()`
+- **Resolution**: Interactive prompt in `sync-to-neon-partial.js`
+- **Audit**: Conflicts recorded in `sync_audit` table
+
+### Important Notes
+
+- ✅ No data is deleted - both versions preserved
+- ✅ Records can be re-synced if you skip them
+- ✅ Audit shows all conflicts and resolutions
+- ✅ Auto-retry: failed records retry on next sync
+
+### Decision Guide
+
+**Choose LOCAL when:**
+- Local is more recent
+- Local data is more accurate
+- You trust local edits
+
+**Choose REMOTE when:**
+- Remote is more recent
+- Remote data is more accurate
+- You made web edits
+
+**Choose SKIP when:**
+- You need to manually verify
+- You're unsure which version to keep
+- You need to check something else first
+
+### Full Documentation
+
+See **[SYNC_MERGE_CONFLICTS_GUIDE.md](./SYNC_MERGE_CONFLICTS_GUIDE.md)** for comprehensive merge conflict handling guide with scenarios and troubleshooting.
