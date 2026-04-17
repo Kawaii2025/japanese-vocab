@@ -50,6 +50,35 @@
         <i class="fa fa-save mr-2"></i>{{ loading ? '保存中...' : '保存到数据库' }}
       </button>
     </div>
+
+    <!-- 📢 Word Preview with Voice Buttons -->
+    <div v-if="previewWords.length > 0" class="mt-6 pt-6 border-t border-gray-200">
+      <h3 class="text-sm font-semibold mb-3 flex items-center">
+        <i class="fa fa-play-circle text-accent mr-2"></i>单词预览和朗读
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div 
+          v-for="(word, idx) in previewWords" 
+          :key="idx"
+          class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-accent/50 transition-custom"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-gray-500 mb-1">{{ word.chinese }}</p>
+              <p class="text-sm font-medium text-dark truncate">{{ word.kana }}</p>
+              <p v-if="word.original" class="text-xs text-gray-600 truncate">{{ word.original }}</p>
+            </div>
+            <button 
+              @click="handleVoiceClick(word.kana, $event)"
+              class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded transition-custom"
+              :title="`朗读: ${word.kana}`"
+            >
+              <i class="fa fa-volume-up"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- 解析信息提示 -->
     <div v-if="parseInfo" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -64,6 +93,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { parseVocabularyInput } from '../utils/parser.js';
+import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
 
 // 移动端默认格式（简单文本，一行一个单词）
@@ -78,7 +108,7 @@ const DESKTOP_DEFAULT = `|日文|中文|假名|
 |相変わらず|照旧；仍然|あいかわらず|
 |こんにちは|你好|こんにちは|
 |ありがとう|谢谢|ありがとう|
-|さようなら|再见|さようなら|
+|さようなら|再見|さようなら|
 |すみません|对不起|すみません|
 |おはよう|早上好|おはよう|
 |こんばんは|晚上好|こんばんは|
@@ -108,6 +138,20 @@ const isMobile = computed(() => {
   return typeof window !== 'undefined' && window.innerWidth < 640;
 });
 
+// 实时解析输入，显示预览
+const previewWords = computed(() => {
+  if (!inputValue.value.trim()) {
+    return [];
+  }
+  
+  try {
+    const { words } = parseVocabularyInput(inputValue.value);
+    return words.slice(0, 12); // 限制显示12个词，避免UI过于拥挤
+  } catch (error) {
+    return [];
+  }
+});
+
 // 使用 Toast
 const toast = useToast();
 
@@ -122,6 +166,12 @@ onMounted(() => {
 
 function handleSubmit() {
   emit('submit', inputValue.value);
+}
+
+function handleVoiceClick(kana, event) {
+  readJapanese(kana);
+  event.target.closest('button').classList.add('btn-pulse');
+  setTimeout(() => event.target.closest('button').classList.remove('btn-pulse'), 500);
 }
 
 async function handleSaveToAPI() {
