@@ -4,6 +4,29 @@
  */
 
 /**
+ * Normalize mixed timestamp formats to milliseconds.
+ * Supports:
+ * - Unix seconds (SQLite default: strftime('%s','now'))
+ * - Unix milliseconds
+ * - ISO timestamp string
+ */
+function normalizeTimestampToMs(value) {
+  if (value === null || value === undefined || value === '') return null;
+
+  // Numeric string / number path
+  if (typeof value === 'number' || /^\d+$/.test(String(value))) {
+    const raw = Number(value);
+    if (Number.isNaN(raw)) return null;
+    // < 1e12 is very likely unix seconds, convert to milliseconds
+    return raw < 1e12 ? raw * 1000 : raw;
+  }
+
+  // ISO string path
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
  * 将 ISO 时间戳转换为北京时间字符串
  * @param {string} isoTimestamp - ISO 格式的时间戳 (e.g., "2026-04-14T07:43:15.73Z")
  * @returns {string} 北京时间字符串 (e.g., "2026-04-14 15:43:15")
@@ -12,7 +35,10 @@ export function getBeijingTimeString(isoTimestamp) {
   if (!isoTimestamp) return null;
   
   try {
-    const date = new Date(isoTimestamp);
+    const normalizedMs = normalizeTimestampToMs(isoTimestamp);
+    if (normalizedMs === null) return null;
+
+    const date = new Date(normalizedMs);
     if (isNaN(date.getTime())) return null;
     
     // 转换为北京时间 (UTC+8)
@@ -41,7 +67,10 @@ export function getBeijingTimeISO(isoTimestamp) {
   if (!isoTimestamp) return null;
   
   try {
-    const date = new Date(isoTimestamp);
+    const normalizedMs = normalizeTimestampToMs(isoTimestamp);
+    if (normalizedMs === null) return null;
+
+    const date = new Date(normalizedMs);
     if (isNaN(date.getTime())) return null;
     
     // 转换为北京时间 (UTC+8)
