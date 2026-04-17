@@ -3,6 +3,7 @@
 /**
  * Partial Sync: Only sync changed records
  * Compares SQLite vs Neon `updated_at` timestamps
+ * Includes merge conflict detection (like git merge)
  * Usage: node sync-to-neon-partial.js
  * 
  * This is MUCH faster than full sync - only pushes changed data!
@@ -18,6 +19,7 @@ import readline from 'readline';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError, formatSyncError } from '../../utils/error-handler.js';
 import { SyncAudit } from '../../utils/sync-audit.js';
+import { detectMergeConflicts, resolveConflicts, applyMergeResolution } from '../../utils/sync-merge-conflicts.js';
 
 dotenv.config();
 dotenv.config({ path: '.env.neon' });
@@ -162,9 +164,44 @@ async function partialSyncToNeon() {
       const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
       const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
       let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
-      vocabSyncedCount = vocabToSync.length;
       
       logSyncStatus(sqliteVocab.length, vocabToSync);
+
+      // 🔀 Check for merge conflicts BEFORE syncing
+      let conflicts = [];
+      let resolutions = {};
+      
+      if (vocabToSync.length > 0) {
+        // Get full data from both sources for conflict detection
+        const sqliteFullVocab = await sqliteDb.all(
+          `SELECT * FROM vocabulary WHERE id IN (${vocabToSync.join(',')}) ORDER BY id`
+        );
+        const neonFullVocab = await neonPool.query(
+          `SELECT id, chinese, original, kana, category, difficulty, input_date, next_review_date, 
+                  review_count, mastery_level, created_at, updated_at FROM vocabulary 
+           WHERE id IN (${vocabToSync.join(',')}) ORDER BY id`
+        );
+        
+        // Create maps for easy lookup
+        const sqliteVocabMap = new Map(sqliteFullVocab.map(v => [v.id, v]));
+        const neonVocabDataMap = new Map(neonFullVocab.rows.map(v => [v.id, v]));
+        
+        // Detect conflicts
+        conflicts = detectMergeConflicts(sqliteFullVocab, neonVocabMap, neonVocabDataMap);
+        
+        if (conflicts.length > 0) {
+          // Ask user to resolve conflicts
+          resolutions = await resolveConflicts(conflicts);
+          
+          // Apply resolution to determine actual sync list
+          const mergeResult = applyMergeResolution(vocabToSync, resolutions, conflicts);
+          vocabToSync = mergeResult.toSync;
+          
+          console.log(`\n📊 After conflict resolution: ${vocabToSync.length} records to sync\n`);
+        }
+      }
+
+      vocabSyncedCount = vocabToSync.length;
 
       if (vocabToSync.length > 0) {
         const sqliteVocabData = await sqliteDb.all(`
