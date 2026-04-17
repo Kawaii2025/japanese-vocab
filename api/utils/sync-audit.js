@@ -145,6 +145,31 @@ export class SyncAudit {
   }
 
   /**
+   * Record synced record IDs (for vocabulary in partial sync)
+   * @param {string} tableName - 'vocabulary'
+   * @param {Array} recordIds - Array of IDs that were synced
+   */
+  async recordSyncedRecords(tableName, recordIds) {
+    if (!this.auditId || !recordIds || recordIds.length === 0) return;
+
+    try {
+      await this.pool.query(
+        `UPDATE sync_audit 
+         SET 
+           details = jsonb_set(
+             COALESCE(details, '{}'::jsonb),
+             $2::text[],
+             $3::jsonb
+           )
+         WHERE id = $1`,
+        [this.auditId, [tableName, 'synced_ids'], JSON.stringify(recordIds)]
+      );
+    } catch (err) {
+      console.error('Failed to record synced records:', err.message);
+    }
+  }
+
+  /**
    * Mark sync as completed with partial failures
    */
   async completeWithFailures(failureCount) {

@@ -185,6 +185,11 @@ async function partialSyncToNeon() {
              msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
           );
         }
+        
+        // 📋 Record synced vocabulary IDs in audit
+        if (audit) {
+          await audit.recordSyncedRecords('vocabulary', vocabToSync);
+        }
         console.log(`   ✅ ${vocabToSync.length} vocabulary items synced\n`);
       } else {
         console.log(`   ✅ No changes needed\n`);
@@ -277,12 +282,10 @@ async function partialSyncToNeon() {
       if (audit) await audit.recordError(0, 'practice_records', err.message, err.code);
     }
 
-    // ✨ Update audit with progress
+    // ✨ Update audit with progress (vocabulary only for partial sync)
     if (audit) {
       await audit.updateProgress({
-        vocabulary: { succeeded: vocabSyncedCount, failed: vocabFailedCount },
-        users: { succeeded: usersSyncedCount, failed: usersFailedCount },
-        practice_records: { succeeded: practiceSyncedCount, failed: practiceFailedCount }
+        vocabulary: { succeeded: vocabSyncedCount, failed: vocabFailedCount }
       });
     }
 
@@ -322,8 +325,8 @@ async function partialSyncToNeon() {
 
     console.log('✅ Partial sync complete!\n');
 
-    // ✨ Mark audit as completed
-    const totalFailed = vocabFailedCount + usersFailedCount + practiceFailedCount;
+    // ✨ Mark audit as completed (vocabulary only)
+    const totalFailed = vocabFailedCount;  // Only count vocabulary failures
     if (audit) await audit.completeWithFailures(totalFailed);
 
     await neonPool.end();
