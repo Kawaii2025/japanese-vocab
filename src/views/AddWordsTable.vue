@@ -238,7 +238,7 @@ const formatTime = (timestamp) => {
 // 加载最近添加的单词
 const loadRecentWords = async () => {
   try {
-    const response = await api.getAllVocabulary({ pageSize: 10 });
+    const response = await api.getAllVocabulary({ pageSize: 10, sortBy: 'id', sortOrder: 'DESC' });
     recentWords.value = response.data;
   } catch (error) {
     console.error('加载最近单词失败:', error);

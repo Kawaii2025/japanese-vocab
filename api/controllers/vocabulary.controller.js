@@ -16,7 +16,7 @@ export function setDb(database) {
 // 获取所有单词（带分页，最新添加的单词优先显示）
 export async function getAllVocabulary(req, res) {
   try {
-    const { category, difficulty } = req.query;
+    const { category, difficulty, sortBy, sortOrder } = req.query;
     
     let whereClause = 'WHERE 1=1';
     const params = [];
@@ -39,12 +39,20 @@ export async function getAllVocabulary(req, res) {
     // 解析分页参数
     const pagination = parsePaginationParams(req.query, 20);
     const offset = (pagination.page - 1) * pagination.pageSize;
+
+    // 排序逻辑
+    const allowedSortColumns = ['created_at', 'updated_at', 'input_date', 'id'];
+    const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : null;
+    const sortDir = sortOrder && sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const orderClause = sortColumn
+      ? `ORDER BY ${sortColumn} ${sortDir}, id ${sortDir}`
+      : 'ORDER BY input_date DESC, created_at ASC, id ASC';
     
     // 查询数据（按日期降序，同一天内按创建时间升序）
     const dataQuery = `
       SELECT * FROM vocabulary 
       ${whereClause}
-      ORDER BY input_date DESC, created_at ASC, id ASC
+      ${orderClause}
       LIMIT ? OFFSET ?
     `;
     const dataParams = [...params, pagination.pageSize, offset];

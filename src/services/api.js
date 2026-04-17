@@ -65,6 +65,8 @@ export async function getAllVocabulary(params = {}) {
   if (params.pageSize) queryParams.append('pageSize', params.pageSize);
   if (params.category) queryParams.append('category', params.category);
   if (params.difficulty) queryParams.append('difficulty', params.difficulty);
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
   
   const queryString = queryParams.toString();
   return request(`/vocabulary${queryString ? `?${queryString}` : ''}`);
