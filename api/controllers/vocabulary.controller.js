@@ -335,7 +335,8 @@ export async function updateVocabulary(req, res) {
     
     // Always update the updated_at timestamp
     updates.push('updated_at = ?');
-    const currentTime = Math.floor(Date.now() / 1000);
+    // Use ISO string format for timestamp - works for both SQLite and PostgreSQL
+    const currentTime = new Date().toISOString();
     values.push(currentTime);
     values.push(id);
     
