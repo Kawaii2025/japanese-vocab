@@ -187,10 +187,21 @@
                 :key="word.id"
                 class="bg-gray-50 p-3 rounded border border-gray-200 hover:border-primary/50 transition-colors"
               >
-                <p class="font-medium text-sm text-dark truncate">{{ word.original }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ word.chinese }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ word.kana }}</p>
-                <p class="text-xs text-gray-400 mt-2">{{ formatTime(word.created_at) }}</p>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-sm text-dark truncate">{{ word.original }}</p>
+                    <p class="text-xs text-gray-600 mt-1">{{ word.chinese }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ word.kana }}</p>
+                    <p class="text-xs text-gray-400 mt-2">{{ formatTime(word.created_at) }}</p>
+                  </div>
+                  <button
+                    @click="handleVoiceClick(word.kana, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded transition-custom"
+                    title="朗读假名"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
