@@ -25,9 +25,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
+const autoConfirm = process.argv.includes('--yes') || process.argv.includes('-y');
 
 // Helper to ask user for confirmation
 async function askConfirmation(question) {
+  if (autoConfirm) {
+    console.log(`${question} y`);
+    return true;
+  }
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -67,7 +73,10 @@ async function syncToNeon() {
   let audit;
   try {
     neonPool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL
+      connectionString: process.env.DATABASE_URL,
+      statement_timeout: 15000,
+      query_timeout: 20000,
+      connectionTimeoutMillis: 10000
     });
 
     sqliteDb = await open({
@@ -270,23 +279,30 @@ async function syncToNeon() {
       });
     }
 
+    const expectedVocabCount = Number(sqliteVocab[0].count);
+    const expectedUsersCount = Number(sqliteUsers[0].count);
+    const expectedPracticeCount = Number(sqlitePractice[0].count);
+    const actualVocabCount = Number(neonVocabAfter.rows[0].count);
+    const actualUsersCount = Number(neonUsersAfter.rows[0].count);
+    const actualPracticeCount = Number(neonPracticeAfter.rows[0].count);
+
     console.log('\n✅ Sync complete!');
     console.log('📊 Data verification:');
-    console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${neonVocabAfter.rows[0].count} (expected: ${sqliteVocab[0].count}) ${neonVocabAfter.rows[0].count === sqliteVocab[0].count ? '✅' : '⚠️'}`);
-    console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${neonUsersAfter.rows[0].count} (expected: ${sqliteUsers[0].count}) ${neonUsersAfter.rows[0].count === sqliteUsers[0].count ? '✅' : '⚠️'}`);
-    console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${neonPracticeAfter.rows[0].count} (expected: ${sqlitePractice[0].count}) ${neonPracticeAfter.rows[0].count === sqlitePractice[0].count ? '✅' : '⚠️'}`);
+    console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${actualVocabCount} (expected: ${expectedVocabCount}) ${actualVocabCount === expectedVocabCount ? '✅' : '⚠️'}`);
+    console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${actualUsersCount} (expected: ${expectedUsersCount}) ${actualUsersCount === expectedUsersCount ? '✅' : '⚠️'}`);
+    console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${actualPracticeCount} (expected: ${expectedPracticeCount}) ${actualPracticeCount === expectedPracticeCount ? '✅' : '⚠️'}`);
 
-    const vocabMatch = neonVocabAfter.rows[0].count === sqliteVocab[0].count;
-    const usersMatch = neonUsersAfter.rows[0].count === sqliteUsers[0].count;
-    const practiceMatch = neonPracticeAfter.rows[0].count === sqlitePractice[0].count;
+    const vocabMatch = actualVocabCount === expectedVocabCount;
+    const usersMatch = actualUsersCount === expectedUsersCount;
+    const practiceMatch = actualPracticeCount === expectedPracticeCount;
 
     if (vocabMatch && usersMatch && practiceMatch) {
       console.log('\n✅ Full verification PASSED - All counts match SQLite exactly!\n');
     } else {
       console.log('\n⚠️  Verification WARNING - Counts do not match SQLite:\n');
-      if (!vocabMatch) console.log(`   • Vocabulary: expected ${sqliteVocab[0].count}, got ${neonVocabAfter.rows[0].count}`);
-      if (!usersMatch) console.log(`   • Users: expected ${sqliteUsers[0].count}, got ${neonUsersAfter.rows[0].count}`);
-      if (!practiceMatch) console.log(`   • Practice Records: expected ${sqlitePractice[0].count}, got ${neonPracticeAfter.rows[0].count}`);
+      if (!vocabMatch) console.log(`   • Vocabulary: expected ${expectedVocabCount}, got ${actualVocabCount}`);
+      if (!usersMatch) console.log(`   • Users: expected ${expectedUsersCount}, got ${actualUsersCount}`);
+      if (!practiceMatch) console.log(`   • Practice Records: expected ${expectedPracticeCount}, got ${actualPracticeCount}`);
       console.log('');
     }
 
