@@ -44,26 +44,43 @@ async function askConfirmation(question) {
   });
 }
 
-// SQLite stores input_date as TEXT ('YYYY-MM-DD') - pass through directly
+const toUnixMs = (num) => (Math.abs(num) >= 1e12 ? num : num * 1000);
+
+// SQLite date fields may be YYYY-MM-DD text, Unix seconds, or Unix milliseconds
 const msToDate = (val) => {
   if (!val || val === null || val === undefined || val === '') return null;
-  if (typeof val === 'string') return val.slice(0, 10);
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+    const num = Number(trimmed);
+    if (!isNaN(num)) {
+      try {
+        return new Date(toUnixMs(num)).toISOString().split('T')[0];
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
   const num = Number(val);
   if (isNaN(num)) return null;
   try {
-    return new Date(num * 1000).toISOString().split('T')[0];
+    return new Date(toUnixMs(num)).toISOString().split('T')[0];
   } catch (e) {
     return null;
   }
 };
 
-// SQLite stores timestamps as Unix seconds (strftime('%s', 'now')), multiply by 1000
+// SQLite timestamp fields may be Unix seconds or Unix milliseconds
 const msToTimestamp = (sec) => {
   if (!sec || sec === null || sec === undefined || sec === '') return null;
   const num = Number(sec);
   if (isNaN(num)) return null;
   try {
-    return new Date(num * 1000).toISOString();
+    return new Date(toUnixMs(num)).toISOString();
   } catch (e) {
     return null;
   }

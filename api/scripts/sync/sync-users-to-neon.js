@@ -26,13 +26,15 @@ const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 const isPartial = process.argv.includes('--partial');
 
-// SQLite stores timestamps as Unix seconds (strftime('%s', 'now')), multiply by 1000
+const toUnixMs = (num) => (Math.abs(num) >= 1e12 ? num : num * 1000);
+
+// SQLite timestamp fields may be Unix seconds or Unix milliseconds
 const msToTimestamp = (sec) => {
   if (!sec || sec === null || sec === undefined || sec === '') return null;
   const num = Number(sec);
   if (isNaN(num)) return null;
   try {
-    return new Date(num * 1000).toISOString();
+    return new Date(toUnixMs(num)).toISOString();
   } catch (e) {
     return null;
   }
