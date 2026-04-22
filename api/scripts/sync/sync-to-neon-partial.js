@@ -44,25 +44,26 @@ async function askConfirmation(question) {
   });
 }
 
-// Helper to convert JS milliseconds to date string (YYYY-MM-DD)
-const msToDate = (ms) => {
-  if (!ms || ms === null || ms === undefined || ms === '') return null;
-  const num = Number(ms);
+// SQLite stores input_date as TEXT ('YYYY-MM-DD') - pass through directly
+const msToDate = (val) => {
+  if (!val || val === null || val === undefined || val === '') return null;
+  if (typeof val === 'string') return val.slice(0, 10);
+  const num = Number(val);
   if (isNaN(num)) return null;
   try {
-    return new Date(num).toISOString().split('T')[0];
+    return new Date(num * 1000).toISOString().split('T')[0];
   } catch (e) {
     return null;
   }
 };
 
-// Helper to convert JS milliseconds to ISO timestamp
-const msToTimestamp = (ms) => {
-  if (!ms || ms === null || ms === undefined || ms === '') return null;
-  const num = Number(ms);
+// SQLite stores timestamps as Unix seconds (strftime('%s', 'now')), multiply by 1000
+const msToTimestamp = (sec) => {
+  if (!sec || sec === null || sec === undefined || sec === '') return null;
+  const num = Number(sec);
   if (isNaN(num)) return null;
   try {
-    return new Date(num).toISOString();
+    return new Date(num * 1000).toISOString();
   } catch (e) {
     return null;
   }

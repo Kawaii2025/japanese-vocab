@@ -26,13 +26,13 @@ const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 const isPartial = process.argv.includes('--partial');
 
-// Helper to convert JS milliseconds to ISO timestamp
-const msToTimestamp = (ms) => {
-  if (!ms || ms === null || ms === undefined || ms === '') return null;
-  const num = Number(ms);
+// SQLite stores timestamps as Unix seconds (strftime('%s', 'now')), multiply by 1000
+const msToTimestamp = (sec) => {
+  if (!sec || sec === null || sec === undefined || sec === '') return null;
+  const num = Number(sec);
   if (isNaN(num)) return null;
   try {
-    return new Date(num).toISOString();
+    return new Date(num * 1000).toISOString();
   } catch (e) {
     return null;
   }
