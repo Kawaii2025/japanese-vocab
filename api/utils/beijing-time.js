@@ -14,7 +14,7 @@ function normalizeTimestampToMs(value) {
   if (value === null || value === undefined || value === '') return null;
 
   // Numeric string / number path
-  if (typeof value === 'number' || /^\d+$/.test(String(value))) {
+  if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value))) {
     const raw = Number(value);
     if (Number.isNaN(raw)) return null;
     // < 1e12 is very likely unix seconds, convert to milliseconds

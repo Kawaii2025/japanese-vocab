@@ -12,9 +12,22 @@
  */
 export async function getNeonTimestampMap(neonPool, table, column) {
   const result = await neonPool.query(
-    `SELECT id, EXTRACT(EPOCH FROM ${column}) * 1000 as timestamp_ms FROM ${table} ORDER BY id`
+    `SELECT
+       id,
+       CASE
+         WHEN ${column} IS NULL THEN NULL
+         WHEN pg_typeof(${column})::text IN ('timestamp without time zone', 'timestamp with time zone', 'date')
+           THEN EXTRACT(EPOCH FROM ${column}) * 1000
+         ELSE (${column})::double precision
+       END AS timestamp_ms
+     FROM ${table}
+     ORDER BY id`
   );
-  return new Map(result.rows.map(r => [r.id, Math.floor(r.timestamp_ms)]));
+  return new Map(
+    result.rows
+      .filter((r) => r.timestamp_ms !== null && r.timestamp_ms !== undefined)
+      .map((r) => [r.id, Math.floor(Number(r.timestamp_ms))])
+  );
 }
 
 /**

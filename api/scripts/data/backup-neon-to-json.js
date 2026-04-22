@@ -14,6 +14,7 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: '.env.neon' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

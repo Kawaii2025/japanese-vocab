@@ -3,11 +3,13 @@
  */
 import { trackChange } from '../services/sync.service.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
-import { getBeijingCurrentDateParam } from '../utils/timezone.js';
+import { getBeijingCurrentDateParam, getBeijingCurrentDayStartTimestamp, getCurrentTimestamp } from '../utils/timezone.js';
 import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { RawSQL, wrapRawSQL } from '../utils/neon-wrapper.js';
 
 let db = null;
+
+const BEIJING_DATE_FROM_MS = (field) => `date(${field} / 1000, 'unixepoch', '+8 hours')`;
 
 export function setDb(database) {
   db = database;
@@ -181,10 +183,12 @@ export async function createVocabulary(req, res) {
       });
     }
     
+    const currentTs = getCurrentTimestamp();
+    const inputDateTs = getBeijingCurrentDayStartTimestamp();
     const result = await db.run(
-      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
-       VALUES (?, ?, ?, ?, ?)`,
-      chinese, original || null, kana, category || null, difficulty || 1
+      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, input_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      chinese, original || null, kana, category || null, difficulty || 1, inputDateTs, currentTs, currentTs
     );
     
     const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -235,10 +239,12 @@ export async function batchCreateVocabulary(req, res) {
           continue;
         }
         
+        const currentTs = getCurrentTimestamp();
+        const inputDateTs = getBeijingCurrentDayStartTimestamp();
         const result = await db.run(
-          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty)
-           VALUES (?, ?, ?, ?, ?)`,
-          chinese, original || null, kana, category || null, difficulty || 1
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, input_date, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          chinese, original || null, kana, category || null, difficulty || 1, inputDateTs, currentTs, currentTs
         );
         
         const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -343,8 +349,7 @@ export async function updateVocabulary(req, res) {
     
     // Always update the updated_at timestamp
     updates.push('updated_at = ?');
-    // Use ISO string format for timestamp - works for both SQLite and PostgreSQL
-    const currentTime = new Date().toISOString();
+    const currentTime = getCurrentTimestamp();
     values.push(currentTime);
     values.push(id);
     
@@ -399,7 +404,7 @@ export async function getTodayVocabulary(req, res) {
   try {
     const dateParam = getBeijingCurrentDateParam();
     const result = await db.all(
-      `SELECT * FROM vocabulary WHERE input_date = ? ORDER BY created_at ASC LIMIT 1000`,
+      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} = ? ORDER BY created_at ASC LIMIT 1000`,
       dateParam
     );
     
@@ -418,7 +423,7 @@ export async function getVocabularyByDate(req, res) {
   try {
     const { date } = req.params;
     const result = await db.all(
-      'SELECT * FROM vocabulary WHERE input_date = ? ORDER BY created_at ASC',
+      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} = ? ORDER BY created_at ASC`,
       date
     );
     
@@ -446,7 +451,7 @@ export async function getVocabularyByDateRange(req, res) {
     }
     
     const result = await db.all(
-      'SELECT * FROM vocabulary WHERE input_date BETWEEN ? AND ? ORDER BY input_date DESC, created_at ASC',
+      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} BETWEEN ? AND ? ORDER BY input_date DESC, created_at ASC`,
       start, end
     );
     
@@ -464,10 +469,10 @@ export async function getVocabularyByDateRange(req, res) {
 // 获取今日待复习的单词
 export async function getTodayReview(req, res) {
   try {
-    const dateParam = getBeijingCurrentDateParam();
+    const dayStart = getBeijingCurrentDayStartTimestamp();
     const result = await db.all(
       `SELECT * FROM vocabulary WHERE next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date ASC, mastery_level ASC`,
-      dateParam
+      dayStart
     );
     
     res.json({
@@ -484,26 +489,27 @@ export async function getTodayReview(req, res) {
 export async function getReviewPlan(req, res) {
   try {
     const { days = 7 } = req.query;
-    const dateParam = getBeijingCurrentDateParam();
+    const startDay = getBeijingCurrentDayStartTimestamp();
+    const endDay = startDay + Number(days) * 24 * 60 * 60 * 1000;
     
     const result = await db.all(`
       SELECT 
-        next_review_date as date,
+        ${BEIJING_DATE_FROM_MS('next_review_date')} as date,
         COUNT(*) as word_count
       FROM vocabulary 
       WHERE next_review_date IS NOT NULL 
         AND next_review_date >= ?
-        AND next_review_date <= date('now', '+' || ? || ' days')
-      GROUP BY next_review_date
-      ORDER BY next_review_date
-    `, dateParam, days);
+        AND next_review_date <= ?
+      GROUP BY ${BEIJING_DATE_FROM_MS('next_review_date')}
+      ORDER BY date
+    `, startDay, endDay);
     
     // Get words for each date
     const reviewPlan = [];
     for (const row of result) {
       const words = await db.all(
         `SELECT id, chinese, kana, mastery_level FROM vocabulary 
-         WHERE next_review_date = ?`,
+         WHERE ${BEIJING_DATE_FROM_MS('next_review_date')} = ?`,
         row.date
       );
       reviewPlan.push({ ...row, words });

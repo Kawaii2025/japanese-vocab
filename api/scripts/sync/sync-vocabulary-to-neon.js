@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError } from '../../utils/error-handler.js';
 import { AuditTracker } from '../../utils/audit-tracker.js';
+import { toTimestampMs } from '../../utils/timestamp-converter.js';
 
 dotenv.config();
 dotenv.config({ path: '.env.neon' });
@@ -26,48 +27,6 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 const isPartial = process.argv.includes('--partial');
-
-const toUnixMs = (num) => (Math.abs(num) >= 1e12 ? num : num * 1000);
-
-// SQLite date fields may be YYYY-MM-DD text, Unix seconds, or Unix milliseconds
-const msToDate = (val) => {
-  if (!val || val === null || val === undefined || val === '') return null;
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (!trimmed) return null;
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      return trimmed.slice(0, 10);
-    }
-    const num = Number(trimmed);
-    if (!isNaN(num)) {
-      try {
-        return new Date(toUnixMs(num)).toISOString().split('T')[0];
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-  const num = Number(val);
-  if (isNaN(num)) return null;
-  try {
-    return new Date(toUnixMs(num)).toISOString().split('T')[0];
-  } catch (e) {
-    return null;
-  }
-};
-
-// SQLite timestamp fields may be Unix seconds or Unix milliseconds
-const msToTimestamp = (sec) => {
-  if (!sec || sec === null || sec === undefined || sec === '') return null;
-  const num = Number(sec);
-  if (isNaN(num)) return null;
-  try {
-    return new Date(toUnixMs(num)).toISOString();
-  } catch (e) {
-    return null;
-  }
-};
 
 async function syncVocabulary() {
   if (!process.env.DATABASE_URL) {
@@ -131,8 +90,8 @@ async function syncVocabulary() {
           input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
           updated_at = $12`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-           msToDate(row.input_date), msToDate(row.next_review_date), row.review_count, row.mastery_level,
-           msToTimestamp(row.created_at), msToTimestamp(row.updated_at)]
+            toTimestampMs(row.input_date), toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+            toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
         );
         syncedCount++;
       } catch (err) {

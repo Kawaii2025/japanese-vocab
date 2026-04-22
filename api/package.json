@@ -11,6 +11,7 @@
     "export-today": "node scripts/data/export-today-vocab.js",
     "import-json": "node scripts/data/import-from-json.js",
     "backup-neon": "node scripts/data/backup-neon-to-json.js",
+    "migrate-timestamp": "node scripts/migrations/migrate-all-to-timestamp.js",
     "sync-neon": "node scripts/sync/sync-neon.js",
     "sync-to-neon": "node scripts/sync/sync-to-neon.js",
     "sync-to-neon-partial": "node scripts/sync/sync-to-neon-partial.js",

@@ -2,7 +2,7 @@
  * 练习记录相关业务逻辑控制器 - SQLite (Async) Version
  */
 import { trackChange } from '../services/sync.service.js';
-import { getBeijingCurrentDateParam, getBeijingCurrentDate, getCurrentTimestamp } from '../utils/timezone.js';
+import { getBeijingCurrentDate, getCurrentTimestamp, getBeijingCurrentDayStartTimestamp, getBeijingDayStartDaysAgo } from '../utils/timezone.js';
 import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { wrapRawSQL } from '../utils/neon-wrapper.js';
 
@@ -34,8 +34,8 @@ export async function recordPractice(req, res) {
       user_answer, 
       is_correct ? 1 : 0, 
       attempt_count,
-      getBeijingCurrentDateParam(),
-      getCurrentTimestamp()  // ISO string for Neon, milliseconds for SQLite
+      getBeijingCurrentDayStartTimestamp(),
+      getCurrentTimestamp()
     );
     
     trackChange('practice_records', practiceResult.lastID, 'INSERT');
@@ -109,6 +109,7 @@ export async function getMistakes(req, res) {
 export async function getPracticeStats(req, res) {
   try {
     const { user_id = 1, days = 7 } = req.query;
+    const cutoffDayStart = getBeijingDayStartDaysAgo(days);
     
     // Total practice count
     const totalStats = await db.get(`
@@ -123,15 +124,15 @@ export async function getPracticeStats(req, res) {
     // Daily stats
     const dailyStats = await db.all(`
       SELECT 
-        practice_date as date,
+        date(practice_date / 1000, 'unixepoch', '+8 hours') as date,
         COUNT(*) as attempts,
         SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
       FROM practice_records
       WHERE user_id = ? 
-        AND practice_date >= date('now', '-' || ? || ' days')
-      GROUP BY practice_date
-      ORDER BY practice_date DESC
-    `, user_id, days);
+        AND practice_date >= ?
+      GROUP BY date(practice_date / 1000, 'unixepoch', '+8 hours')
+      ORDER BY date DESC
+    `, user_id, cutoffDayStart);
     
     // Accuracy by vocabulary
     const vocabAccuracy = await db.all(`
@@ -236,6 +237,7 @@ export async function getPracticeHistory(req, res) {
 export async function getTodayProgress(req, res) {
   try {
     const { user_id = 1 } = req.query;
+    const todayDayStart = getBeijingCurrentDayStartTimestamp();
     
     const result = await db.get(`
       SELECT 
@@ -244,7 +246,7 @@ export async function getTodayProgress(req, res) {
         COUNT(DISTINCT vocabulary_id) as unique_words
       FROM practice_records
       WHERE user_id = ? AND practice_date = ?
-    `, user_id, getBeijingCurrentDateParam());
+    `, user_id, todayDayStart);
     
     const accuracy = result.total_attempts > 0
       ? Math.round(100 * result.correct_count / result.total_attempts)

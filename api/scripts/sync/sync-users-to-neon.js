@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../utils/timestamp-sync.js';
 import { logSyncError } from '../../utils/error-handler.js';
 import { AuditTracker } from '../../utils/audit-tracker.js';
+import { toTimestampMs } from '../../utils/timestamp-converter.js';
 
 dotenv.config();
 
@@ -25,20 +26,6 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
 const isPartial = process.argv.includes('--partial');
-
-const toUnixMs = (num) => (Math.abs(num) >= 1e12 ? num : num * 1000);
-
-// SQLite timestamp fields may be Unix seconds or Unix milliseconds
-const msToTimestamp = (sec) => {
-  if (!sec || sec === null || sec === undefined || sec === '') return null;
-  const num = Number(sec);
-  if (isNaN(num)) return null;
-  try {
-    return new Date(toUnixMs(num)).toISOString();
-  } catch (e) {
-    return null;
-  }
-};
 
 async function syncUsers() {
   if (!process.env.DATABASE_URL) {
@@ -98,7 +85,7 @@ async function syncUsers() {
           VALUES ($1, $2, $3, $4)
           ON CONFLICT (id) DO UPDATE SET
           username = $2, email = $3`,
-          [row.id, row.username, row.email, msToTimestamp(row.created_at)]
+          [row.id, row.username, row.email, toTimestampMs(row.created_at)]
         );
         syncedCount++;
       } catch (err) {

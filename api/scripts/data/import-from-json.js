@@ -14,13 +14,14 @@ import { open } from 'sqlite';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { toTimestampMs } from '../../utils/timestamp-converter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Database is in parent/parent/data directory
 const dbPath = path.join(__dirname, '../../data/vocabulary.db');
-const defaultJsonPath = path.join(__dirname, '../../data/exports/vocabulary-latest.json');
+const defaultJsonPath = path.join(__dirname, '../../data/exports/neon-backup-latest.json');
 
 async function importFromJson(jsonPath) {
   try {
@@ -54,8 +55,8 @@ async function importFromJson(jsonPath) {
           (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-           row.input_date, row.next_review_date, row.review_count, row.mastery_level,
-           row.created_at, row.updated_at]
+           toTimestampMs(row.input_date), toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+           toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
         );
       }
       console.log(`   ✅ ${vocabData.length} records imported`);
@@ -71,7 +72,7 @@ async function importFromJson(jsonPath) {
         await db.run(
           `INSERT OR REPLACE INTO users (id, username, email, created_at)
           VALUES (?, ?, ?, ?)`,
-          [row.id, row.username, row.email, row.created_at]
+          [row.id, row.username, row.email, toTimestampMs(row.created_at)]
         );
       }
       console.log(`   ✅ ${usersData.length} records imported`);
@@ -86,9 +87,16 @@ async function importFromJson(jsonPath) {
       for (const row of practiceData) {
         await db.run(
           `INSERT OR REPLACE INTO practice_records 
-          (id, user_id, vocabulary_id, is_correct, attempted_date, created_at)
+          (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
           VALUES (?, ?, ?, ?, ?, ?)`,
-          [row.id, row.user_id, row.vocabulary_id, row.is_correct, row.attempted_date, row.created_at]
+          [
+            row.id,
+            row.user_id,
+            row.vocabulary_id,
+            row.is_correct,
+            toTimestampMs(row.practice_date ?? row.attempted_date),
+            toTimestampMs(row.practiced_at ?? row.created_at)
+          ]
         );
       }
       console.log(`   ✅ ${practiceData.length} records imported`);

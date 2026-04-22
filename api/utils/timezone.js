@@ -6,6 +6,8 @@
 
 import { wrapRawSQL } from './neon-wrapper.js';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 // Detect which database is being used
 let isNeon = false;
 export function setDatabaseType(neon) {
@@ -83,13 +85,33 @@ export function toBeijingDate(dateField) {
  * Neon: Returns ISO timestamp string
  */
 export function getCurrentTimestamp() {
-  if (isNeon) {
-    // PostgreSQL: ISO timestamp string
-    return new Date().toISOString();
-  } else {
-    // SQLite: milliseconds since epoch (integer)
-    return new Date().getTime();
-  }
+  return Date.now();
+}
+
+/**
+ * Get Beijing day-start timestamp (Unix ms) for today.
+ */
+export function getBeijingCurrentDayStartTimestamp() {
+  const now = new Date();
+  const beijingShifted = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  beijingShifted.setUTCHours(0, 0, 0, 0);
+  return beijingShifted.getTime() - 8 * 60 * 60 * 1000;
+}
+
+/**
+ * Get Beijing day-start timestamp (Unix ms) for a YYYY-MM-DD date.
+ */
+export function getBeijingDayStartTimestamp(dateString) {
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return Date.UTC(year, month - 1, day, -8, 0, 0, 0);
+}
+
+/**
+ * Get Beijing day-start timestamp (Unix ms) for N days ago.
+ */
+export function getBeijingDayStartDaysAgo(days) {
+  return getBeijingCurrentDayStartTimestamp() - Number(days || 0) * DAY_MS;
 }
 
 /**
