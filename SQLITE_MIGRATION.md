@@ -1,5 +1,30 @@
 # SQLite + Neon Two-Way Sync Migration Guide
 
+## 2026-04 Timestamp Standard Update
+
+The project now uses Unix milliseconds for all temporal fields in both databases.
+
+- SQLite: `INTEGER`
+- Neon: `BIGINT`
+- Display: Beijing time derived from timestamp (not stored as date string)
+
+Migration commands:
+
+```bash
+npm --prefix api run migrate-timestamp -- --sqlite-only
+npm --prefix api run migrate-timestamp -- --neon-only
+```
+
+Verification commands:
+
+```bash
+sqlite3 data/vocabulary.db "PRAGMA table_info(vocabulary); PRAGMA table_info(practice_records);"
+sqlite3 data/vocabulary.db "SELECT typeof(input_date), typeof(next_review_date), typeof(created_at), typeof(updated_at) FROM vocabulary LIMIT 1;"
+sqlite3 data/vocabulary.db "SELECT typeof(practice_date), typeof(practiced_at) FROM practice_records WHERE practice_date IS NOT NULL LIMIT 1;"
+```
+
+Expected SQLite result: `typeof(...) = integer` for migrated timestamp columns.
+
 ## Overview
 
 Your Japanese Vocab app has been migrated from Neon PostgreSQL to a **hybrid setup**:

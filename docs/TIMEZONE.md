@@ -1,184 +1,109 @@
-# 时区处理说明
+# 时间处理说明（Timestamp 统一方案）
 
 ## 概述
 
-本应用采用**数据库存储 UTC 时间、API 返回北京时间、同步保持 UTC** 的三层时区方案。
+当前项目时间策略已统一为：
 
-```
-Database (Neon)
-    ↓
-    存储 UTC 时间 (2026-04-14T07:43:15Z)
-    ↓
-API Controllers
-    ↓
-    转换为北京时间 (2026-04-14T15:43:15+08:00)
-    ↓
-Frontend Client
-    ↓
-    显示北京时间给用户
-```
+1. 数据库存储 Unix 毫秒时间戳
+2. API 和前端按北京时间展示
+3. 同步流程只传递时间戳，不传日期字符串
 
-## 架构设计
+这套策略同时适用于本地 SQLite 和 Neon PostgreSQL。
 
-### 三层时区处理
+## 统一规则
 
-| 层 | 时间格式 | 用途 | 文件 |
-|---|---------|------|------|
-| **数据库** | UTC/ISO (2026-04-14T07:43:15Z) | 标准存储格式 | Neon PostgreSQL |
-| **API** | 北京时间 ISO (2026-04-14T15:43:15+08:00) | 用户看到的时间 | `api/utils/beijing-time.js` |
-| **同步** | UTC 原始值 | 数据库同步（无影响） | `api/sync-neon.js` |
+| 层 | 标准 | 示例 |
+|---|---|---|
+| 数据库存储 | Unix ms (INTEGER/BIGINT) | `1776852664000` |
+| API 查询过滤 | 基于时间戳计算日边界 | 北京时间当天 00:00 对应的 ms |
+| API/前端展示 | 北京时间格式化 | `2026-04-23 10:30:12` |
 
-### 为什么这样设计？
+## 为什么改成时间戳
 
-✅ **数据库 UTC**: 国际标准，方便管理，与其他服务兼容  
-✅ **API 北京时间**: 用户友好，无需前端转换  
-✅ **同步不受影响**: 直接读写数据库，不经过 API 层
+- 避免 SQLite 与 Neon 的 DATE/TIMESTAMP 类型差异
+- 避免秒/毫秒混用导致 1970 年错误
+- 同步逻辑更简单，所有时间字段可直接比较
+- 历史迁移可统一处理，不依赖数据库时区配置
 
-## 技术细节
+## 字段约定
 
-### 后端 API 转换
+常用时间字段统一为 Unix ms：
 
-所有 API 响应自动转换为北京时间。使用 `beijing-time.js` 工具函数：
+- `vocabulary.input_date`
+- `vocabulary.next_review_date`
+- `vocabulary.created_at`
+- `vocabulary.updated_at`
+- `users.created_at`
+- `practice_records.practice_date`
+- `practice_records.practiced_at`
+
+## 北京时间展示
+
+数据库不存北京时间字符串。北京时间只在展示层生成。
+
+后端可使用工具函数进行格式化：
 
 ```javascript
-// api/utils/beijing-time.js
-import { getBeijingTimeISO, convertArrayTimestampsToBeijing } from '../utils/beijing-time.js';
+import { toBeijingTimeString } from './api/utils/beijing-time.js';
 
-// 单个对象转换
-const vocabWithBeijingTime = convertTimestampsToBeijing(vocabRecord);
-
-// 数组转换
-const dataWithBeijingTime = convertArrayTimestampsToBeijing(vocabArray);
+const display = toBeijingTimeString(1776852664000);
+// 例如: 2026-04-23 10:31:04
 ```
 
-**API 返回示例：**
+前端可直接接收时间戳并转换显示：
 
-```json
-{
-  "id": 661,
-  "chinese": "达慎",
-  "kana": "つつしむ",
-  "created_at": "2026-04-14T15:43:15.000+08:00",
-  "updated_at": "2026-04-14T15:43:15.000+08:00"
+```javascript
+function formatBeijing(ms) {
+  if (ms == null) return '-';
+  return new Date(Number(ms)).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 }
 ```
 
-### 前端时间显示
+## 日统计与按天查询
 
-与新 API 时间格式兼容的 Vue 组件示例：
+"按天"相关查询应基于北京时间边界计算，再转换为时间戳范围。
 
-```vue
-<template>
-  <div>
-    <!-- 直接显示 API 返回的北京时间 -->
-    <p>添加时间: {{ formatTime(word.created_at) }}</p>
-  </div>
-</template>
+推荐流程：
 
-<script setup>
-import { ref } from 'vue';
+1. 计算北京时间某天 00:00 的时间戳
+2. 计算次日 00:00 的时间戳
+3. 使用 `[startMs, nextStartMs)` 做数据库过滤
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return '-';
-  const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-};</script>
-```
+这样可以避免时区偏移导致的跨天错误。
 
-### 过期的时间相关信息
+## 迁移与验证
 
-不需要前端手动计算北京时间了，因为 API 已经返回北京时间格式！
-    <!-- 显示相对时间 -->
-    <span>{{ formatTime(word.created_at) }}</span>
-    
-    <!-- 显示完整时间 -->
-    <span>{{ formatFullTime(word.created_at) }}</span>
-  </div>
-</template>
-
-<script setup>
-import { formatBeijingTime } from '../utils/dateFormatter.js';
-
-function formatTime(time) {
-  return formatBeijingTime(time, 'relative');
-}
-
-function formatFullTime(time) {
-  return formatBeijingTime(time, 'datetime');
-}
-</script>
-```
-
-## 时间转换示例
-
-### 数据库存储的 UTC 时间
-```
-2025-11-21T10:13:21.357Z
-```
-
-### 前端显示（北京时间 UTC+8）
-```
-完整格式:   2025-11-21 18:13:21
-日期格式:   2025-11-21
-时间格式:   18:13:21
-日期时间:   2025-11-21 18:13
-相对时间:   8小时前
-```
-
-## 为什么这样设计？
-
-### ✅ 优点
-
-1. **标准化存储**
-   - 数据库统一使用 UTC，避免时区混乱
-   - 便于跨时区应用扩展
-
-2. **自动适配**
-   - 前端自动根据用户浏览器时区显示
-   - 如果用户在其他时区，自动显示当地时间
-
-3. **避免夏令时问题**
-   - UTC 不受夏令时影响
-   - 时间计算更准确
-
-4. **国际化友好**
-   - 如果将来支持其他地区，无需修改数据库
-   - 只需在前端调整显示时区
-
-### ❌ 不推荐的方案
-
-**方案一：数据库直接存储北京时间**
-- ❌ 如果用户在其他时区，显示会出错
-- ❌ 无法支持国际化
-- ❌ 夏令时调整时可能出现问题
-
-**方案二：修改数据库时区为 Asia/Shanghai**
-- ❌ 违反数据库最佳实践
-- ❌ 影响其他可能使用该数据库的应用
-- ❌ 数据迁移时容易出错
-
-## 已更新的文件
-
-### 新增文件
-- ✅ `src/utils/dateFormatter.js` - 时间格式化工具函数
-
-### 已更新文件
-- ✅ `src/views/AddWords.vue` - 最近添加列表显示相对时间
-
-### 待更新（如需要）
-- 📝 `src/views/Practice.vue` - 练习记录时间
-- 📝 `src/components/StatsComponent.vue` - 统计图表时间轴
-- 📝 其他需要显示时间的组件
-
-## 测试
-
-运行测试脚本查看时间转换效果：
+### 迁移命令
 
 ```bash
-cd api
-node test-time-format.js
+npm --prefix api run migrate-timestamp -- --sqlite-only
+npm --prefix api run migrate-timestamp -- --neon-only
 ```
 
-## 总结
+### SQLite 验证
 
-**无需修改数据库配置**，前端使用 `dateFormatter.js` 工具函数即可正确显示北京时间。这是业界标准做法。
+```sql
+PRAGMA table_info(vocabulary);
+PRAGMA table_info(practice_records);
+
+SELECT typeof(input_date), typeof(next_review_date), typeof(created_at), typeof(updated_at)
+FROM vocabulary LIMIT 1;
+
+SELECT typeof(practice_date), typeof(practiced_at)
+FROM practice_records
+WHERE practice_date IS NOT NULL
+LIMIT 1;
+```
+
+期望：时间字段列类型为 `INTEGER`，值类型 `typeof(...)` 为 `integer`。
+
+### Neon 验证
+
+检查 `information_schema.columns`，时间字段应为 `bigint`。
+
+## 注意事项
+
+- 不要再写入 ISO 字符串到时间字段
+- 不要在业务代码混用秒和毫秒
+- 新增时间字段时，默认使用 Unix ms
+- 显示层之外不要做时区字符串持久化
