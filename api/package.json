@@ -8,6 +8,7 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "export-json": "node scripts/data/export-to-json.js",
+    "export-today": "node scripts/data/export-today-vocab.js",
     "import-json": "node scripts/data/import-from-json.js",
     "backup-neon": "node scripts/data/backup-neon-to-json.js",
     "sync-neon": "node scripts/sync/sync-neon.js",
