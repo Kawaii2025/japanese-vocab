@@ -197,6 +197,38 @@ node sync-users-to-neon.js --partial
 node sync-practice-records-to-neon.js --partial
 ```
 
+### New PC First-Time Setup (Important)
+
+If your new machine has an empty local SQLite database, **import from Neon first** before creating or syncing new words.
+
+**Safe order:**
+
+1. Restore cloud data to local SQLite:
+```bash
+# Start API server first
+cd api
+npm run start
+
+# In another terminal
+curl -X POST http://localhost:3001/api/sync/import-from-neon
+```
+
+2. Add new words locally.
+3. Run partial sync to push only new/changed records:
+```bash
+cd api
+npm run sync-neon
+```
+
+**Why this matters:**
+- Partial sync compares records by `id` + timestamp.
+- On an empty local DB, newly created records usually start from small IDs (1, 2, 3...).
+- If Neon already has those IDs, sync may treat them as existing records and update Neon rows unexpectedly.
+
+**Do not skip initial import on a new PC.**
+
+**Note:** `POST /api/sync/push-to-neon` is currently a basic placeholder route. Use `npm run sync-neon` (script-based partial sync) for real incremental syncing.
+
 ### Setup Once
 
 **1. Create `.env.neon` file:**
