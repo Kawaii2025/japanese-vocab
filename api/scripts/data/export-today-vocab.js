@@ -16,8 +16,19 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, '../../data/vocabulary.db');
+const primaryDbPath = path.join(__dirname, '../../../data/vocabulary.db');
+const legacyDbPath = path.join(__dirname, '../../data/vocabulary.db');
 const exportDir = path.join(__dirname, '../../data/exports');
+
+function resolveDbPath() {
+  // Prefer root-level data DB used by current API runtime.
+  if (fs.existsSync(primaryDbPath)) {
+    return primaryDbPath;
+  }
+
+  // Backward-compatible fallback for older path layout.
+  return legacyDbPath;
+}
 
 function getLocalDateString() {
   const now = new Date();
@@ -53,12 +64,19 @@ async function exportTodayVocab() {
     console.log(`📤 Exporting vocabulary for date: ${exportDate}\n`);
 
     db = await open({
-      filename: dbPath,
+      filename: resolveDbPath(),
       driver: sqlite3.Database
     });
 
     const rows = await db.all(
-      `SELECT * FROM vocabulary WHERE input_date = ? ORDER BY id`,
+      `SELECT *
+       FROM vocabulary
+       WHERE input_date = ?
+          OR DATE(input_date) = ?
+          OR DATE(input_date, 'unixepoch') = ?
+       ORDER BY id`,
+      exportDate,
+      exportDate,
       exportDate
     );
 

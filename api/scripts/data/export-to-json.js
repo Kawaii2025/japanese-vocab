@@ -17,9 +17,17 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Database is in parent/parent/data directory
-const dbPath = path.join(__dirname, '../../data/vocabulary.db');
+const primaryDbPath = path.join(__dirname, '../../../data/vocabulary.db');
+const legacyDbPath = path.join(__dirname, '../../data/vocabulary.db');
 const exportDir = path.join(__dirname, '../../data/exports');
+
+function resolveDbPath() {
+  if (fs.existsSync(primaryDbPath)) {
+    return primaryDbPath;
+  }
+
+  return legacyDbPath;
+}
 
 // Ensure export directory exists
 if (!fs.existsSync(exportDir)) {
@@ -31,7 +39,7 @@ async function exportToJson() {
     console.log('📤 Exporting SQLite to JSON format...\n');
 
     const db = await open({
-      filename: dbPath,
+      filename: resolveDbPath(),
       driver: sqlite3.Database
     });
 
@@ -44,7 +52,7 @@ async function exportToJson() {
 
     // Export vocabulary table
     console.log('📝 Exporting vocabulary...');
-    const vocabulary = await db.all('SELECT * FROM vocabulary ORDER BY id');
+    const vocabulary = await db.all('SELECT * FROM "vocabulary" ORDER BY id');
     exportData.tables.vocabulary = vocabulary;
     console.log(`   ✅ ${vocabulary.length} records`);
 
