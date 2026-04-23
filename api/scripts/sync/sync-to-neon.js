@@ -18,6 +18,7 @@ import readline from 'readline';
 import { logSyncError } from '../../utils/error-handler.js';
 import { SyncAudit } from '../../utils/sync-audit.js';
 import { toTimestampMs } from '../../utils/timestamp-converter.js';
+import { ensureVocabularyReadableView } from '../../utils/ensure-neon-view.js';
 
 dotenv.config();
 dotenv.config({ path: '.env.neon' });
@@ -228,6 +229,9 @@ async function syncToNeon() {
     const neonVocabAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
     const neonUsersAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
     const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    await ensureVocabularyReadableView(neonPool);
+    console.log('🪟 Ensured view: vocabulary_readable');
 
     // ✨ Update audit with progress
     if (audit) {

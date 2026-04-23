@@ -11,15 +11,25 @@
  * @returns {Map} Map of id -> milliseconds
  */
 export async function getNeonTimestampMap(neonPool, table, column) {
+  const typeResult = await neonPool.query(
+    `SELECT data_type
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+    [table, column]
+  );
+
+  const dataType = typeResult.rows[0]?.data_type;
+  if (!dataType) {
+    return new Map();
+  }
+
+  const isTemporalType = dataType.includes('timestamp') || dataType === 'date';
+  const timestampExpr = isTemporalType
+    ? `EXTRACT(EPOCH FROM ${column}) * 1000`
+    : `(${column})::double precision`;
+
   const result = await neonPool.query(
-    `SELECT
-       id,
-       CASE
-         WHEN ${column} IS NULL THEN NULL
-         WHEN pg_typeof(${column})::text IN ('timestamp without time zone', 'timestamp with time zone', 'date')
-           THEN EXTRACT(EPOCH FROM ${column}) * 1000
-         ELSE (${column})::double precision
-       END AS timestamp_ms
+    `SELECT id, CASE WHEN ${column} IS NULL THEN NULL ELSE ${timestampExpr} END AS timestamp_ms
      FROM ${table}
      ORDER BY id`
   );

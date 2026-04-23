@@ -18,6 +18,7 @@ import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../util
 import { logSyncError } from '../../utils/error-handler.js';
 import { AuditTracker } from '../../utils/audit-tracker.js';
 import { toTimestampMs } from '../../utils/timestamp-converter.js';
+import { ensureVocabularyReadableView } from '../../utils/ensure-neon-view.js';
 
 dotenv.config();
 dotenv.config({ path: '.env.neon' });
@@ -41,6 +42,7 @@ async function syncVocabulary() {
   let neonPool;
   let sqliteDb;
   let audit;
+  let toSync = [];
   try {
     neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -66,13 +68,14 @@ async function syncVocabulary() {
 
     // Get vocabulary data - declare toSync at function level to avoid scoping issues
     const sqliteVocab = sqliteVocabAll;
-    let toSync = [...sqliteVocab];
+    toSync = [...sqliteVocab];
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
       const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
-      toSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
-      logSyncStatus(sqliteVocab.length, toSync);
+      const idsToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
+      logSyncStatus(sqliteVocab.length, idsToSync);
+      toSync = sqliteVocab.filter((row) => idsToSync.includes(row.id));
     }
 
     console.log(`🔄 Syncing ${toSync.length} records...`);
@@ -109,20 +112,29 @@ async function syncVocabulary() {
 
     // Verify sync
     const neonCountAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
-    const match = neonCountAfter.rows[0].count === sqliteVocabAll.length;
+    await ensureVocabularyReadableView(neonPool);
+    console.log('🪟 Ensured view: vocabulary_readable');
+    const beforeCount = Number(neonCountBefore.rows[0].count);
+    const afterCount = Number(neonCountAfter.rows[0].count);
+    const expectedCount = sqliteVocabAll.length;
+    const match = isPartial ? afterCount >= beforeCount : afterCount === expectedCount;
     
-    console.log(`\n🔍 After sync: Neon=${neonCountAfter.rows[0].count} ${match ? '✅' : '⚠️'}`);
+    console.log(`\n🔍 After sync: Neon=${afterCount} ${match ? '✅' : '⚠️'}`);
     
     if (!match) {
-      console.log(`   Expected ${sqliteVocabAll.length}, got ${neonCountAfter.rows[0].count}`);
+      if (isPartial) {
+        console.log(`   Expected no data loss (before ${beforeCount}), got ${afterCount}`);
+      } else {
+        console.log(`   Expected ${expectedCount}, got ${afterCount}`);
+      }
     }
 
     // ✨ Update audit with verification results
     if (audit) {
       await audit.verify({
         table: 'vocabulary',
-        expectedCount: sqliteVocabAll.length,
-        actualCount: neonCountAfter.rows[0].count,
+        expectedCount: isPartial ? beforeCount : expectedCount,
+        actualCount: afterCount,
         match: match
       });
     }

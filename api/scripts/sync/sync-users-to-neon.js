@@ -18,6 +18,7 @@ import { getNeonTimestampMap, getRecordsToSync, logSyncStatus } from '../../util
 import { logSyncError } from '../../utils/error-handler.js';
 import { AuditTracker } from '../../utils/audit-tracker.js';
 import { toTimestampMs } from '../../utils/timestamp-converter.js';
+import { ensureVocabularyReadableView } from '../../utils/ensure-neon-view.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ async function syncUsers() {
   let neonPool;
   let sqliteDb;
   let audit;
+  let toSync = [];
   try {
     neonPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     sqliteDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -65,7 +67,7 @@ async function syncUsers() {
 
     // Get users data - declare toSync at function level to avoid scoping issues
     const sqliteUsers = sqliteUsersAll;
-    let toSync = [...sqliteUsers];
+    toSync = [...sqliteUsers];
 
     if (isPartial) {
       console.log('🔍 Checking for changes...');
@@ -95,6 +97,8 @@ async function syncUsers() {
 
     // Verify sync
     const neonCountAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
+    await ensureVocabularyReadableView(neonPool);
+    console.log('🪟 Ensured view: vocabulary_readable');
     const match = neonCountAfter.rows[0].count === sqliteUsersAll.length;
     
     console.log(`\n🔍 After sync: Neon=${neonCountAfter.rows[0].count} ${match ? '✅' : '⚠️'}`);

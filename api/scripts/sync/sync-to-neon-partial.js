@@ -21,6 +21,7 @@ import { logSyncError, formatSyncError } from '../../utils/error-handler.js';
 import { SyncAudit } from '../../utils/sync-audit.js';
 import { detectMergeConflicts, resolveConflicts, applyMergeResolution } from '../../utils/sync-merge-conflicts.js';
 import { toTimestampMs } from '../../utils/timestamp-converter.js';
+import { ensureVocabularyReadableView } from '../../utils/ensure-neon-view.js';
 
 dotenv.config();
 dotenv.config({ path: '.env.neon' });
@@ -135,12 +136,13 @@ async function partialSyncToNeon() {
     let practiceFailedCount = 0;
 
     // ============ VOCABULARY ============
+    let vocabToSync = [];
     try {
       console.log('📝 Checking vocabulary...');
       
       const sqliteVocab = await sqliteDb.all('SELECT id, updated_at FROM vocabulary ORDER BY id');
       const neonVocabMap = await getNeonTimestampMap(neonPool, 'vocabulary', 'updated_at');
-      let vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
+      vocabToSync = getRecordsToSync(sqliteVocab, neonVocabMap, 'updated_at');
       
       logSyncStatus(sqliteVocab.length, vocabToSync);
 
@@ -219,18 +221,20 @@ async function partialSyncToNeon() {
     }
 
     // ============ USERS ============
+    let usersToSync = [];
+    let sqliteUsersData = [];
     try {
       console.log('👤 Checking users...');
       
       const sqliteUsers = await sqliteDb.all('SELECT id, created_at FROM users ORDER BY id');
       const neonUsersMap = await getNeonTimestampMap(neonPool, 'users', 'created_at');
-      let usersToSync = getRecordsToSync(sqliteUsers, neonUsersMap, 'created_at');
+      usersToSync = getRecordsToSync(sqliteUsers, neonUsersMap, 'created_at');
       usersSyncedCount = usersToSync.length;
       
       logSyncStatus(sqliteUsers.length, usersToSync);
 
       if (usersToSync.length > 0) {
-        const sqliteUsersData = await sqliteDb.all(`
+        sqliteUsersData = await sqliteDb.all(`
           SELECT * FROM users WHERE id IN (${usersToSync.join(',')}) ORDER BY id
         `);
 
@@ -258,18 +262,20 @@ async function partialSyncToNeon() {
     }
 
     // ============ PRACTICE RECORDS ============
+    let practiceToSync = [];
+    let sqlitePracticeData = [];
     try {
       console.log('📊 Checking practice records...');
       
       const sqlitePractice = await sqliteDb.all('SELECT id, practiced_at FROM practice_records ORDER BY id');
       const neonPracticeMap = await getNeonTimestampMap(neonPool, 'practice_records', 'practiced_at');
-      let practiceToSync = getRecordsToSync(sqlitePractice, neonPracticeMap, 'practiced_at');
+      practiceToSync = getRecordsToSync(sqlitePractice, neonPracticeMap, 'practiced_at');
       practiceSyncedCount = practiceToSync.length;
       
       logSyncStatus(sqlitePractice.length, practiceToSync);
 
       if (practiceToSync.length > 0) {
-        const sqlitePracticeData = await sqliteDb.all(`
+        sqlitePracticeData = await sqliteDb.all(`
           SELECT * FROM practice_records WHERE id IN (${practiceToSync.join(',')}) ORDER BY id
         `);
 
@@ -309,6 +315,9 @@ async function partialSyncToNeon() {
     const neonVocabAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
     const neonUsersAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
     const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+
+    await ensureVocabularyReadableView(neonPool);
+    console.log('🪟 Ensured view: vocabulary_readable');
 
     const totalSynced = vocabSyncedCount + usersSyncedCount + practiceSyncedCount;
 
