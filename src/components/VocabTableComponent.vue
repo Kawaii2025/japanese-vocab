@@ -166,7 +166,9 @@
                 <!-- 答案错误时显示对比 -->
                 <div 
                   v-else-if="props.diffHtmlList[index]"
-                  class="w-full p-2 border border-error bg-red-50 rounded text-sm text-error"
+                  class="w-full p-2 border border-error bg-red-50 rounded text-sm text-error cursor-pointer"
+                  title="双击可重新编辑答案"
+                  @dblclick="handleEdit(index, $event)"
                   v-html="props.diffHtmlList[index]"
                 ></div>
               </div>
