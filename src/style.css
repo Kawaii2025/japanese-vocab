@@ -94,3 +94,21 @@
     background-color: rgba(139, 92, 246, 0.08);
   }
 }
+
+.jis-grid-overlay {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.keyboard-slide-enter-active,
+.keyboard-slide-leave-active {
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.keyboard-slide-enter-from,
+.keyboard-slide-leave-to {
+  opacity: 0;
+  transform: translateY(18px);
+}
