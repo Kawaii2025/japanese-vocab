@@ -14,7 +14,7 @@ ORDER BY table_name;
 
 -- 2. 检查 vocabulary 表结构（核心表）
 -- 预期字段：id, chinese, original, kana, category, difficulty
--- input_date, next_review_date, review_count, mastery_level, created_at, updated_at
+-- next_review_date, review_count, mastery_level, created_at, updated_at
 SELECT '2. 检查 vocabulary 表结构' as check_name;
 SELECT 
     column_name, 
@@ -26,7 +26,7 @@ WHERE table_name = 'vocabulary'
 ORDER BY ordinal_position;
 
 -- 3. 检查索引是否创建
--- 预期包含：idx_vocabulary_category, idx_vocabulary_input_date, idx_vocabulary_review_date
+-- 预期包含：idx_vocabulary_category, idx_vocabulary_review_date
 SELECT '3. 检查索引' as check_name;
 SELECT 
     indexname, 
@@ -63,7 +63,7 @@ SELECT '6. 检查示例数据数量' as check_name;
 SELECT COUNT(*) as total_words FROM vocabulary;
 
 SELECT '6. 查看示例数据详情' as check_name;
-SELECT id, chinese, kana, category, input_date, next_review_date, mastery_level 
+SELECT id, chinese, kana, category, created_at, next_review_date, mastery_level 
 FROM vocabulary 
 ORDER BY id;
 

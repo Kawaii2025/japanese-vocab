@@ -3,7 +3,7 @@
  */
 import { trackChange } from '../services/sync.service.js';
 import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.js';
-import { getBeijingCurrentDateParam, getBeijingCurrentDayStartTimestamp, getCurrentTimestamp } from '../utils/timezone.js';
+import { getBeijingCurrentDayStartTimestamp, getCurrentTimestamp } from '../utils/timezone.js';
 import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { RawSQL, wrapRawSQL } from '../utils/neon-wrapper.js';
 
@@ -43,12 +43,12 @@ export async function getAllVocabulary(req, res) {
     const offset = (pagination.page - 1) * pagination.pageSize;
 
     // 排序逻辑
-    const allowedSortColumns = ['created_at', 'updated_at', 'input_date', 'id'];
+    const allowedSortColumns = ['created_at', 'updated_at', 'id'];
     const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : null;
     const sortDir = sortOrder && sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     const orderClause = sortColumn
       ? `ORDER BY ${sortColumn} ${sortDir}, id ${sortDir}`
-      : 'ORDER BY input_date DESC, created_at ASC, id ASC';
+      : 'ORDER BY created_at DESC, id DESC';
     
     // 查询数据（按日期降序，同一天内按创建时间升序）
     const dataQuery = `
@@ -150,7 +150,7 @@ export async function searchVocabulary(req, res) {
     const result = await db.all(
       `SELECT * FROM vocabulary 
        WHERE chinese LIKE ? OR kana LIKE ? OR original LIKE ?
-       ORDER BY input_date DESC, created_at ASC, id ASC
+       ORDER BY created_at DESC, id DESC
        LIMIT ? OFFSET ?`,
       searchPattern, searchPattern, searchPattern, pagination.pageSize, offset
     );
@@ -184,11 +184,10 @@ export async function createVocabulary(req, res) {
     }
     
     const currentTs = getCurrentTimestamp();
-    const inputDateTs = getBeijingCurrentDayStartTimestamp();
     const result = await db.run(
-      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, input_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      chinese, original || null, kana, category || null, difficulty || 1, inputDateTs, currentTs, currentTs
+      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      chinese, original || null, kana, category || null, difficulty || 1, currentTs, currentTs
     );
     
     const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -240,11 +239,10 @@ export async function batchCreateVocabulary(req, res) {
         }
         
         const currentTs = getCurrentTimestamp();
-        const inputDateTs = getBeijingCurrentDayStartTimestamp();
         const result = await db.run(
-          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, input_date, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          chinese, original || null, kana, category || null, difficulty || 1, inputDateTs, currentTs, currentTs
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          chinese, original || null, kana, category || null, difficulty || 1, currentTs, currentTs
         );
         
         const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -287,7 +285,7 @@ export async function updateVocabulary(req, res) {
     // created_at and updated_at are always excluded (read-only)
     const updatableFields = [
       'chinese', 'original', 'kana', 'category', 'difficulty',
-      'mastery_level', 'review_count', 'next_review_date', 'input_date'
+      'mastery_level', 'review_count', 'next_review_date'
     ];
 
     // Fields with type constraints
@@ -402,10 +400,12 @@ export async function getAllCategories(req, res) {
 // 获取今日录入的单词
 export async function getTodayVocabulary(req, res) {
   try {
-    const dateParam = getBeijingCurrentDateParam();
+    const dayStart = getBeijingCurrentDayStartTimestamp();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
     const result = await db.all(
-      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} = ? ORDER BY created_at ASC LIMIT 1000`,
-      dateParam
+      `SELECT * FROM vocabulary WHERE created_at >= ? AND created_at < ? ORDER BY created_at ASC LIMIT 1000`,
+      dayStart,
+      dayEnd
     );
     
     res.json({
@@ -423,8 +423,14 @@ export async function getVocabularyByDate(req, res) {
   try {
     const { date } = req.params;
     const result = await db.all(
-      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} = ? ORDER BY created_at ASC`,
-      date
+      `SELECT * FROM vocabulary
+       WHERE DATE(created_at / 1000, 'unixepoch', '+8 hours') = ?
+          OR DATE(created_at) = ?
+          OR created_at LIKE ?
+       ORDER BY created_at ASC`,
+      date,
+      date,
+      `${date}%`
     );
     
     res.json({
@@ -451,8 +457,17 @@ export async function getVocabularyByDateRange(req, res) {
     }
     
     const result = await db.all(
-      `SELECT * FROM vocabulary WHERE ${BEIJING_DATE_FROM_MS('input_date')} BETWEEN ? AND ? ORDER BY input_date DESC, created_at ASC`,
-      start, end
+      `SELECT * FROM vocabulary
+       WHERE DATE(created_at / 1000, 'unixepoch', '+8 hours') BETWEEN ? AND ?
+          OR DATE(created_at) BETWEEN ? AND ?
+          OR substr(created_at, 1, 10) BETWEEN ? AND ?
+       ORDER BY created_at DESC, id DESC`,
+      start,
+      end,
+      start,
+      end,
+      start,
+      end
     );
     
     res.json({

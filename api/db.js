@@ -136,7 +136,6 @@ export async function initializeSQLite() {
         kana TEXT NOT NULL,
         category TEXT,
         difficulty INTEGER DEFAULT 1,
-        input_date TEXT DEFAULT CURRENT_DATE,
         next_review_date TEXT,
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
@@ -146,7 +145,6 @@ export async function initializeSQLite() {
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_vocabulary_kana ON vocabulary(kana);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
-      CREATE INDEX IF NOT EXISTS idx_vocabulary_input_date ON vocabulary(input_date);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
     `);
 
@@ -216,7 +214,6 @@ export async function initializeNeon() {
         kana TEXT NOT NULL,
         category TEXT,
         difficulty INTEGER DEFAULT 1,
-        input_date TEXT DEFAULT CURRENT_DATE,
         next_review_date TEXT,
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
@@ -226,7 +223,6 @@ export async function initializeNeon() {
       );
 
       CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
-      CREATE INDEX IF NOT EXISTS idx_vocabulary_input_date ON vocabulary(input_date);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
     `);
 

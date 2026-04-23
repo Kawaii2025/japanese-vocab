@@ -75,10 +75,10 @@ export async function fullImportFromNeon(db) {
     for (const row of vocabResult.rows) {
       await db.run(
         `INSERT OR REPLACE INTO vocabulary 
-        (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty, 
-         row.input_date, row.next_review_date, row.review_count, row.mastery_level, 
+         row.next_review_date, row.review_count, row.mastery_level, 
          row.created_at, row.updated_at]
       );
     }

@@ -83,14 +83,14 @@ async function syncVocabulary() {
       try {
         await neonPool.query(
           `INSERT INTO vocabulary 
-          (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           ON CONFLICT (id) DO UPDATE SET
           chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-          input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
-          updated_at = $12`,
+          next_review_date = $7, review_count = $8, mastery_level = $9,
+          updated_at = $11`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-            toTimestampMs(row.input_date), toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+            toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
             toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
         );
         syncedCount++;

@@ -120,17 +120,16 @@ export function displaySyncResults(results) {
 export async function syncVocabularyRecord(record, pool, msToDate, msToTimestamp) {
   await pool.query(
     `INSERT INTO vocabulary 
-    (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (id) DO UPDATE SET
     chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-    input_date = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
-    created_at = $11, updated_at = $12`,
+    next_review_date = $7, review_count = $8, mastery_level = $9,
+    created_at = $10, updated_at = $11`,
     [
       record.id, record.chinese, record.original, record.kana, record.category, 
-      record.difficulty, msToDate(record.input_date), msToDate(record.next_review_date), 
-      record.review_count, record.mastery_level, msToTimestamp(record.created_at), 
-      msToTimestamp(record.updated_at)
+      record.difficulty, msToDate(record.next_review_date), record.review_count,
+      record.mastery_level, msToTimestamp(record.created_at), msToTimestamp(record.updated_at)
     ]
   );
 }

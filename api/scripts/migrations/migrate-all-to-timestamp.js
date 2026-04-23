@@ -27,7 +27,7 @@ const sqliteOnly = process.argv.includes('--sqlite-only');
 const neonOnly = process.argv.includes('--neon-only');
 
 const SQLITE_TEMPORAL_COLUMNS = {
-  vocabulary: ['input_date', 'next_review_date', 'created_at', 'updated_at'],
+  vocabulary: ['next_review_date', 'created_at', 'updated_at'],
   users: ['created_at'],
   practice_records: ['practice_date', 'practiced_at']
 };
@@ -78,7 +78,6 @@ async function migrateSqlite() {
         kana TEXT NOT NULL,
         category TEXT,
         difficulty INTEGER DEFAULT 1,
-        input_date INTEGER,
         next_review_date INTEGER,
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
@@ -89,7 +88,7 @@ async function migrateSqlite() {
 
     await db.exec(`
       INSERT INTO vocabulary_new
-      (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
+      (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
       SELECT
         id,
         chinese,
@@ -97,7 +96,6 @@ async function migrateSqlite() {
         kana,
         category,
         difficulty,
-        CAST(input_date AS INTEGER),
         CAST(next_review_date AS INTEGER),
         review_count,
         mastery_level,
@@ -110,7 +108,6 @@ async function migrateSqlite() {
     await db.exec('ALTER TABLE vocabulary_new RENAME TO vocabulary');
     await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_vocabulary_kana ON vocabulary(kana)');
     await db.exec('CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category)');
-    await db.exec('CREATE INDEX IF NOT EXISTS idx_vocabulary_input_date ON vocabulary(input_date)');
     await db.exec('CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date)');
 
     await db.exec(`
@@ -171,7 +168,7 @@ async function migrateNeon() {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   const columnsToMigrate = {
-    vocabulary: ['input_date', 'next_review_date', 'created_at', 'updated_at'],
+    vocabulary: ['next_review_date', 'created_at', 'updated_at'],
     users: ['created_at'],
     practice_records: ['practice_date', 'practiced_at']
   };

@@ -71,13 +71,13 @@ async function exportTodayVocab() {
     const rows = await db.all(
       `SELECT *
        FROM vocabulary
-       WHERE input_date = ?
-          OR DATE(input_date) = ?
-          OR DATE(input_date, 'unixepoch') = ?
+       WHERE DATE(created_at / 1000, 'unixepoch', '+8 hours') = ?
+         OR DATE(created_at) = ?
+         OR created_at LIKE ?
        ORDER BY id`,
       exportDate,
       exportDate,
-      exportDate
+      `${exportDate}%`
     );
 
     const payload = {

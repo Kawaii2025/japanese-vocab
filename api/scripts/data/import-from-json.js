@@ -52,10 +52,10 @@ async function importFromJson(jsonPath) {
       for (const row of vocabData) {
         await db.run(
           `INSERT OR REPLACE INTO vocabulary 
-          (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-           toTimestampMs(row.input_date), toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+           toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
            toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
         );
       }

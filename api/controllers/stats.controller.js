@@ -14,16 +14,29 @@ export async function getDailyInputStats(req, res) {
   try {
     const { days = 30 } = req.query;
     const cutoffDayStart = getBeijingDayStartDaysAgo(days);
+    const cutoffDayStartSec = Math.floor(cutoffDayStart / 1000);
     const result = await db.all(`
       SELECT 
-        date(input_date / 1000, 'unixepoch', '+8 hours') as input_date,
+        COALESCE(
+          date(created_at / 1000, 'unixepoch', '+8 hours'),
+          date(created_at),
+          substr(created_at, 1, 10)
+        ) as input_day,
         COUNT(*) as word_count,
         COUNT(CASE WHEN mastery_level >= 3 THEN 1 END) as mastered_count
       FROM vocabulary
-      WHERE input_date >= ?
-      GROUP BY date(input_date / 1000, 'unixepoch', '+8 hours')
-      ORDER BY input_date DESC
-    `, cutoffDayStart);
+      WHERE COALESCE(
+        date(created_at / 1000, 'unixepoch', '+8 hours'),
+        date(created_at),
+        substr(created_at, 1, 10)
+      ) >= date(?, 'unixepoch', '+8 hours')
+      GROUP BY COALESCE(
+        date(created_at / 1000, 'unixepoch', '+8 hours'),
+        date(created_at),
+        substr(created_at, 1, 10)
+      )
+      ORDER BY input_day DESC
+    `, cutoffDayStartSec);
     
     res.json({
       success: true,
@@ -93,13 +106,15 @@ export async function getOverview(req, res) {
   try {
     const { user_id = 1 } = req.query;
     const todayStart = getBeijingCurrentDayStartTimestamp();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
     const recentStart = getBeijingDayStartDaysAgo(7);
     
     // Get all stats
     const totalWords = await db.get('SELECT COUNT(*) as count FROM vocabulary');
     const todayInput = await db.get(
-      'SELECT COUNT(*) as count FROM vocabulary WHERE input_date = ?',
-      todayStart
+      'SELECT COUNT(*) as count FROM vocabulary WHERE created_at >= ? AND created_at < ?',
+      todayStart,
+      todayEnd
     );
     const todayReview = await db.get(
       'SELECT COUNT(*) as count FROM vocabulary WHERE next_review_date IS NOT NULL AND next_review_date <= ?',

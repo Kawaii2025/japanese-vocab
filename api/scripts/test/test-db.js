@@ -107,7 +107,8 @@ async function testConnection() {
     const todayWordsResult = await client.query(`
       SELECT COUNT(*) 
       FROM vocabulary 
-      WHERE input_date = CURRENT_DATE
+      WHERE DATE(created_at) = CURRENT_DATE
+         OR DATE(created_at / 1000.0, 'unixepoch', '+8 hours') = CURRENT_DATE
     `);
     console.log('📅 日期功能测试:');
     console.log(`   今日录入: ${todayWordsResult.rows[0].count} 个单词`);

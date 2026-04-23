@@ -9,7 +9,6 @@ CREATE TABLE vocabulary (
     kana VARCHAR(255) NOT NULL,              -- 纯假名
     category VARCHAR(100),                   -- 分类（如：基础、进阶等）
     difficulty INTEGER DEFAULT 1,            -- 难度等级 1-5
-    input_date DATE DEFAULT CURRENT_DATE,    -- 录入日期（用于按日期检索）
     next_review_date DATE,                   -- 下次复习日期（基于艾宾浩斯遗忘曲线）
     review_count INTEGER DEFAULT 0,          -- 复习次数
     mastery_level INTEGER DEFAULT 0,         -- 掌握程度 0-5（影响复习间隔）
@@ -70,7 +69,6 @@ CREATE TABLE vocabulary_set_items (
 -- 创建索引以提高查询性能
 CREATE INDEX idx_vocabulary_kana ON vocabulary(kana);
 CREATE INDEX idx_vocabulary_category ON vocabulary(category);
-CREATE INDEX idx_vocabulary_input_date ON vocabulary(input_date);          -- 按录入日期检索
 CREATE INDEX idx_vocabulary_review_date ON vocabulary(next_review_date);   -- 按复习日期检索
 CREATE INDEX idx_practice_records_user ON practice_records(user_id);
 CREATE INDEX idx_practice_records_vocab ON practice_records(vocabulary_id);
@@ -155,15 +153,15 @@ JOIN vocabulary v ON vsi.vocabulary_id = v.id
 WHERE vs.id = 1
 ORDER BY vsi.sort_order;
 
--- 7. 按录入日期检索单词（今日录入）
+-- 7. 按创建时间检索单词（今日录入）
 SELECT * FROM vocabulary 
-WHERE input_date = CURRENT_DATE
+WHERE DATE(created_at) = CURRENT_DATE
 ORDER BY created_at DESC;
 
--- 8. 按日期范围检索单词（本周录入）
+-- 8. 按创建时间范围检索单词（本周录入）
 SELECT * FROM vocabulary 
-WHERE input_date >= CURRENT_DATE - INTERVAL '7 days'
-ORDER BY input_date DESC, created_at DESC;
+WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+ORDER BY created_at DESC;
 
 -- 9. 获取今日需要复习的单词
 SELECT * FROM vocabulary 
@@ -172,18 +170,18 @@ ORDER BY next_review_date ASC, mastery_level ASC;
 
 -- 10. 获取某个日期录入的单词
 SELECT * FROM vocabulary 
-WHERE input_date = '2025-11-22'
+WHERE DATE(created_at) = '2025-11-22'
 ORDER BY created_at DESC;
 
 -- 11. 按日期统计每日录入数量
 SELECT 
-    input_date,
+    DATE(created_at) as input_day,
     COUNT(*) as word_count,
     COUNT(CASE WHEN mastery_level >= 3 THEN 1 END) as mastered_count
 FROM vocabulary
-WHERE input_date >= CURRENT_DATE - INTERVAL '30 days'
-GROUP BY input_date
-ORDER BY input_date DESC;
+WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY DATE(created_at)
+ORDER BY input_day DESC;
 
 -- 12. 按日期统计每日练习情况
 SELECT 

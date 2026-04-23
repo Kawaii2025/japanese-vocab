@@ -83,10 +83,10 @@ async function restoreNeonFromJson(backupPath) {
       for (const row of vocabData) {
         await pool.query(
           `INSERT INTO vocabulary 
-          (id, chinese, original, kana, category, difficulty, input_date, next_review_date, review_count, mastery_level, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-           row.input_date, row.next_review_date, row.review_count, row.mastery_level,
+           row.next_review_date, row.review_count, row.mastery_level,
            row.created_at, row.updated_at]
         );
       }

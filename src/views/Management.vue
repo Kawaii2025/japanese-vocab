@@ -116,7 +116,7 @@
                 />
               </td>
               <td class="px-4 py-3 text-sm text-gray-600">
-                {{ formatDate(word.input_date) }}
+                {{ formatDate(word.created_at) }}
               </td>
               <td class="px-4 py-3">
                 <div class="flex gap-2">

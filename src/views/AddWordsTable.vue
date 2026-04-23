@@ -102,6 +102,10 @@
                           v-model="word.kana"
                           type="text"
                           placeholder="输入かな"
+                          lang="ja"
+                          autocorrect="off"
+                          autocapitalize="off"
+                          spellcheck="false"
                           class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                         />
                         <button 
@@ -120,6 +124,10 @@
                         v-model="word.original"
                         type="text"
                         placeholder="输入日文原文"
+                        lang="ja"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
                         class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                       />
                     </td>
@@ -129,6 +137,10 @@
                         v-model="word.chinese"
                         type="text"
                         placeholder="输入中文意思"
+                        lang="zh-Hans"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
                         class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                       />
                     </td>

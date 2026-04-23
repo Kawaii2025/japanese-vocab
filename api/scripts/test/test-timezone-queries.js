@@ -25,7 +25,7 @@ async function testTimezoneQueries() {
     const todayInput = await pool.query(`
       SELECT COUNT(*) as count 
       FROM vocabulary 
-      WHERE input_date = ${BEIJING_CURRENT_DATE}
+      WHERE (to_timestamp(created_at / 1000) AT TIME ZONE 'Asia/Shanghai')::date = ${BEIJING_CURRENT_DATE}
     `);
     
     console.log('\n3️⃣ 今日录入单词数:', todayInput.rows[0].count);
