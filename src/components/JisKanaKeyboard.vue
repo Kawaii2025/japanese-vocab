@@ -1,72 +1,93 @@
 <template>
-  <div class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3 sm:px-6 sm:pb-6">
-    <div class="pointer-events-auto w-full max-w-6xl">
+  <div class="pointer-events-none fixed right-3 top-3 z-40 sm:right-6 sm:top-5">
+    <div class="pointer-events-auto flex flex-col items-end gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
+        <label class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/92 px-3 py-2 text-xs font-medium text-slate-200 shadow-[0_12px_28px_rgba(0,0,0,0.22)] backdrop-blur">
+          <input
+            v-model="isLarge"
+            type="checkbox"
+            class="h-4 w-4 rounded border-slate-500 bg-slate-950 text-sky-400 focus:ring-sky-400"
+          />
+          大尺寸
+        </label>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/92 px-4 py-2 text-xs font-semibold text-slate-100 shadow-[0_12px_28px_rgba(0,0,0,0.22)] backdrop-blur transition hover:border-sky-400/70 hover:bg-slate-900 sm:text-sm"
+          @click="$emit('toggle')"
+        >
+          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+          {{ isVisible ? '隐藏键盘' : '显示键盘' }}
+        </button>
+      </div>
+
       <transition name="keyboard-slide">
         <section
           v-if="isVisible"
-          class="mb-3 overflow-hidden rounded-[28px] border border-slate-700/70 bg-[linear-gradient(180deg,rgba(16,18,28,0.97),rgba(10,12,20,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur"
+          class="jis-grid-overlay overflow-hidden rounded-[24px] border border-slate-700/60 bg-[linear-gradient(180deg,rgba(14,17,26,0.94),rgba(10,12,20,0.96))] shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur"
+          :class="panelClass"
         >
-          <div class="jis-grid-overlay px-4 py-4 sm:px-6 sm:py-5">
-            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/70">macOS JIS Reference</p>
-                <h2 class="text-lg font-semibold text-slate-100 sm:text-xl">JIS Kana Keyboard</h2>
-                <p class="text-sm text-slate-400">输入单词时可对照假名位置，不影响页面跳转。</p>
+          <div class="px-3 py-3 sm:px-4 sm:py-4">
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">macOS JIS</p>
+                <p class="mt-0.5 text-xs text-slate-400">Kana reference</p>
               </div>
-              <button
-                type="button"
-                class="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-900/70 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-slate-400 hover:bg-slate-800"
-                @click="$emit('toggle')"
-              >
-                隐藏键盘
-              </button>
+              <span class="rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                {{ isLarge ? 'Full' : 'Mini' }}
+              </span>
             </div>
 
-            <div class="space-y-3">
+            <div v-if="!isLarge" class="grid gap-1.5">
+              <div
+                v-for="group in compactGroups"
+                :key="group.label"
+                class="flex flex-wrap items-center gap-1.5"
+              >
+                <span class="min-w-12 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ group.label }}</span>
+                <span
+                  v-for="keyItem in group.keys"
+                  :key="`${group.label}-${keyItem.label}`"
+                  class="inline-flex min-w-[1.8rem] items-center justify-center rounded-xl border px-1.5 py-1 text-xs font-semibold"
+                  :class="`${fingerClasses[keyItem.finger]} border-white/15`"
+                >
+                  {{ keyItem.label }}
+                </span>
+              </div>
+            </div>
+
+            <div v-else class="space-y-2">
               <div
                 v-for="(row, rowIndex) in rows"
                 :key="rowIndex"
-                class="grid gap-2"
+                class="grid gap-1.5"
                 :style="{ gridTemplateColumns: row.columns }"
               >
                 <div
                   v-for="(keyItem, keyIndex) in row.keys"
                   :key="`${rowIndex}-${keyIndex}-${keyItem.label}`"
-                  class="flex min-h-[3.75rem] flex-col justify-center rounded-2xl border px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-h-[4.5rem]"
+                  class="flex min-h-[2.6rem] flex-col justify-center rounded-2xl border px-1.5 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-h-[3.25rem]"
                   :class="keyItem.kind === 'modifier' ? 'border-slate-500 bg-slate-200 text-slate-700' : `${fingerClasses[keyItem.finger]} border-white/20 ${keyItem.muted ? 'opacity-70' : ''}`"
                 >
-                  <span class="text-base font-semibold sm:text-xl">{{ keyItem.label }}</span>
-                  <span v-if="keyItem.subLabel" class="mt-1 text-xs font-medium text-slate-700/80 sm:text-sm" :class="keyItem.kind === 'modifier' ? 'text-slate-600' : 'text-slate-800/80'">
+                  <span class="text-xs font-semibold sm:text-base">{{ keyItem.label }}</span>
+                  <span v-if="keyItem.subLabel" class="mt-0.5 text-[9px] font-medium sm:text-[10px]" :class="keyItem.kind === 'modifier' ? 'text-slate-600' : 'text-slate-800/80'">
                     {{ keyItem.subLabel }}
                   </span>
                 </div>
               </div>
             </div>
-
-            <div class="mt-4 grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
-              <p>彩色分区对应手指区域，布局参考 macOS JIS 键盘。</p>
-              <p class="sm:text-right">建议继续使用系统日语输入法，这个面板只做位置参考。</p>
-            </div>
           </div>
         </section>
       </transition>
-
-      <div class="flex justify-end">
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm font-semibold text-slate-100 shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition hover:border-sky-400/70 hover:bg-slate-900"
-          @click="$emit('toggle')"
-        >
-          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
-          {{ isVisible ? '隐藏 JIS 键盘' : '显示 JIS 键盘' }}
-        </button>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-const props = defineProps({
+import { computed, ref, watch } from 'vue';
+
+const LARGE_STORAGE_KEY = 'global-jis-keyboard-large';
+
+defineProps({
   isVisible: {
     type: Boolean,
     default: false
@@ -74,6 +95,20 @@ const props = defineProps({
 });
 
 defineEmits(['toggle']);
+
+const isLarge = ref(false);
+
+if (typeof window !== 'undefined') {
+  isLarge.value = window.localStorage.getItem(LARGE_STORAGE_KEY) === 'true';
+
+  watch(
+    isLarge,
+    (value) => {
+      window.localStorage.setItem(LARGE_STORAGE_KEY, value ? 'true' : 'false');
+    },
+    { flush: 'post' }
+  );
+}
 
 const fingerClasses = {
   pinky: 'bg-rose-200 text-slate-900',
@@ -169,4 +204,16 @@ const rows = [
     ]
   }
 ];
+
+const compactGroups = computed(() => ([
+  { label: 'QWERTY', keys: rows[1].keys.slice(1, 11) },
+  { label: 'ASDF', keys: rows[2].keys.slice(1, 10) },
+  { label: 'ZXCV', keys: rows[3].keys.slice(1, 11) }
+]));
+
+const panelClass = computed(() => (
+  isLarge.value
+    ? 'w-[min(92vw,54rem)]'
+    : 'w-[min(92vw,28rem)]'
+));
 </script>

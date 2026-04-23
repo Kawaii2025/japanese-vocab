@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen">
-    <router-view />
     <JisKanaKeyboard :is-visible="isKeyboardVisible" @toggle="toggleKeyboard" />
+    <router-view />
   </div>
 </template>
 
