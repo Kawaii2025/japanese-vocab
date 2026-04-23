@@ -1,25 +1,6 @@
 <template>
   <div class="pointer-events-none fixed right-3 top-3 z-40 sm:right-6 sm:top-5">
     <div class="pointer-events-auto flex flex-col items-end gap-2">
-      <div class="flex flex-wrap justify-end gap-2">
-        <label class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/92 px-3 py-2 text-xs font-medium text-slate-200 shadow-[0_12px_28px_rgba(0,0,0,0.22)] backdrop-blur">
-          <input
-            v-model="isLarge"
-            type="checkbox"
-            class="h-4 w-4 rounded border-slate-500 bg-slate-950 text-sky-400 focus:ring-sky-400"
-          />
-          大尺寸
-        </label>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/92 px-4 py-2 text-xs font-semibold text-slate-100 shadow-[0_12px_28px_rgba(0,0,0,0.22)] backdrop-blur transition hover:border-sky-400/70 hover:bg-slate-900 sm:text-sm"
-          @click="$emit('toggle')"
-        >
-          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
-          {{ isVisible ? '隐藏键盘' : '显示键盘' }}
-        </button>
-      </div>
-
       <transition name="keyboard-slide">
         <section
           v-if="isVisible"
@@ -32,22 +13,36 @@
                 <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">macOS JIS</p>
                 <p class="mt-0.5 text-xs text-slate-400">Kana reference</p>
               </div>
-              <span class="rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                {{ isLarge ? 'Full' : 'Mini' }}
-              </span>
+              <div class="flex flex-wrap justify-end gap-2">
+                <label class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50">
+                  <input
+                    v-model="isLarge"
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-slate-400 bg-white text-sky-500 focus:ring-sky-400"
+                  />
+                  大尺寸
+                </label>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-sm"
+                  @click="$emit('toggle')"
+                >
+                  <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+                  隐藏键盘
+                </button>
+              </div>
             </div>
 
-            <div v-if="!isLarge" class="grid gap-1.5">
+            <div v-if="!isLarge" class="grid gap-2">
               <div
-                v-for="group in compactGroups"
-                :key="group.label"
-                class="flex flex-wrap items-center gap-1.5"
+                v-for="(group, groupIndex) in compactGroups"
+                :key="groupIndex"
+                class="flex flex-wrap items-center gap-2"
               >
-                <span class="min-w-12 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ group.label }}</span>
                 <span
                   v-for="keyItem in group.keys"
-                  :key="`${group.label}-${keyItem.label}`"
-                  class="inline-flex min-w-[1.8rem] items-center justify-center rounded-xl border px-1.5 py-1 text-xs font-semibold"
+                  :key="`${groupIndex}-${keyItem.label}`"
+                  class="inline-flex min-w-[2.45rem] items-center justify-center rounded-2xl border px-2 py-1.5 text-sm font-semibold sm:min-w-[2.7rem] sm:text-base"
                   :class="`${fingerClasses[keyItem.finger]} border-white/15`"
                 >
                   {{ keyItem.label }}
@@ -78,6 +73,16 @@
           </div>
         </section>
       </transition>
+
+      <button
+        v-if="!isVisible"
+        type="button"
+        class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-sm"
+        @click="$emit('toggle')"
+      >
+        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+        显示键盘
+      </button>
     </div>
   </div>
 </template>
@@ -206,14 +211,14 @@ const rows = [
 ];
 
 const compactGroups = computed(() => ([
-  { label: 'QWERTY', keys: rows[1].keys.slice(1, 11) },
-  { label: 'ASDF', keys: rows[2].keys.slice(1, 10) },
-  { label: 'ZXCV', keys: rows[3].keys.slice(1, 11) }
+  { keys: rows[1].keys.slice(1, 11) },
+  { keys: rows[2].keys.slice(1, 10) },
+  { keys: rows[3].keys.slice(1, 11) }
 ]));
 
 const panelClass = computed(() => (
   isLarge.value
     ? 'w-[min(92vw,54rem)]'
-    : 'w-[min(92vw,28rem)]'
+    : 'w-[min(94vw,36rem)]'
 ));
 </script>
