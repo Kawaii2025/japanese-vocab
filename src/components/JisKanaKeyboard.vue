@@ -117,16 +117,17 @@ if (typeof window !== 'undefined') {
 }
 
 const GOJUON_BLOCK_CLASSES = [
-  'bg-rose-200 text-slate-900',
+  'bg-red-300 text-slate-900',
   'bg-orange-200 text-slate-900',
   'bg-yellow-200 text-slate-900',
   'bg-lime-200 text-slate-900',
   'bg-emerald-200 text-slate-900',
   'bg-sky-200 text-slate-900',
   'bg-indigo-200 text-slate-900',
-  'bg-violet-200 text-slate-900',
+  'bg-rose-200 text-slate-900',
   'bg-fuchsia-200 text-slate-900',
-  'bg-cyan-200 text-slate-900'
+  'bg-white/95 text-slate-900',
+  'bg-white/95 text-slate-900'
 ];
 
 // Standard gojuon blocks, 5 kana per main block.
@@ -140,7 +141,8 @@ const GOJUON_BLOCKS = [
   ['ま', 'み', 'む', 'め', 'も'],
   ['や', 'ゆ', 'よ'],
   ['ら', 'り', 'る', 'れ', 'ろ'],
-  ['わ', 'を', 'ん']
+  ['わ', 'を'],
+  ['ん']
 ];
 
 function getGojuonClass(label) {
