@@ -173,7 +173,7 @@ const rows = [
   {
     indent: '0%',
     indentRight: '10.5%',
-    columns: '0.9fr repeat(11, minmax(0, 1fr)) 1.6fr',
+    columns: '0.9fr repeat(12, minmax(0, 1fr)) 1.6fr',
     keys: [
       { label: 'ぬ', subLabel: '1', finger: 'pinky' },
       { label: 'ふ', subLabel: '2', finger: 'ring' },
@@ -187,6 +187,7 @@ const rows = [
       { label: 'わ', subLabel: '0', finger: 'pinkyRight' },
       { label: 'ほ', subLabel: '-', finger: 'pinkyRight' },
       { label: 'へ', subLabel: '^', finger: 'pinkyRight' },
+      { label: 'ー', subLabel: '¥', finger: 'pinkyRight' },
       { label: '後退', kind: 'modifier' }
     ]
   },
