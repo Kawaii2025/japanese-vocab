@@ -38,15 +38,19 @@
                 v-for="(group, groupIndex) in compactRows"
                 :key="groupIndex"
                 class="grid gap-1.5"
-                :style="{ gridTemplateColumns: `repeat(${group.keys.length}, minmax(0, 1fr))` }"
+                :style="{ gridTemplateColumns: `repeat(${group.keys.length}, minmax(0, 1fr))`, paddingLeft: group.indent, paddingRight: group.indentRight }"
               >
                 <span
                   v-for="keyItem in group.keys"
                   :key="`${groupIndex}-${keyItem.label}`"
-                  class="inline-flex min-h-[2.4rem] w-full items-center justify-center rounded-2xl border px-1.5 py-1.5 text-sm font-semibold sm:min-h-[2.7rem] sm:text-base"
+                  class="relative inline-flex min-h-[2.4rem] w-full flex-col items-center justify-center rounded-2xl border px-1.5 py-1.5 text-sm font-semibold sm:min-h-[2.7rem] sm:text-base"
                   :class="`${getGojuonClass(keyItem.label)} border-white/15`"
                 >
                   {{ keyItem.label }}
+                  <span v-if="keyItem.home" class="mt-0.5 flex gap-0.5">
+                    <span class="inline-block h-1 w-1 rounded-full bg-slate-700/60"></span>
+                    <span class="inline-block h-1 w-1 rounded-full bg-slate-700/60"></span>
+                  </span>
                 </span>
               </div>
             </div>
@@ -65,6 +69,10 @@
                   :class="keyItem.kind === 'modifier' ? 'border-slate-500 bg-slate-200 text-slate-700' : `${getGojuonClass(keyItem.label)} border-white/20 ${keyItem.muted ? 'opacity-70' : ''}`"
                 >
                   <span class="text-xs font-semibold sm:text-base">{{ keyItem.label }}</span>
+                  <span v-if="keyItem.home" class="mt-0.5 flex justify-center gap-0.5">
+                    <span class="inline-block h-1 w-1 rounded-full bg-slate-700/60"></span>
+                    <span class="inline-block h-1 w-1 rounded-full bg-slate-700/60"></span>
+                  </span>
                   <span v-if="keyItem.subLabel" class="mt-0.5 text-[9px] font-medium sm:text-[10px]" :class="keyItem.kind === 'modifier' ? 'text-slate-600' : 'text-slate-800/80'">
                     {{ keyItem.subLabel }}
                   </span>
@@ -158,6 +166,8 @@ function getGojuonClass(label) {
 
 const rows = [
   {
+    indent: '0%',
+    indentRight: '10.5%',
     columns: '0.9fr repeat(11, minmax(0, 1fr)) 1.6fr',
     keys: [
       { label: 'ぬ', subLabel: '1', finger: 'pinky' },
@@ -176,6 +186,8 @@ const rows = [
     ]
   },
   {
+    indent: '4%',
+    indentRight: '6.5%',
     columns: '1.4fr repeat(12, minmax(0, 1fr)) 1.4fr',
     keys: [
       { label: 'Tab', kind: 'modifier' },
@@ -195,16 +207,18 @@ const rows = [
     ]
   },
   {
+    indent: '6.5%',
+    indentRight: '4%',
     columns: '1.7fr repeat(12, minmax(0, 1fr))',
     keys: [
       { label: '英数', kind: 'modifier' },
       { label: 'ち', subLabel: 'A', finger: 'pinky' },
       { label: 'と', subLabel: 'S', finger: 'ring' },
       { label: 'し', subLabel: 'D', finger: 'middle' },
-      { label: 'は', subLabel: 'F', finger: 'index' },
+      { label: 'は', subLabel: 'F', finger: 'index', home: true },
       { label: 'き', subLabel: 'G', finger: 'index' },
       { label: 'く', subLabel: 'H', finger: 'indexRight' },
-      { label: 'ま', subLabel: 'J', finger: 'indexRight' },
+      { label: 'ま', subLabel: 'J', finger: 'indexRight', home: true },
       { label: 'の', subLabel: 'K', finger: 'middleRight' },
       { label: 'り', subLabel: 'L', finger: 'ringRight' },
       { label: 'れ', subLabel: ';', finger: 'pinkyRight' },
@@ -213,6 +227,8 @@ const rows = [
     ]
   },
   {
+    indent: '10.5%',
+    indentRight: '0%',
     columns: '1.9fr repeat(11, minmax(0, 1fr)) 1.9fr',
     keys: [
       { label: 'Shift', kind: 'modifier' },
@@ -246,6 +262,8 @@ const compactRows = computed(() => (
   rows
     .slice(0, 4)
     .map((row) => ({
+      indent: row.indent,
+      indentRight: row.indentRight,
       keys: row.keys.filter((keyItem) => keyItem.kind !== 'modifier')
     }))
 ));
