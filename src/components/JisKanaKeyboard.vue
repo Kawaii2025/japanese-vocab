@@ -13,37 +13,38 @@
                 <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">macOS JIS</p>
                 <p class="mt-0.5 text-xs text-slate-400">Kana reference</p>
               </div>
-              <div class="flex flex-wrap justify-end gap-2">
-                <label class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50">
+              <div class="flex flex-wrap justify-end gap-1.5">
+                <label class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300/90 bg-white/95 px-2.5 py-1.5 text-[11px] font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50">
                   <input
                     v-model="isLarge"
                     type="checkbox"
-                    class="h-4 w-4 rounded border-slate-400 bg-white text-sky-500 focus:ring-sky-400"
+                    class="h-3.5 w-3.5 rounded border-slate-400 bg-white text-sky-500 focus:ring-sky-400"
                   />
                   大尺寸
                 </label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-sm"
+                  class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300/90 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-xs"
                   @click="$emit('toggle')"
                 >
-                  <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+                  <span class="inline-flex h-2 w-2 rounded-full bg-sky-400"></span>
                   隐藏键盘
                 </button>
               </div>
             </div>
 
-            <div v-if="!isLarge" class="grid gap-2">
+            <div v-if="!isLarge" class="space-y-1.5">
               <div
-                v-for="(group, groupIndex) in compactGroups"
+                v-for="(group, groupIndex) in compactRows"
                 :key="groupIndex"
-                class="flex flex-wrap items-center gap-2"
+                class="grid gap-1.5"
+                :style="{ gridTemplateColumns: `repeat(${group.keys.length}, minmax(0, 1fr))` }"
               >
                 <span
                   v-for="keyItem in group.keys"
                   :key="`${groupIndex}-${keyItem.label}`"
-                  class="inline-flex min-w-[2.45rem] items-center justify-center rounded-2xl border px-2 py-1.5 text-sm font-semibold sm:min-w-[2.7rem] sm:text-base"
-                  :class="`${fingerClasses[keyItem.finger]} border-white/15`"
+                  class="inline-flex min-h-[2.4rem] w-full items-center justify-center rounded-2xl border px-1.5 py-1.5 text-sm font-semibold sm:min-h-[2.7rem] sm:text-base"
+                  :class="`${getGojuonClass(keyItem.label)} border-white/15`"
                 >
                   {{ keyItem.label }}
                 </span>
@@ -61,7 +62,7 @@
                   v-for="(keyItem, keyIndex) in row.keys"
                   :key="`${rowIndex}-${keyIndex}-${keyItem.label}`"
                   class="flex min-h-[2.6rem] flex-col justify-center rounded-2xl border px-1.5 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-h-[3.25rem]"
-                  :class="keyItem.kind === 'modifier' ? 'border-slate-500 bg-slate-200 text-slate-700' : `${fingerClasses[keyItem.finger]} border-white/20 ${keyItem.muted ? 'opacity-70' : ''}`"
+                  :class="keyItem.kind === 'modifier' ? 'border-slate-500 bg-slate-200 text-slate-700' : `${getGojuonClass(keyItem.label)} border-white/20 ${keyItem.muted ? 'opacity-70' : ''}`"
                 >
                   <span class="text-xs font-semibold sm:text-base">{{ keyItem.label }}</span>
                   <span v-if="keyItem.subLabel" class="mt-0.5 text-[9px] font-medium sm:text-[10px]" :class="keyItem.kind === 'modifier' ? 'text-slate-600' : 'text-slate-800/80'">
@@ -77,10 +78,10 @@
       <button
         v-if="!isVisible"
         type="button"
-        class="inline-flex items-center gap-2 rounded-2xl border border-slate-300/90 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-sm"
+        class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300/90 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition hover:bg-slate-50 sm:text-xs"
         @click="$emit('toggle')"
       >
-        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+        <span class="inline-flex h-2 w-2 rounded-full bg-sky-400"></span>
         显示键盘
       </button>
     </div>
@@ -115,17 +116,43 @@ if (typeof window !== 'undefined') {
   );
 }
 
-const fingerClasses = {
-  pinky: 'bg-rose-200 text-slate-900',
-  ring: 'bg-orange-200 text-slate-900',
-  middle: 'bg-yellow-200 text-slate-900',
-  index: 'bg-lime-200 text-slate-900',
-  indexRight: 'bg-sky-200 text-slate-900',
-  middleRight: 'bg-violet-200 text-slate-900',
-  ringRight: 'bg-fuchsia-200 text-slate-900',
-  pinkyRight: 'bg-slate-100 text-slate-900',
-  thumb: 'bg-slate-300 text-slate-900'
-};
+const GOJUON_BLOCK_CLASSES = [
+  'bg-rose-200 text-slate-900',
+  'bg-orange-200 text-slate-900',
+  'bg-yellow-200 text-slate-900',
+  'bg-lime-200 text-slate-900',
+  'bg-emerald-200 text-slate-900',
+  'bg-sky-200 text-slate-900',
+  'bg-indigo-200 text-slate-900',
+  'bg-violet-200 text-slate-900',
+  'bg-fuchsia-200 text-slate-900',
+  'bg-cyan-200 text-slate-900'
+];
+
+// Standard gojuon blocks, 5 kana per main block.
+const GOJUON_BLOCKS = [
+  ['あ', 'い', 'う', 'え', 'お'],
+  ['か', 'き', 'く', 'け', 'こ'],
+  ['さ', 'し', 'す', 'せ', 'そ'],
+  ['た', 'ち', 'つ', 'て', 'と'],
+  ['な', 'に', 'ぬ', 'ね', 'の'],
+  ['は', 'ひ', 'ふ', 'へ', 'ほ'],
+  ['ま', 'み', 'む', 'め', 'も'],
+  ['や', 'ゆ', 'よ'],
+  ['ら', 'り', 'る', 'れ', 'ろ'],
+  ['わ', 'を', 'ん']
+];
+
+function getGojuonClass(label) {
+  const key = String(label || '').trim();
+  for (let i = 0; i < GOJUON_BLOCKS.length; i++) {
+    if (GOJUON_BLOCKS[i].includes(key)) {
+      return GOJUON_BLOCK_CLASSES[i];
+    }
+  }
+
+  return 'bg-slate-100 text-slate-900';
+}
 
 const rows = [
   {
@@ -147,7 +174,7 @@ const rows = [
     ]
   },
   {
-    columns: '1.4fr repeat(11, minmax(0, 1fr)) 1.4fr',
+    columns: '1.4fr repeat(12, minmax(0, 1fr)) 1.4fr',
     keys: [
       { label: 'Tab', kind: 'modifier' },
       { label: 'た', subLabel: 'Q', finger: 'pinky' },
@@ -161,11 +188,12 @@ const rows = [
       { label: 'ら', subLabel: 'O', finger: 'ringRight' },
       { label: 'せ', subLabel: 'P', finger: 'pinkyRight' },
       { label: '゛', subLabel: '@', finger: 'pinkyRight' },
+      { label: '゜', subLabel: '[', finger: 'pinkyRight' },
       { label: '改行', kind: 'modifier' }
     ]
   },
   {
-    columns: '1.7fr repeat(11, minmax(0, 1fr))',
+    columns: '1.7fr repeat(12, minmax(0, 1fr))',
     keys: [
       { label: '英数', kind: 'modifier' },
       { label: 'ち', subLabel: 'A', finger: 'pinky' },
@@ -178,11 +206,12 @@ const rows = [
       { label: 'の', subLabel: 'K', finger: 'middleRight' },
       { label: 'り', subLabel: 'L', finger: 'ringRight' },
       { label: 'れ', subLabel: ';', finger: 'pinkyRight' },
-      { label: 'け', subLabel: ':', finger: 'pinkyRight' }
+      { label: 'け', subLabel: ':', finger: 'pinkyRight' },
+      { label: 'む', subLabel: ']', finger: 'pinkyRight' }
     ]
   },
   {
-    columns: '1.9fr repeat(10, minmax(0, 1fr)) 1.9fr',
+    columns: '1.9fr repeat(11, minmax(0, 1fr)) 1.9fr',
     keys: [
       { label: 'Shift', kind: 'modifier' },
       { label: 'つ', subLabel: 'Z', finger: 'pinky' },
@@ -195,6 +224,7 @@ const rows = [
       { label: 'ね', subLabel: ',', finger: 'middleRight' },
       { label: 'る', subLabel: '.', finger: 'ringRight' },
       { label: 'め', subLabel: '/', finger: 'pinkyRight' },
+      { label: 'ろ', subLabel: '_', finger: 'pinkyRight' },
       { label: 'Shift', kind: 'modifier' }
     ]
   },
@@ -210,11 +240,13 @@ const rows = [
   }
 ];
 
-const compactGroups = computed(() => ([
-  { keys: rows[1].keys.slice(1, 11) },
-  { keys: rows[2].keys.slice(1, 10) },
-  { keys: rows[3].keys.slice(1, 11) }
-]));
+const compactRows = computed(() => (
+  rows
+    .slice(0, 4)
+    .map((row) => ({
+      keys: row.keys.filter((keyItem) => keyItem.kind !== 'modifier')
+    }))
+));
 
 const panelClass = computed(() => (
   isLarge.value
