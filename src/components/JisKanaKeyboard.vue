@@ -43,10 +43,14 @@
                 <span
                   v-for="keyItem in group.keys"
                   :key="`${groupIndex}-${keyItem.label}`"
-                  class="relative inline-flex min-h-[2.4rem] w-full items-center justify-center rounded-2xl border px-1.5 py-1.5 font-semibold sm:min-h-[2.7rem]"
-                  :class="`${getGojuonClass(keyItem.label)} border-white/15`"
+                  class="relative inline-flex w-full items-center justify-center rounded-2xl border px-1.5 font-semibold"
+                  :class="[
+                    getGojuonClass(keyItem.label),
+                    'border-white/15',
+                    groupIndex === 0 ? 'min-h-[2rem] py-1 sm:min-h-[2.3rem]' : 'min-h-[2.6rem] py-1.5 sm:min-h-[3rem]'
+                  ]"
                 >
-                  <span class="text-sm sm:text-base">{{ keyItem.label }}</span>
+                  <span :class="groupIndex === 0 ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'">{{ keyItem.label }}</span>
                   <span v-if="groupIndex === 0 && keyItem.subLabel" class="absolute bottom-1 right-1.5 text-[8px] font-medium leading-none text-slate-700/60">{{ keyItem.subLabel }}</span>
                   <span v-if="keyItem.home" class="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                     <span class="inline-block h-1 w-1 rounded-full bg-slate-700/60"></span>
