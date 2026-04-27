@@ -62,11 +62,14 @@ Expected output:
 
 | Mode | Command | Use Case | Speed | Data Synced |
 |------|---------|----------|-------|------------|
-| **Partial Sync** | `npm run sync-neon` | Daily updates, incremental changes | ⚡ Fast | Only changed records |
-| **Full Sync** | `npm run sync-to-neon` | Initial setup, complete refresh | Slower | All records |
-| **Sync Vocabulary** | `npm run sync-vocabulary` | Fix vocabulary table only | Very Fast | Vocabulary table |
-| **Sync Users** | `npm run sync-users` | Fix users table only | Very Fast | Users table |
-| **Sync Practice Records** | `npm run sync-practice-records` | Fix practice records only | Very Fast | Practice records table |
+| **Partial — All** | `npm run sync-all-partial` | Daily updates, incremental changes | ⚡ Fast | Only changed records |
+| **Full — All** | `npm run sync-all-full` | Initial setup, complete refresh | Slower | All records |
+| **Partial — Vocab** | `npm run sync-vocab-only-partial` | Fix vocabulary table only | Very Fast | Vocabulary table |
+| **Full — Vocab** | `npm run sync-vocab-only-full` | Force-refresh vocabulary | Fast | Vocabulary table |
+| **Partial — Users** | `npm run sync-users-only-partial` | Fix users table only | Very Fast | Users table |
+| **Full — Users** | `npm run sync-users-only-full` | Force-refresh users | Fast | Users table |
+| **Partial — Practice** | `npm run sync-practice-only-partial` | Fix practice records only | Very Fast | Practice records |
+| **Full — Practice** | `npm run sync-practice-only-full` | Force-refresh practice records | Fast | Practice records |
 
 ---
 
@@ -224,33 +227,31 @@ If one table has an error, fix it and sync only that table!
 
 **Vocabulary only:**
 ```bash
-npm run sync-vocabulary              # Full sync
-npm run sync-vocabulary -- --partial # Partial sync (changed only)
+npm run sync-vocab-only-partial  # Partial sync (changed only) — default
+npm run sync-vocab-only-full     # Full sync
 ```
 
 **Users only:**
 ```bash
-npm run sync-users                   # Full sync
-npm run sync-users -- --partial      # Partial sync
+npm run sync-users-only-partial  # Partial sync — default
+npm run sync-users-only-full     # Full sync
 ```
 
 **Practice Records only:**
 ```bash
-npm run sync-practice-records        # Full sync
-npm run sync-practice-records -- --partial # Partial sync
+npm run sync-practice-only-partial  # Partial sync — default
+npm run sync-practice-only-full     # Full sync
 ```
 
 ### Debugging Workflow:
 
 ```bash
 # Step 1: Hit error? Fix the bug in your code
-# (e.g., fix vocabulary table schema)
 
 # Step 2: Sync only that table (very fast!)
-npm run sync-vocabulary -- --partial
+npm run sync-vocab-only-partial
 
 # Step 3: Verify it worked
-# (Check Neon console or test API)
 ```
 
 ---
@@ -290,7 +291,7 @@ cd api
 npm run backup-neon
 
 # Step 2: Full sync all data
-npm run sync-to-neon
+npm run sync-all-full
 
 # Step 3: Verify in Neon Console
 ```
@@ -301,7 +302,7 @@ npm run sync-to-neon
 cd api
 
 # Fast sync of only changed records
-npm run sync-to-neon-partial
+npm run sync-all-partial
 
 # Takes seconds instead of minutes!
 ```
@@ -318,7 +319,7 @@ npm run backup-neon
 # (Make code changes and commit)
 
 # 3. Sync only the affected table
-npm run sync-vocabulary -- --partial
+npm run sync-vocab-only-partial
 
 # 4. Check for errors in output
 # If still broken, restore backup:
@@ -444,7 +445,7 @@ echo "DATABASE_URL=postgresql://..." >> api/.env
 
 ### Sync takes a long time
 **Solution**:
-- Use partial sync instead: `npm run sync-to-neon-partial`
+- Use partial sync instead: `npm run sync-all-partial`
 - For large datasets, full sync can take time
 - Don't interrupt the process
 - Check internet connection
@@ -453,10 +454,10 @@ echo "DATABASE_URL=postgresql://..." >> api/.env
 **Solution**: Sync only that table
 ```bash
 # Found error in vocabulary table?
-npm run sync-vocabulary -- --partial
+npm run sync-vocab-only-partial
 
 # Error in practice records?
-npm run sync-practice-records -- --partial
+npm run sync-practice-only-partial
 ```
 
 ---
@@ -680,12 +681,14 @@ All scripts are in `/api/` directory:
 | Script | Command | Purpose | Speed |
 |--------|---------|---------|-------|
 | `backup-neon-to-json.js` | `npm run backup-neon` | Backup all Neon data to JSON | Fast ⚡ |
-| `sync-to-neon.js` | `npm run sync-to-neon` | Full sync all tables | Slower 🐢 |
-| `sync-to-neon-partial.js` | `npm run sync-to-neon-partial` | Partial sync (changed only) | Very Fast ⚡⚡ |
-| `sync-vocabulary-to-neon.js` | `npm run sync-vocabulary` | Full sync vocabulary table | Very Fast ⚡⚡ |
-| `sync-vocabulary-to-neon.js` | `npm run sync-vocabulary -- --partial` | Partial sync vocabulary | Ultra Fast ⚡⚡⚡ |
-| `sync-users-to-neon.js` | `npm run sync-users` | Sync users table | Very Fast ⚡⚡ |
-| `sync-practice-records-to-neon.js` | `npm run sync-practice-records` | Sync practice records table | Very Fast ⚡⚡ |
+| `sync-to-neon.js` | `npm run sync-all-full` | Full sync all tables | Slower 🐢 |
+| `sync-to-neon-partial.js` | `npm run sync-all-partial` | Partial sync all tables (changed only) | Very Fast ⚡⚡ |
+| `sync-vocabulary-to-neon.js` | `npm run sync-vocab-only-partial` | Partial sync vocabulary (default) | Ultra Fast ⚡⚡⚡ |
+| `sync-vocabulary-to-neon.js` | `npm run sync-vocab-only-full` | Full sync vocabulary table | Very Fast ⚡⚡ |
+| `sync-users-to-neon.js` | `npm run sync-users-only-partial` | Partial sync users (default) | Ultra Fast ⚡⚡⚡ |
+| `sync-users-to-neon.js` | `npm run sync-users-only-full` | Full sync users table | Very Fast ⚡⚡ |
+| `sync-practice-records-to-neon.js` | `npm run sync-practice-only-partial` | Partial sync practice records (default) | Ultra Fast ⚡⚡⚡ |
+| `sync-practice-records-to-neon.js` | `npm run sync-practice-only-full` | Full sync practice records table | Very Fast ⚡⚡ |
 | `restore-neon-from-json.js` | `npm run restore-neon` | Restore Neon from backup | Fast ⚡ |
 | `export-to-json.js` | `npm run export-json` | Backup SQLite to JSON | Fast ⚡ |
 | `import-from-json.js` | `npm run import-json` | Restore SQLite from JSON | Fast ⚡ |
@@ -698,12 +701,12 @@ All scripts are in `/api/` directory:
 
 1. **Use partial sync for daily work**
    ```bash
-   npm run sync-to-neon-partial  # Only syncs changed records
+   npm run sync-all-partial  # Only syncs changed records
    ```
 
 2. **Use single-table sync for debugging**
    ```bash
-   npm run sync-vocabulary -- --partial  # Super fast for fixing one table
+   npm run sync-vocab-only-partial  # Super fast for fixing one table
    ```
 
 3. **Batch operations before syncing**
@@ -716,7 +719,7 @@ All scripts are in `/api/` directory:
    ```bash
    npm run backup-neon
    # Make big changes...
-   npm run sync-to-neon-partial
+   npm run sync-all-partial
    ```
 
 ---
@@ -828,7 +831,7 @@ npm run backup-neon
 # Make changes...
 
 # Use specific table sync if something breaks
-npm run sync-vocabulary -- --partial
+npm run sync-vocab-only-partial
 ```
 
 ---
@@ -838,8 +841,8 @@ npm run sync-vocabulary -- --partial
 | Issue | Command |
 |-------|---------|
 | Connection not working | `psql $DATABASE_URL -c "SELECT NOW();"` |
-| One table has error | `npm run sync-[table] -- --partial` |
+| One table has error | `npm run sync-vocab-only-partial` (or users/practice) |
 | Lost data? | `npm run restore-neon` |
 | Want to start fresh? | `npm run backup-neon && npm run restore-neon` |
-| Not sure what changed? | `npm run sync-to-neon-partial` (shows what will sync) |
+| Not sure what changed? | `npm run sync-all-partial` (shows what will sync) |
 

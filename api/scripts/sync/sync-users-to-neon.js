@@ -26,7 +26,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, '../../../data/vocabulary.db');
 
-const isPartial = process.argv.includes('--partial');
+const isFull = process.argv.includes('--full');
+const isPartial = !isFull;
 
 async function syncUsers() {
   if (!process.env.DATABASE_URL) {

@@ -9,19 +9,25 @@ Syncs data between SQLite (local) and Neon PostgreSQL (production).
 
 | Script | Purpose |
 |--------|---------|
-| `sync-neon.js` | Wrapper - loads `.env.neon` and runs partial sync |
-| `sync-neon.sh` | Shell wrapper for sync-neon.js |
 | `sync-to-neon-partial.js` | **Recommended** - only syncs changed records (fast) |
 | `sync-to-neon.js` | Full sync - syncs ALL records (slower, more thorough) |
-| `sync-vocabulary-to-neon.js` | Sync only vocabulary table |
-| `sync-users-to-neon.js` | Sync only users table |
-| `sync-practice-records-to-neon.js` | Sync only practice records table |
+| `sync-vocabulary-to-neon.js` | Sync vocabulary table — default: partial, pass `--full` for full sync |
+| `sync-users-to-neon.js` | Sync users table — default: partial, pass `--full` for full sync |
+| `sync-practice-records-to-neon.js` | Sync practice records — default: partial, pass `--full` for full sync |
 
 **Quick Start:**
 ```bash
-npm run sync-neon              # Partial sync (recommended)
-npm run sync-to-neon           # Full sync
-npm run sync-vocabulary        # Single table
+# Partial sync (default, recommended — only changed records)
+npm run sync-all-partial        # All tables
+npm run sync-vocab-only-partial # Vocabulary only
+npm run sync-users-only-partial # Users only
+npm run sync-practice-only-partial # Practice records only
+
+# Full sync (all records)
+npm run sync-all-full           # All tables
+npm run sync-vocab-only-full    # Vocabulary only
+npm run sync-users-only-full    # Users only
+npm run sync-practice-only-full # Practice records only
 ```
 
 ### `data/` - Data Import/Export/Backup
@@ -86,8 +92,17 @@ node scripts/debug/normalize-kana.js       # Fix kana characters
 
 ### Sync Local Changes to Neon
 ```bash
-npm run sync-neon              # Fast: only changed records
-npm run sync-to-neon           # Complete: all records
+# Partial (default — fast, only changed records)
+npm run sync-all-partial
+npm run sync-vocab-only-partial
+npm run sync-users-only-partial
+npm run sync-practice-only-partial
+
+# Full (all records)
+npm run sync-all-full
+npm run sync-vocab-only-full
+npm run sync-users-only-full
+npm run sync-practice-only-full
 ```
 
 ### Backup Before Major Changes
