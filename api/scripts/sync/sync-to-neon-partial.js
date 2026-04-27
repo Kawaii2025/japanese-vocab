@@ -279,7 +279,93 @@ async function partialSyncToNeon() {
           SELECT * FROM practice_records WHERE id IN (${practiceToSync.join(',')}) ORDER BY id
         `);
 
-        for (const row of sqlitePracticeData) {
+        // Ensure FK dependencies exist in Neon before inserting practice_records.
+        const practiceUserIds = [...new Set(sqlitePracticeData.map((row) => row.user_id).filter((id) => id != null))];
+        const practiceVocabIds = [...new Set(sqlitePracticeData.map((row) => row.vocabulary_id).filter((id) => id != null))];
+
+        if (practiceVocabIds.length > 0) {
+          const neonVocabExisting = await neonPool.query(
+            'SELECT id FROM vocabulary WHERE id = ANY($1::int[])',
+            [practiceVocabIds]
+          );
+          const existingVocabIds = new Set(neonVocabExisting.rows.map((row) => row.id));
+          const missingVocabIds = practiceVocabIds.filter((id) => !existingVocabIds.has(id));
+
+          if (missingVocabIds.length > 0) {
+            console.log(`   🔧 Found ${missingVocabIds.length} missing vocabulary dependencies, syncing them first...`);
+            const sqliteMissingVocab = await sqliteDb.all(
+              `SELECT * FROM vocabulary WHERE id IN (${missingVocabIds.join(',')}) ORDER BY id`
+            );
+
+            for (const row of sqliteMissingVocab) {
+              await neonPool.query(
+                `INSERT INTO vocabulary 
+                (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (id) DO UPDATE SET
+                chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
+                next_review_date = $7, review_count = $8, mastery_level = $9,
+                created_at = $10, updated_at = $11`,
+                [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
+                 toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+                 toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
+              );
+            }
+            console.log(`   ✅ ${sqliteMissingVocab.length} vocabulary dependencies synced`);
+          }
+        }
+
+        if (practiceUserIds.length > 0) {
+          const neonUsersExisting = await neonPool.query(
+            'SELECT id FROM users WHERE id = ANY($1::int[])',
+            [practiceUserIds]
+          );
+          const existingUserIds = new Set(neonUsersExisting.rows.map((row) => row.id));
+          const missingUserIds = practiceUserIds.filter((id) => !existingUserIds.has(id));
+
+          if (missingUserIds.length > 0) {
+            console.log(`   🔧 Found ${missingUserIds.length} missing user dependencies, syncing them first...`);
+            const sqliteMissingUsers = await sqliteDb.all(
+              `SELECT * FROM users WHERE id IN (${missingUserIds.join(',')}) ORDER BY id`
+            );
+
+            for (const row of sqliteMissingUsers) {
+              await neonPool.query(
+                `INSERT INTO users (id, username, email, created_at)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (id) DO UPDATE SET
+                username = $2, email = $3`,
+                [row.id, row.username, row.email, toTimestampMs(row.created_at)]
+              );
+            }
+            console.log(`   ✅ ${sqliteMissingUsers.length} user dependencies synced`);
+          }
+        }
+
+        const neonVocabCheck = await neonPool.query(
+          'SELECT id FROM vocabulary WHERE id = ANY($1::int[])',
+          [practiceVocabIds.length > 0 ? practiceVocabIds : [0]]
+        );
+        const neonUserCheck = await neonPool.query(
+          'SELECT id FROM users WHERE id = ANY($1::int[])',
+          [practiceUserIds.length > 0 ? practiceUserIds : [0]]
+        );
+
+        const validVocabIds = new Set(neonVocabCheck.rows.map((row) => row.id));
+        const validUserIds = new Set(neonUserCheck.rows.map((row) => row.id));
+        const validPracticeData = sqlitePracticeData.filter(
+          (row) => validVocabIds.has(row.vocabulary_id) && validUserIds.has(row.user_id)
+        );
+
+        const skippedInvalidRefs = sqlitePracticeData.length - validPracticeData.length;
+        if (skippedInvalidRefs > 0) {
+          console.log(`   ⚠️  Skipping ${skippedInvalidRefs} practice records with unresolved FK references`);
+        }
+
+        let syncedCount = 0;
+        let failedCount = 0;
+
+        for (const row of validPracticeData) {
           await neonPool.query(
             `INSERT INTO practice_records (id, user_id, vocabulary_id, is_correct, practice_date, practiced_at)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -287,8 +373,12 @@ async function partialSyncToNeon() {
             is_correct = $4, practice_date = $5, practiced_at = $6`,
             [row.id, row.user_id, row.vocabulary_id, row.is_correct, toTimestampMs(row.practice_date), toTimestampMs(row.practiced_at)]
           );
+          syncedCount++;
         }
-        console.log(`   ✅ ${practiceToSync.length} practice records synced\n`);
+
+        practiceSyncedCount = syncedCount;
+        practiceFailedCount = failedCount + skippedInvalidRefs;
+        console.log(`   ✅ ${syncedCount} practice records synced\n`);
       } else {
         console.log(`   ✅ No changes needed\n`);
       }
