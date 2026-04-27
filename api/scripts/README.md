@@ -37,6 +37,7 @@ Manages data backup, restoration, and format conversion.
 |--------|---------|
 | `backup-neon-to-json.js` | Backup Neon database to JSON file |
 | `restore-neon-from-json.js` | Restore Neon database from JSON backup |
+| `load-neon-to-local.js` | Load Neon data into local SQLite (`--replace-local` supported) |
 | `export-to-json.js` | Export SQLite data to JSON |
 | `export-today-vocab.js` | Export vocabulary for one date (default: today) |
 | `import-from-json.js` | Import JSON data into SQLite |
@@ -45,6 +46,7 @@ Manages data backup, restoration, and format conversion.
 ```bash
 npm run backup-neon            # Backup Neon to JSON
 npm run restore-neon           # Restore Neon from JSON
+npm run load-neon-to-local     # Load Neon data into local SQLite
 npm run export-json            # Export SQLite to JSON
 npm run export-today           # Export today's vocabulary only
 npm run import-json            # Import JSON to SQLite

@@ -10,6 +10,7 @@
     "export-json": "node scripts/data/export-to-json.js",
     "export-today": "node scripts/data/export-today-vocab.js",
     "import-json": "node scripts/data/import-from-json.js",
+    "load-neon-to-local": "node scripts/data/load-neon-to-local.js",
     "backup-neon": "node scripts/data/backup-neon-to-json.js",
     "migrate-timestamp": "node scripts/migrations/migrate-all-to-timestamp.js",
     "sync-all-partial": "node scripts/sync/sync-to-neon-partial.js",
