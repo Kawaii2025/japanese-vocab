@@ -426,7 +426,7 @@ export async function getVocabularyByDate(req, res) {
       `SELECT * FROM vocabulary
        WHERE DATE(created_at / 1000, 'unixepoch', '+8 hours') = ?
           OR DATE(created_at) = ?
-          OR created_at LIKE ?
+          OR CAST(created_at AS TEXT) LIKE ?
        ORDER BY created_at ASC`,
       date,
       date,
@@ -460,7 +460,7 @@ export async function getVocabularyByDateRange(req, res) {
       `SELECT * FROM vocabulary
        WHERE DATE(created_at / 1000, 'unixepoch', '+8 hours') BETWEEN ? AND ?
           OR DATE(created_at) BETWEEN ? AND ?
-          OR substr(created_at, 1, 10) BETWEEN ? AND ?
+         OR substr(CAST(created_at AS TEXT), 1, 10) BETWEEN ? AND ?
        ORDER BY created_at DESC, id DESC`,
       start,
       end,
