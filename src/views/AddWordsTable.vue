@@ -25,10 +25,10 @@
                 <i class="fa fa-plus"></i>添加新行
               </button>
               <button 
-                @click="addMultipleRows(5)"
+                @click="addMultipleRows(10)"
                 class="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                <i class="fa fa-bars"></i>添加5行
+                <i class="fa fa-bars"></i>添加10行
               </button>
               <button 
                 @click="clearEmpty"
@@ -234,7 +234,7 @@ const toast = useToast();
 const confirm = useConfirm();
 
 const DRAFT_KEY = 'add-words-table-draft-v1';
-const DEFAULT_ROW_COUNT = 10;
+const DEFAULT_ROW_COUNT = 30;
 
 const createEmptyRows = (count = DEFAULT_ROW_COUNT) =>
   Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '' }));
