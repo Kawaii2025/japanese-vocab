@@ -225,6 +225,16 @@ const saveAll = async () => {
     }
   } catch (error) {
     console.error('保存失败:', error);
+    if (error.status === 409 && error.data?.skippedWords?.length) {
+      const skippedList = error.data.skippedWords
+        .map(w => `${w.kana}(${w.chinese})`)
+        .join('、');
+      toast.warning(
+        `${error.message}\n\n重复单词：${skippedList}`
+      );
+      await loadRecentWords();
+      return;
+    }
     toast.error('保存失败: ' + error.message);
   } finally {
     loading.value = false;

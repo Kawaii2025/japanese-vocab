@@ -208,6 +208,16 @@ async function handleSaveToAPI() {
       parseInfo.value = '';
     }, 2000);
   } catch (error) {
+    if (error.status === 409 && error.data?.skippedWords?.length) {
+      const skippedList = error.data.skippedWords
+        .map(w => `${w.chinese}(${w.kana})`)
+        .join('、');
+      toast.warning(
+        `${error.message}\n失败单词: ${skippedList}`,
+        '检测到重复单词'
+      );
+      return;
+    }
     toast.error(error.message || '保存失败，请重试', '保存失败');
   } finally {
     loading.value = false;

@@ -39,6 +39,11 @@ let sqlite = null;
 let database = null;
 let useNeon = false;
 
+const SQLITE_KANA_INDEX = 'idx_vocabulary_kana';
+const SQLITE_ORIGINAL_KANA_UNIQUE_INDEX = 'idx_vocabulary_original_kana_unique';
+const NEON_OLD_KANA_CONSTRAINT = 'vocabulary_kana_key';
+const NEON_ORIGINAL_KANA_UNIQUE_INDEX = 'idx_vocabulary_original_kana_unique';
+
 // Initialize Neon Pool FIRST (before initializeDatabase)
 export const neonPool = process.env.DATABASE_URL ? new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -142,8 +147,14 @@ export async function initializeSQLite() {
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
       );
+    `);
 
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_vocabulary_kana ON vocabulary(kana);
+    // Migrate old kana-only uniqueness to original+kana uniqueness.
+    await sqlite.exec(`
+      DROP INDEX IF EXISTS ${SQLITE_KANA_INDEX};
+      CREATE INDEX IF NOT EXISTS ${SQLITE_KANA_INDEX} ON vocabulary(kana);
+      CREATE UNIQUE INDEX IF NOT EXISTS ${SQLITE_ORIGINAL_KANA_UNIQUE_INDEX}
+      ON vocabulary(COALESCE(original, ''), kana);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
     `);
@@ -218,10 +229,13 @@ export async function initializeNeon() {
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
         created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        UNIQUE(kana)
+        updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
       );
 
+      ALTER TABLE vocabulary DROP CONSTRAINT IF EXISTS ${NEON_OLD_KANA_CONSTRAINT};
+      CREATE INDEX IF NOT EXISTS idx_vocabulary_kana ON vocabulary(kana);
+      CREATE UNIQUE INDEX IF NOT EXISTS ${NEON_ORIGINAL_KANA_UNIQUE_INDEX}
+      ON vocabulary ((COALESCE(original, '')), kana);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
     `);

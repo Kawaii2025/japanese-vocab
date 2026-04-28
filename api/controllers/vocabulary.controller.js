@@ -11,6 +11,43 @@ let db = null;
 
 const BEIJING_DATE_FROM_MS = (field) => `date(${field} / 1000, 'unixepoch', '+8 hours')`;
 
+function normalizeOriginal(original) {
+  return original || '';
+}
+
+function isVocabularyUniqueViolation(err) {
+  if (!err) return false;
+  const message = err.message || '';
+  const detail = err.detail || '';
+  const constraint = err.constraint || '';
+
+  if (err.code === 'SQLITE_CONSTRAINT' && (
+    message.includes('idx_vocabulary_original_kana_unique') ||
+    message.includes('UNIQUE constraint failed: vocabulary.original, vocabulary.kana') ||
+    message.includes('UNIQUE constraint failed: index')
+  )) {
+    return true;
+  }
+
+  if (err.code === '23505' && (
+    constraint === 'idx_vocabulary_original_kana_unique' ||
+    detail.includes('COALESCE(original') ||
+    (detail.includes('(kana)') && detail.includes('already exists'))
+  )) {
+    return true;
+  }
+
+  return false;
+}
+
+async function findExistingVocabularyByOriginalAndKana(original, kana) {
+  return db.get(
+    'SELECT * FROM vocabulary WHERE COALESCE(original, \'\') = ? AND kana = ?',
+    normalizeOriginal(original),
+    kana
+  );
+}
+
 export function setDb(database) {
   db = database;
 }
@@ -198,6 +235,16 @@ export async function createVocabulary(req, res) {
     
     res.status(201).json({ success: true, data: insertedWithBeijingTime });
   } catch (err) {
+    if (isVocabularyUniqueViolation(err)) {
+      const { original, kana } = req.body;
+      const existing = await findExistingVocabularyByOriginalAndKana(original, kana);
+      return res.status(409).json({
+        success: false,
+        error: '该单词已存在',
+        reason: 'UNIQUE_CONSTRAINT_ORIGINAL_KANA',
+        existing: existing ? convertTimestampsToBeijing(existing) : null
+      });
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -223,17 +270,14 @@ export async function batchCreateVocabulary(req, res) {
       if (!chinese || !kana) continue;
       
       try {
-        // Check if already exists
-        const existing = await db.get(
-          'SELECT id FROM vocabulary WHERE kana = ?',
-          kana
-        );
+        const existing = await findExistingVocabularyByOriginalAndKana(original, kana);
         
         if (existing) {
           skippedWords.push({
             chinese,
+            original,
             kana,
-            reason: '已存在'
+            reason: 'UNIQUE_CONSTRAINT_ORIGINAL_KANA'
           });
           continue;
         }
@@ -252,19 +296,42 @@ export async function batchCreateVocabulary(req, res) {
         console.error(`插入单词失败: ${chinese} (${kana})`, err.message);
         skippedWords.push({
           chinese,
+          original,
           kana,
-          reason: err.message
+          reason: isVocabularyUniqueViolation(err) ? 'UNIQUE_CONSTRAINT_ORIGINAL_KANA' : err.message
         });
       }
     }
     
+    const hasFailures = skippedWords.length > 0;
+    const hasNonDuplicateFailures = skippedWords.some(
+      (word) => word.reason !== 'UNIQUE_CONSTRAINT_ORIGINAL_KANA'
+    );
+
+    if (hasFailures) {
+      const statusCode = hasNonDuplicateFailures ? 500 : 409;
+      const errorMessage = hasNonDuplicateFailures
+        ? '批量添加失败，存在插入异常'
+        : '批量添加失败，存在重复单词';
+
+      return res.status(statusCode).json({
+        success: false,
+        error: errorMessage,
+        data: convertArrayTimestampsToBeijing(insertedWords),
+        total: insertedWords.length,
+        skipped: skippedWords.length,
+        skippedWords: skippedWords,
+        message: `批量添加失败：已添加 ${insertedWords.length} 个，失败 ${skippedWords.length} 个`
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: convertArrayTimestampsToBeijing(insertedWords),
       total: insertedWords.length,
-      skipped: skippedWords.length,
-      skippedWords: skippedWords,
-      message: `成功添加 ${insertedWords.length} 个单词${skippedWords.length > 0 ? `，跳过 ${skippedWords.length} 个重复单词` : ''}`
+      skipped: 0,
+      skippedWords: [],
+      message: `成功添加 ${insertedWords.length} 个单词`
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -358,6 +425,13 @@ export async function updateVocabulary(req, res) {
     const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
     res.json({ success: true, data: convertTimestampsToBeijing(result) });
   } catch (err) {
+    if (isVocabularyUniqueViolation(err)) {
+      return res.status(409).json({
+        success: false,
+        error: '该单词已存在',
+        reason: 'UNIQUE_CONSTRAINT_ORIGINAL_KANA'
+      });
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 }
