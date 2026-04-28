@@ -22,6 +22,19 @@ export function wrapRawSQL(value) {
 function convertQueryPlaceholders(query, params) {
   // Convert SQLite functions to PostgreSQL equivalents
   let pgQuery = query;
+
+  // Convert SQLite unixepoch date conversion to PostgreSQL Beijing date.
+  // Example: date(created_at / 1000, 'unixepoch', '+8 hours')
+  pgQuery = pgQuery.replace(
+    /date\(\s*([^,]+?)\s*,\s*'unixepoch'\s*,\s*'\+8 hours'\s*\)/gi,
+    "(timezone('Asia/Shanghai', to_timestamp($1)))::date"
+  );
+
+  // Convert DATE(bigint_ms_column) fallbacks used in SQLite to PostgreSQL date extraction.
+  pgQuery = pgQuery.replace(
+    /date\(\s*(created_at|updated_at|practice_date|next_review_date|practiced_at)\s*\)/gi,
+    "(timezone('Asia/Shanghai', to_timestamp($1 / 1000.0)))::date"
+  );
   
   // Convert date('now') to CURRENT_DATE
   pgQuery = pgQuery.replace(/date\('now'\)/gi, 'CURRENT_DATE');
