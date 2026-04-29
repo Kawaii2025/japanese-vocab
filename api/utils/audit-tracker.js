@@ -217,7 +217,9 @@ export class AuditTracker {
     console.log(`Duration: ${report.durationSeconds}s`);
     console.log(`Total Processed: ${report.summary.totalRecordsProcessed}`);
     console.log(`✅ Succeeded: ${report.summary.totalSucceeded}`);
-    console.log(`❌ Failed: ${report.summary.totalFailed}`);
+    if (report.summary.totalFailed > 0) {
+      console.log(`❌ Failed: ${report.summary.totalFailed}`);
+    }
     console.log(`Success Rate: ${report.summary.successRate}`);
     
     if (Object.keys(report.verificationResults).length > 0) {
