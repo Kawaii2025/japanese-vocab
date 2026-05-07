@@ -37,10 +37,30 @@ export const WORD_CLASSES = [
   }
 ];
 
-export function getWordClassLabel(key, lang = 'zh') {
-  const wordClass = WORD_CLASSES.find(wc => wc.key === key);
-  if (!wordClass) return '-';
-  return lang === 'ja' ? wordClass.labelJa : wordClass.labelZh;
+export function normalizeWordClasses(wordClasses) {
+  if (!wordClasses) return [];
+  if (Array.isArray(wordClasses)) {
+    return wordClasses.filter(c => WORD_CLASSES.some(wc => wc.key === c));
+  }
+  if (typeof wordClasses === 'string') {
+    const trimmed = wordClasses.trim();
+    if (trimmed) {
+      // Check if it's a valid class
+      if (WORD_CLASSES.some(wc => wc.key === trimmed)) {
+        return [trimmed];
+      }
+    }
+  }
+  return [];
+}
+
+export function getWordClassLabel(wordClasses, lang = 'zh') {
+  const classes = normalizeWordClasses(wordClasses);
+  if (classes.length === 0) return '-';
+  return classes.map(key => {
+    const wc = WORD_CLASSES.find(w => w.key === key);
+    return wc ? (lang === 'ja' ? wc.labelJa : wc.labelZh) : '';
+  }).filter(Boolean).join(' / ');
 }
 
 export function getWordClassColor(key) {

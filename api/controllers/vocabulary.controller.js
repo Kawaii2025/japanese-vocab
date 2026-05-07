@@ -15,6 +15,28 @@ function normalizeOriginal(original) {
   return original || '';
 }
 
+function serializeWordClass(wordClass) {
+  if (!wordClass) return null;
+  if (Array.isArray(wordClass)) {
+    if (wordClass.length === 0) return null;
+    return JSON.stringify(wordClass);
+  }
+  return wordClass; // If it's already a string, leave as is for backward compatibility
+}
+
+function deserializeWordClass(wordClass) {
+  if (!wordClass) return [];
+  try {
+    const parsed = JSON.parse(wordClass);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return [wordClass]; // If it's a string (backward compatible), wrap in array
+  } catch (e) {
+    return [wordClass]; // If it's a plain string, wrap in array
+  }
+}
+
 function isVocabularyUniqueViolation(err) {
   if (!err) return false;
   const message = err.message || '';
@@ -97,8 +119,11 @@ export async function getAllVocabulary(req, res) {
     const dataParams = [...params, pagination.pageSize, offset];
     const dataResult = await db.all(dataQuery, ...dataParams);
     
-    // Convert timestamps to Beijing time
-    const dataWithBeijingTime = convertArrayTimestampsToBeijing(dataResult);
+    // Convert timestamps to Beijing time and deserialize word_class
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(dataResult).map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
     
     const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
     
@@ -122,8 +147,11 @@ export async function getVocabularyById(req, res) {
       return res.status(404).json({ success: false, error: '单词不存在' });
     }
     
-    // Convert timestamps to Beijing time
-    const resultWithBeijingTime = convertTimestampsToBeijing(result);
+    // Convert timestamps to Beijing time and deserialize word_class
+    const resultWithBeijingTime = {
+      ...convertTimestampsToBeijing(result),
+      word_class: deserializeWordClass(result.word_class)
+    };
     
     res.json({ success: true, data: resultWithBeijingTime });
   } catch (err) {
@@ -155,8 +183,11 @@ export async function getRandomVocabulary(req, res) {
     
     const result = await db.all(query, ...params);
     
-    // Convert timestamps to Beijing time
-    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result);
+    // Convert timestamps to Beijing time and deserialize word_class
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result).map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
     
     res.json({
       success: true,
@@ -194,8 +225,11 @@ export async function searchVocabulary(req, res) {
     
     const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
     
-    // Convert timestamps to Beijing time
-    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result);
+    // Convert timestamps to Beijing time and deserialize word_class
+    const dataWithBeijingTime = convertArrayTimestampsToBeijing(result).map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
     
     res.json({
       success: true,
@@ -224,14 +258,17 @@ export async function createVocabulary(req, res) {
     const result = await db.run(
       `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, word_class, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      chinese, original || null, kana, category || null, difficulty || 1, word_class || null, currentTs, currentTs
+      chinese, original || null, kana, category || null, difficulty || 1, serializeWordClass(word_class), currentTs, currentTs
     );
     
     const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
     trackChange('vocabulary', result.lastID, 'INSERT');
     
-    // Convert timestamps to Beijing time
-    const insertedWithBeijingTime = convertTimestampsToBeijing(inserted);
+    // Convert timestamps to Beijing time and deserialize word_class
+    const insertedWithBeijingTime = {
+      ...convertTimestampsToBeijing(inserted),
+      word_class: deserializeWordClass(inserted.word_class)
+    };
     
     res.status(201).json({ success: true, data: insertedWithBeijingTime });
   } catch (err) {
@@ -286,7 +323,7 @@ export async function batchCreateVocabulary(req, res) {
         const result = await db.run(
           `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, word_class, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          chinese, original || null, kana, category || null, difficulty || 1, word_class || null, currentTs, currentTs
+          chinese, original || null, kana, category || null, difficulty || 1, serializeWordClass(word_class), currentTs, currentTs
         );
         
         const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -317,7 +354,10 @@ export async function batchCreateVocabulary(req, res) {
       return res.status(statusCode).json({
         success: false,
         error: errorMessage,
-        data: convertArrayTimestampsToBeijing(insertedWords),
+        data: convertArrayTimestampsToBeijing(insertedWords).map(item => ({
+          ...item,
+          word_class: deserializeWordClass(item.word_class)
+        })),
         total: insertedWords.length,
         skipped: skippedWords.length,
         skippedWords: skippedWords,
@@ -327,7 +367,10 @@ export async function batchCreateVocabulary(req, res) {
 
     res.status(201).json({
       success: true,
-      data: convertArrayTimestampsToBeijing(insertedWords),
+      data: convertArrayTimestampsToBeijing(insertedWords).map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: insertedWords.length,
       skipped: 0,
       skippedWords: [],
@@ -397,6 +440,11 @@ export async function updateVocabulary(req, res) {
       if (req.body.hasOwnProperty(field)) {
         let value = req.body[field];
         
+        // Serialize word_class if needed
+        if (field === 'word_class') {
+          value = serializeWordClass(value);
+        }
+        
         // Apply field-specific constraints if defined
         if (fieldConstraints[field]) {
           value = fieldConstraints[field](value);
@@ -423,7 +471,13 @@ export async function updateVocabulary(req, res) {
     trackChange('vocabulary', parseInt(id), 'UPDATE');
     
     const result = await db.get('SELECT * FROM vocabulary WHERE id = ?', id);
-    res.json({ success: true, data: convertTimestampsToBeijing(result) });
+    res.json({ 
+      success: true, 
+      data: {
+        ...convertTimestampsToBeijing(result),
+        word_class: deserializeWordClass(result.word_class)
+      }
+    });
   } catch (err) {
     if (isVocabularyUniqueViolation(err)) {
       return res.status(409).json({
@@ -484,7 +538,10 @@ export async function getTodayVocabulary(req, res) {
     
     res.json({
       success: true,
-      data: result,
+      data: result.map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: result.length
     });
   } catch (err) {
@@ -509,7 +566,10 @@ export async function getVocabularyByDate(req, res) {
     
     res.json({
       success: true,
-      data: result,
+      data: result.map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: result.length,
       date: date
     });
@@ -546,7 +606,10 @@ export async function getVocabularyByDateRange(req, res) {
     
     res.json({
       success: true,
-      data: result,
+      data: result.map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: result.length,
       dateRange: { start, end }
     });
@@ -566,7 +629,10 @@ export async function getTodayReview(req, res) {
     
     res.json({
       success: true,
-      data: result,
+      data: result.map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: result.length
     });
   } catch (err) {
@@ -597,11 +663,17 @@ export async function getReviewPlan(req, res) {
     const reviewPlan = [];
     for (const row of result) {
       const words = await db.all(
-        `SELECT id, chinese, kana, mastery_level FROM vocabulary 
+        `SELECT id, chinese, kana, mastery_level, word_class FROM vocabulary 
          WHERE ${BEIJING_DATE_FROM_MS('next_review_date')} = ?`,
         row.date
       );
-      reviewPlan.push({ ...row, words });
+      reviewPlan.push({ 
+        ...row, 
+        words: words.map(item => ({
+          ...item,
+          word_class: deserializeWordClass(item.word_class)
+        }))
+      });
     }
     
     res.json({
@@ -669,7 +741,10 @@ export async function getUnfamiliarWords(req, res) {
     
     res.json({
       success: true,
-      data: result,
+      data: result.map(item => ({
+        ...item,
+        word_class: deserializeWordClass(item.word_class)
+      })),
       total: result.length
     });
   } catch (err) {

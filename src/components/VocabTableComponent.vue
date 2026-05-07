@@ -136,10 +136,15 @@
               </div>
             </td>
             <td class="px-3 py-4 table-cell">
-              <div 
-                :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(item.word_class)]"
-              >
-                {{ getWordClassLabel(item.word_class) }}
+              <div class="flex flex-wrap gap-1">
+                <span 
+                  v-for="cls in normalizeWordClasses(item.word_class)" 
+                  :key="cls"
+                  :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(cls)]"
+                >
+                  {{ getWordClassLabel(cls) }}
+                </span>
+                <span v-if="normalizeWordClasses(item.word_class).length === 0" class="text-gray-400 text-sm">-</span>
               </div>
             </td>
             <td class="px-3 py-4 whitespace-nowrap table-cell">
@@ -209,7 +214,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { getWordClassLabel, getWordClassColor } from '../constants/wordClasses';
+import { getWordClassLabel, getWordClassColor, normalizeWordClasses } from '../constants/wordClasses';
 import { createMaskText, getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
 
 const props = defineProps({

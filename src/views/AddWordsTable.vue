@@ -147,19 +147,27 @@
                   </td>
                   <!-- 词类选择 -->
                   <td class="px-4 py-3">
-                    <select 
-                      v-model="word.word_class"
-                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm bg-white"
-                    >
-                      <option value="">请选择</option>
-                      <option 
+                    <div class="flex flex-wrap gap-1">
+                      <label 
                         v-for="wc in WORD_CLASSES" 
-                        :key="wc.key" 
-                        :value="wc.key"
+                        :key="wc.key"
+                        class="flex items-center gap-1 cursor-pointer select-none"
                       >
-                        {{ wc.labelZh }}
-                      </option>
-                    </select>
+                        <input 
+                          type="checkbox"
+                          :checked="word.word_class.includes(wc.key)"
+                          @change="(e) => {
+                            if (e.target.checked) {
+                              word.word_class.push(wc.key);
+                            } else {
+                              word.word_class = word.word_class.filter(c => c !== wc.key);
+                            }
+                          }"
+                          class="rounded"
+                        />
+                        <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
+                      </label>
+                    </div>
                   </td>
                   <!-- 删除按钮 -->
                   <td class="px-4 py-3 text-center">
@@ -241,7 +249,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { WORD_CLASSES } from '../constants/wordClasses';
+import { WORD_CLASSES, normalizeWordClasses } from '../constants/wordClasses';
 import * as api from '../services/api.js';
 import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
@@ -255,7 +263,7 @@ const DRAFT_KEY = 'add-words-table-draft-v1';
 const DEFAULT_ROW_COUNT = 30;
 
 const createEmptyRows = (count = DEFAULT_ROW_COUNT) =>
-  Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '', word_class: '' }));
+  Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '', word_class: [] }));
 
 const words = ref(createEmptyRows());
 const recentWords = ref([]);
@@ -319,7 +327,7 @@ const restoreDraftFromLocal = () => {
         chinese: (item?.chinese || '').toString(),
         original: (item?.original || '').toString(),
         kana: (item?.kana || '').toString(),
-        word_class: (item?.word_class || '').toString()
+        word_class: normalizeWordClasses(item?.word_class)
       }))
       .filter(item => item.chinese || item.original || item.kana);
 
@@ -345,22 +353,22 @@ const isRowCompletelyEmpty = (word) => {
   return (!word?.chinese || word.chinese.trim() === '') &&
     (!word?.original || word.original.trim() === '') &&
     (!word?.kana || word.kana.trim() === '') &&
-    (!word?.word_class || word.word_class.trim() === '');
+    normalizeWordClasses(word?.word_class).length === 0;
 };
 
 // 加载示例数据
 const loadSampleData = () => {
   words.value = [
-    { chinese: '日本', original: '日本', kana: 'にほん', word_class: 'noun' },
-    { chinese: '中国', original: '中国', kana: 'ちゅうごく', word_class: 'noun' },
-    { chinese: '学生', original: '学生', kana: 'がくせい', word_class: 'noun' },
-    { chinese: '先生', original: '先生', kana: 'せんせい', word_class: 'noun' },
-    { chinese: '水', original: '水', kana: 'みず', word_class: 'noun' },
-    { chinese: '火', original: '火', kana: 'ひ', word_class: 'noun' },
-    { chinese: '木', original: '木', kana: 'き', word_class: 'noun' },
-    { chinese: '金', original: '金', kana: 'きん', word_class: 'noun' },
-    { chinese: '土', original: '土', kana: 'つち', word_class: 'noun' },
-    { chinese: '日', original: '日', kana: 'ひ', word_class: 'noun' }
+    { chinese: '日本', original: '日本', kana: 'にほん', word_class: ['noun'] },
+    { chinese: '中国', original: '中国', kana: 'ちゅうごく', word_class: ['noun'] },
+    { chinese: '学生', original: '学生', kana: 'がくせい', word_class: ['noun'] },
+    { chinese: '先生', original: '先生', kana: 'せんせい', word_class: ['noun'] },
+    { chinese: '水', original: '水', kana: 'みず', word_class: ['noun'] },
+    { chinese: '火', original: '火', kana: 'ひ', word_class: ['noun'] },
+    { chinese: '木', original: '木', kana: 'き', word_class: ['noun'] },
+    { chinese: '金', original: '金', kana: 'きん', word_class: ['noun'] },
+    { chinese: '土', original: '土', kana: 'つち', word_class: ['noun'] },
+    { chinese: '日', original: '日', kana: 'ひ', word_class: ['noun'] }
   ];
 };
 
@@ -370,7 +378,7 @@ const addRow = () => {
     chinese: '',
     original: '',
     kana: '',
-    word_class: ''
+    word_class: []
   });
 };
 
@@ -381,7 +389,7 @@ const addMultipleRows = (count) => {
       chinese: '',
       original: '',
       kana: '',
-      word_class: ''
+      word_class: []
     });
   }
 };
