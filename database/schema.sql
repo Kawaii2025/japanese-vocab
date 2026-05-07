@@ -10,22 +10,30 @@ CREATE TABLE vocabulary (
     category VARCHAR(100),                   -- 分类（如：基础、进阶等）
     difficulty INTEGER DEFAULT 1,            -- 难度等级 1-5
     word_class VARCHAR(50),                  -- 词性（如：名词、动词、形容词等）
-    next_review_date DATE,                   -- 下次复习日期（基于艾宾浩斯遗忘曲线）
+    next_review_date TEXT,                   -- 下次复习日期（基于艾宾浩斯遗忘曲线）
     review_count INTEGER DEFAULT 0,          -- 复习次数
     mastery_level INTEGER DEFAULT 0,         -- 掌握程度 0-5（影响复习间隔）
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,  -- 创建时间（毫秒时间戳）
+    updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT   -- 更新时间（毫秒时间戳）
 );
 
--- 2. 用户表 (users) - 如果需要多用户支持
+-- 2. 创建可读视图，便于查看时间戳对应的日期时间
+CREATE OR REPLACE VIEW vocabulary_readable AS 
+SELECT 
+  *, 
+  to_timestamp(created_at::bigint / 1000) AS created_at_readable, 
+  to_timestamp(updated_at::bigint / 1000) AS updated_at_readable 
+FROM vocabulary;
+
+-- 3. 用户表 (users) - 如果需要多用户支持
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
 );
 
--- 3. 练习记录表 (practice_records)
+-- 4. 练习记录表 (practice_records)
 CREATE TABLE practice_records (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -33,32 +41,32 @@ CREATE TABLE practice_records (
     user_answer VARCHAR(255),                -- 用户的答案
     is_correct BOOLEAN NOT NULL,             -- 是否正确
     attempt_count INTEGER DEFAULT 1,         -- 尝试次数
-    practice_date DATE DEFAULT CURRENT_DATE, -- 练习日期（用于按日期统计）
-    practiced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    practice_date TEXT DEFAULT CURRENT_DATE, -- 练习日期（用于按日期统计）
+    practiced_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
 );
 
--- 4. 不熟悉单词记录表 (unfamiliar_words)
+-- 5. 不熟悉单词记录表 (unfamiliar_words)
 CREATE TABLE unfamiliar_words (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     vocabulary_id INTEGER REFERENCES vocabulary(id) ON DELETE CASCADE,
     unfamiliar_type VARCHAR(50) NOT NULL,    -- 'original' 或 'kana'
-    marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    marked_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
     UNIQUE(user_id, vocabulary_id, unfamiliar_type)
 );
 
--- 5. 单词集合表 (vocabulary_sets) - 用于组织单词
+-- 6. 单词集合表 (vocabulary_sets) - 用于组织单词
 CREATE TABLE vocabulary_sets (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     is_public BOOLEAN DEFAULT true,
     created_by INTEGER REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+    updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
 );
 
--- 6. 单词集合关联表 (vocabulary_set_items)
+-- 7. 单词集合关联表 (vocabulary_set_items)
 CREATE TABLE vocabulary_set_items (
     id SERIAL PRIMARY KEY,
     set_id INTEGER REFERENCES vocabulary_sets(id) ON DELETE CASCADE,
