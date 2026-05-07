@@ -274,10 +274,11 @@ export async function getMistakes(userId = 1, limit = 50) {
 /**
  * 生成日语例句 (非流式)
  */
-export async function generateAiExamples({ word, kana, chinese, wordClass }) {
+export async function generateAiExamples({ word, kana, chinese, wordClass, forceRefresh = false }) {
+  const disableCache = import.meta.env.VITE_DISABLE_AI_CACHE === 'true';
   return request('/ai/generate-examples', {
     method: 'POST',
-    body: JSON.stringify({ word, kana, chinese, wordClass }),
+    body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh, disableCache }),
   });
 }
 
@@ -292,12 +293,13 @@ export async function generateAiExamples({ word, kana, chinese, wordClass }) {
  */
 export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText, forceRefresh = false) {
   try {
+    const disableCache = import.meta.env.VITE_DISABLE_AI_CACHE === 'true';
     const response = await fetch(`${API_BASE_URL}/ai/generate-examples/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh }),
+      body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh, disableCache }),
     });
 
     if (!response.ok) {

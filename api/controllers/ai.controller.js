@@ -224,7 +224,7 @@ function parseExamples(assistantMessage) {
 // 非流式响应
 export async function generateExamples(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [], forceRefresh = false } = req.body;
+    const { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
 
     if (!word && !kana) {
       return res.status(400).json({
@@ -240,8 +240,8 @@ export async function generateExamples(req, res) {
       });
     }
 
-    // 检查缓存（除非强制刷新）
-    if (!forceRefresh) {
+    // 检查缓存（除非强制刷新或禁用缓存）
+    if (!forceRefresh && !disableCache) {
       const cached = await getCachedExamples(word, kana, chinese, wordClass);
       if (cached) {
         console.log('使用缓存的 AI 例句');
@@ -301,8 +301,10 @@ export async function generateExamples(req, res) {
     const assistantMessage = completion.choices?.[0]?.message?.content;
     const examples = parseExamples(assistantMessage);
     
-    // 保存到缓存
-    await saveCachedExamples(word, kana, chinese, wordClass, examples);
+    // 保存到缓存（除非禁用缓存）
+    if (!disableCache) {
+      await saveCachedExamples(word, kana, chinese, wordClass, examples);
+    }
 
     res.json({
       success: true,
@@ -323,7 +325,7 @@ export async function generateExamples(req, res) {
 // 流式响应 (Server-Sent Events) - 发送原始文本流
 export async function generateExamplesStream(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [], forceRefresh = false } = req.body;
+    const { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
 
     if (!word && !kana) {
       return res.status(400).json({
@@ -346,8 +348,8 @@ export async function generateExamplesStream(req, res) {
       'Connection': 'keep-alive',
     });
 
-    // 检查缓存（除非强制刷新）
-    if (!forceRefresh) {
+    // 检查缓存（除非强制刷新或禁用缓存）
+    if (!forceRefresh && !disableCache) {
       const cached = await getCachedExamples(word, kana, chinese, wordClass);
       if (cached) {
         console.log('使用缓存的 AI 例句');
@@ -371,8 +373,8 @@ export async function generateExamplesStream(req, res) {
       }
     }
 
-    // 如果强制刷新，先清除旧缓存
-    if (forceRefresh) {
+    // 如果强制刷新且未禁用缓存，先清除旧缓存
+    if (forceRefresh && !disableCache) {
       await clearCachedExamples(word, kana, chinese, wordClass);
     }
 
@@ -432,8 +434,10 @@ export async function generateExamplesStream(req, res) {
 
     // 发送最终结果
     const finalExamples = parseExamples(fullContent);
-    // 保存到缓存
-    await saveCachedExamples(word, kana, chinese, wordClass, finalExamples);
+    // 保存到缓存（除非禁用缓存）
+    if (!disableCache) {
+      await saveCachedExamples(word, kana, chinese, wordClass, finalExamples);
+    }
     res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false })}\n\n`);
     res.end();
 
