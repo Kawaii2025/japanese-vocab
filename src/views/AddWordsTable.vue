@@ -81,12 +81,12 @@
               <table class="w-full">
               <thead>
                 <tr class="bg-gray-100 border-b-2 border-gray-300">
-                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
-                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">かな</th>
-                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">日文</th>
-                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
-                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">词性</th>
-                  <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-16">操作</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-14">#</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">かな</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">日文</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">中文</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">词性</th>
+                  <th class="px-3 py-3 text-center text-sm font-semibold text-gray-700 w-14">操作</th>
                 </tr>
               </thead>
               <tbody>
