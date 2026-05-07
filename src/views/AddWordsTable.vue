@@ -107,7 +107,7 @@
                         autocorrect="off"
                         autocapitalize="off"
                         spellcheck="false"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-xs"
                       />
                       <button 
                         @click="handleVoiceClick(word.kana, $event)"
@@ -129,7 +129,7 @@
                       autocorrect="off"
                       autocapitalize="off"
                       spellcheck="false"
-                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-xs"
                     />
                   </td>
                   <!-- 中文输入 -->
@@ -142,7 +142,7 @@
                       autocorrect="off"
                       autocapitalize="off"
                       spellcheck="false"
-                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-xs"
                     />
                   </td>
                   <!-- 词类选择 -->
@@ -151,7 +151,7 @@
                       <button 
                         type="button"
                         @click="toggleDropdown(index)"
-                        class="w-full px-3 py-2 text-left border border-gray-300 rounded bg-white flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                        class="w-full px-3 py-2 text-left border border-gray-300 rounded bg-white flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs"
                       >
                         <div class="flex flex-wrap gap-1">
                           <span 
