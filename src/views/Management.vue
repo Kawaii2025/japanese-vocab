@@ -127,27 +127,20 @@
                   </span>
                   <span v-if="normalizeWordClasses(word.word_class).length === 0" class="text-gray-400 text-sm">-</span>
                 </div>
-                <div v-else class="flex flex-wrap gap-2">
-                  <label 
+                <select 
+                  v-else
+                  v-model="editForm.word_class"
+                  multiple
+                  class="w-full px-2 py-1 border border-gray-300 rounded"
+                >
+                  <option 
                     v-for="wc in WORD_CLASSES" 
-                    :key="wc.key"
-                    class="flex items-center gap-1 cursor-pointer"
+                    :key="wc.key" 
+                    :value="wc.key"
                   >
-                    <input 
-                      type="checkbox"
-                      :checked="editForm.word_class.includes(wc.key)"
-                      @change="(e) => {
-                        if (e.target.checked) {
-                          editForm.word_class.push(wc.key);
-                        } else {
-                          editForm.word_class = editForm.word_class.filter(c => c !== wc.key);
-                        }
-                      }"
-                      class="rounded"
-                    />
-                    <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
-                  </label>
-                </div>
+                    {{ wc.labelZh }}
+                  </option>
+                </select>
               </td>
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ formatDate(word.created_at) }}

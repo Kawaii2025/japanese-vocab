@@ -147,27 +147,19 @@
                   </td>
                   <!-- 词类选择 -->
                   <td class="px-4 py-3">
-                    <div class="flex flex-wrap gap-1">
-                      <label 
+                    <select 
+                      v-model="word.word_class"
+                      multiple
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                    >
+                      <option 
                         v-for="wc in WORD_CLASSES" 
-                        :key="wc.key"
-                        class="flex items-center gap-1 cursor-pointer select-none"
+                        :key="wc.key" 
+                        :value="wc.key"
                       >
-                        <input 
-                          type="checkbox"
-                          :checked="word.word_class.includes(wc.key)"
-                          @change="(e) => {
-                            if (e.target.checked) {
-                              word.word_class.push(wc.key);
-                            } else {
-                              word.word_class = word.word_class.filter(c => c !== wc.key);
-                            }
-                          }"
-                          class="rounded"
-                        />
-                        <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
-                      </label>
-                    </div>
+                        {{ wc.labelZh }}
+                      </option>
+                    </select>
                   </td>
                   <!-- 删除按钮 -->
                   <td class="px-4 py-3 text-center">
