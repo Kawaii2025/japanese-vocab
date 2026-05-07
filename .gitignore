@@ -6,6 +6,8 @@ node_modules/
 .env.local
 .env.*.local
 .env.neon
+.env.development
+.env.production
 
 # Build outputs
 dist/

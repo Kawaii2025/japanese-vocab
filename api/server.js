@@ -11,6 +11,7 @@ import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';
 import statsRoutes from './routes/stats.routes.js';
 import syncRoutes, { setSyncDb } from './routes/sync.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -63,6 +64,7 @@ async function startServer() {
   app.use('/api/practice', practiceRoutes);
   app.use('/api/stats', statsRoutes);
   app.use('/api/sync', syncRoutes);
+  app.use('/api/ai', aiRoutes);
 
   app.get('/health', (req, res) => {
     const dbInfo = getDatabaseInfo();

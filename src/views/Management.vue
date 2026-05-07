@@ -468,32 +468,16 @@ const showAiExample = async (word) => {
   aiError.value = null;
 
   try {
-    // TODO: 这里调用真实的 AI API 生成例句
-    // 暂时使用模拟数据
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const response = await api.generateAiExamples({
+      word: word.original,
+      kana: word.kana,
+      chinese: word.chinese,
+      wordClass: normalizeWordClasses(word.word_class),
+    });
     
-    // 模拟生成的例句
-    const mockExamples = [
-      {
-        japanese: word.original || word.kana,
-        kana: word.kana,
-        chinese: word.chinese
-      },
-      {
-        japanese: `${word.original || word.kana}を使って文を作りましょう。`,
-        kana: `${word.kana}をつかってぶんをつくりましょう。`,
-        chinese: `让我们用"${word.chinese}"造个句子吧。`
-      },
-      {
-        japanese: `私は毎日${word.original || word.kana}を使います。`,
-        kana: `わたしはまいにち${word.kana}をつかいます。`,
-        chinese: `我每天都使用"${word.chinese}"。`
-      }
-    ];
-    
-    aiExamples.value = mockExamples;
+    aiExamples.value = response.data;
   } catch (error) {
-    aiError.value = '生成例句失败，请稍后重试';
+    aiError.value = error.message || '生成例句失败，请稍后重试';
     console.error('AI 例句生成失败:', error);
   } finally {
     aiLoading.value = false;

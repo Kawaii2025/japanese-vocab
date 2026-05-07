@@ -268,3 +268,15 @@ export async function removeUnfamiliarMark(vocabularyId, userId = 1) {
 export async function getMistakes(userId = 1, limit = 50) {
   return request(`/practice/mistakes?user_id=${userId}&limit=${limit}`);
 }
+
+// ==================== AI 相关 API ====================
+
+/**
+ * 生成日语例句
+ */
+export async function generateAiExamples({ word, kana, chinese, wordClass }) {
+  return request('/ai/generate-examples', {
+    method: 'POST',
+    body: JSON.stringify({ word, kana, chinese, wordClass }),
+  });
+}
