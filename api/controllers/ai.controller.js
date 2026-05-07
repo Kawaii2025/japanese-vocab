@@ -14,71 +14,66 @@ const openai = new OpenAI({
   baseURL: QWEN_API_URL,
 });
 
-// 尝试解析 JSON，容忍不完整内容
-function parsePartialJSON(text) {
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    let temp = text;
-    // 尝试补全缺失的闭合括号
-    for (let i = temp.length - 1; i >= 0; i--) {
-      const char = temp[i];
-      if (char === '}' || char === ']') {
-        temp = temp.substring(0, i + 1);
+// 从字符串中提取所有完整的 JSON 对象
+function extractCompleteExamples(text) {
+  const examples = [];
+  let braceCount = 0;
+  let startIndex = -1;
+  
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') {
+      if (braceCount === 0) {
+        startIndex = i;
+      }
+      braceCount++;
+    } else if (text[i] === '}') {
+      braceCount--;
+      if (braceCount === 0 && startIndex !== -1) {
+        // 找到完整对象，尝试解析
+        const jsonStr = text.substring(startIndex, i + 1);
         try {
-          return JSON.parse(temp);
-        } catch (err) {
-          continue;
+          const ex = JSON.parse(jsonStr);
+          // 验证必须的字段
+          if (ex.japanese && ex.kana && ex.chinese) {
+            examples.push({
+              japanese: ex.japanese,
+              kana: ex.kana,
+              chinese: ex.chinese
+            });
+          }
+        } catch (e) {
+          // 忽略无法解析的
         }
+        startIndex = -1;
       }
     }
-    return null;
   }
+  
+  return examples;
 }
 
-// 解析 AI 返回的内容，即使不完整
-function parseExamples(assistantMessage, allowPartial = false) {
+// 解析 AI 返回的内容（完整版）
+function parseExamples(assistantMessage) {
   if (!assistantMessage) {
-    if (allowPartial) return [];
     throw new Error('Qwen API 未返回有效内容');
   }
 
   let examples;
   try {
-    // 尝试直接解析完整内容
     examples = JSON.parse(assistantMessage);
   } catch {
-    // 尝试用正则提取数组
-    const jsonMatch = assistantMessage.match(/\[[\s\S]*?\]/);
+    const jsonMatch = assistantMessage.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      try {
-        examples = JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        if (allowPartial) {
-          // 尝试修复不完整数组
-          const partialExamples = parsePartialJSON(jsonMatch[0] + ']');
-          if (Array.isArray(partialExamples)) {
-            examples = partialExamples;
-          } else {
-            return [];
-          }
-        } else {
-          throw new Error('无法解析 Qwen API 返回的内容');
-        }
-      }
-    } else if (allowPartial) {
-      return [];
+      examples = JSON.parse(jsonMatch[0]);
     } else {
       throw new Error('无法解析 Qwen API 返回的内容');
     }
   }
 
   if (!Array.isArray(examples)) {
-    if (allowPartial) return [];
     throw new Error('Qwen API 返回格式不正确');
   }
 
-  // 过滤出完整的例子
   return examples
     .map(ex => ({
       japanese: ex.japanese || ex.jp || '',
@@ -243,8 +238,8 @@ export async function generateExamplesStream(req, res) {
       const delta = chunk.choices[0]?.delta?.content || '';
       fullContent += delta;
 
-      // 尝试解析，允许部分
-      const examples = parseExamples(fullContent, true);
+      // 提取完整的对象
+      const examples = extractCompleteExamples(fullContent);
       if (examples.length > lastSentExamplesCount) {
         lastSentExamplesCount = examples.length;
         res.write(`data: ${JSON.stringify({ type: 'examples', data: examples })}\n\n`);
