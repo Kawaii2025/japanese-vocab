@@ -96,6 +96,7 @@
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中文意思</th>
             <th v-if="hasOriginalText || !originalHidden" scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日语原文</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">纯假名</th>
+            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">词性</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">朗读</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">练习（输入假名或原文）</th>
             <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
@@ -133,6 +134,9 @@
               >
                 {{ rowVisibility.kana[index] ? item.kana : createMaskText(item.kana) }}
               </div>
+            </td>
+            <td class="px-3 py-4 table-cell">
+              <div class="text-sm text-gray-600">{{ getWordClassLabel(item.word_class) }}</div>
             </td>
             <td class="px-3 py-4 whitespace-nowrap table-cell">
               <button 
@@ -201,6 +205,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
+import { getWordClassLabel } from '../constants/wordClasses';
 import { createMaskText, getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
 
 const props = defineProps({

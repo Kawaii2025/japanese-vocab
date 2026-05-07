@@ -141,6 +141,7 @@ export async function initializeSQLite() {
         kana TEXT NOT NULL,
         category TEXT,
         difficulty INTEGER DEFAULT 1,
+        word_class TEXT,
         next_review_date TEXT,
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
@@ -148,6 +149,12 @@ export async function initializeSQLite() {
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
       );
     `);
+    // Add word_class column if it doesn't exist
+    try {
+      await sqlite.exec('ALTER TABLE vocabulary ADD COLUMN word_class TEXT');
+    } catch (err) {
+      // Ignore error if column already exists
+    }
 
     // Migrate old kana-only uniqueness to original+kana uniqueness.
     await sqlite.exec(`
@@ -225,6 +232,7 @@ export async function initializeNeon() {
         kana TEXT NOT NULL,
         category TEXT,
         difficulty INTEGER DEFAULT 1,
+        word_class TEXT,
         next_review_date TEXT,
         review_count INTEGER DEFAULT 0,
         mastery_level INTEGER DEFAULT 0,
@@ -239,6 +247,12 @@ export async function initializeNeon() {
       CREATE INDEX IF NOT EXISTS idx_vocabulary_category ON vocabulary(category);
       CREATE INDEX IF NOT EXISTS idx_vocabulary_review_date ON vocabulary(next_review_date);
     `);
+    // Add word_class column if it doesn't exist
+    try {
+      await neonPool.query('ALTER TABLE vocabulary ADD COLUMN word_class TEXT');
+    } catch (err) {
+      // Ignore error if column already exists
+    }
 
     // Create users table
     await neonPool.query(`

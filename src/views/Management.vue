@@ -67,13 +67,14 @@
               <th class="px-4 py-3 text-sm font-semibold text-gray-700">假名</th>
               <th class="px-4 py-3 text-sm font-semibold text-gray-700">中文</th>
               <th class="px-4 py-3 text-sm font-semibold text-gray-700">英文</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">词性</th>
               <th class="px-4 py-3 text-sm font-semibold text-gray-700">添加时间</th>
               <th class="px-4 py-3 text-sm font-semibold text-gray-700">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="vocabularyList.length === 0" class="border-b">
-              <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+              <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                 {{ loading ? '加载中...' : '没有找到单词' }}
               </td>
             </tr>
@@ -114,6 +115,22 @@
                   class="w-full px-2 py-1 border border-gray-300 rounded"
                   placeholder="可选"
                 />
+              </td>
+              <td class="px-4 py-3">
+                <span v-if="editingId !== word.id" class="text-gray-700">{{ getWordClassLabel(word.word_class) }}</span>
+                <select 
+                  v-else
+                  v-model="editForm.word_class"
+                  class="w-full px-2 py-1 border border-gray-300 rounded"
+                >
+                  <option 
+                    v-for="wc in WORD_CLASSES" 
+                    :key="wc.key" 
+                    :value="wc.key"
+                  >
+                    {{ wc.labelZh }}
+                  </option>
+                </select>
               </td>
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ formatDate(word.created_at) }}
@@ -188,6 +205,7 @@ import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
 import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
+import { WORD_CLASSES, getWordClassLabel } from '../constants/wordClasses';
 import * as api from '../services/api';
 
 const router = useRouter();
@@ -301,7 +319,8 @@ function startEdit(word) {
     original: word.original,
     kana: word.kana,
     chinese: word.chinese,
-    english: word.english || ''
+    english: word.english || '',
+    word_class: word.word_class || 'noun'
   };
 }
 

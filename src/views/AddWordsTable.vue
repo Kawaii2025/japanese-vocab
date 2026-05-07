@@ -79,84 +79,101 @@
             </div>
             <div class="overflow-x-auto">
               <table class="w-full">
-                <thead>
-                  <tr class="bg-gray-100 border-b-2 border-gray-300">
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">かな</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">日文</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
-                    <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-16">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr 
-                    v-for="(word, index) in words" 
-                    :key="index"
-                    class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
-                  >
-                    <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
-                    <!-- かな输入 + 朗读按钮 -->
-                    <td class="px-4 py-3">
-                      <div class="flex gap-2 items-center">
-                        <input 
-                          v-model="word.kana"
-                          type="text"
-                          placeholder="输入かな"
-                          lang="ja"
-                          autocorrect="off"
-                          autocapitalize="off"
-                          spellcheck="false"
-                          class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                        />
-                        <button 
-                          @click="handleVoiceClick(word.kana, $event)"
-                          :disabled="isKanaEmpty(word)"
-                          class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded transition-custom font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-accent/10"
-                          title="朗读假名"
-                        >
-                          <i class="fa fa-volume-up"></i>
-                        </button>
-                      </div>
-                    </td>
-                    <!-- 日文原文输入 -->
-                    <td class="px-4 py-3">
+              <thead>
+                <tr class="bg-gray-100 border-b-2 border-gray-300">
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">かな</th>
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">日文</th>
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">中文</th>
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">词性</th>
+                  <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-16">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr 
+                  v-for="(word, index) in words" 
+                  :key="index"
+                  class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
+                >
+                  <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
+                  <!-- かな输入 + 朗读按钮 -->
+                  <td class="px-4 py-3">
+                    <div class="flex gap-2 items-center">
                       <input 
-                        v-model="word.original"
+                        v-model="word.kana"
                         type="text"
-                        placeholder="输入日文原文"
+                        placeholder="输入かな"
                         lang="ja"
                         autocorrect="off"
                         autocapitalize="off"
                         spellcheck="false"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
                       />
-                    </td>
-                    <!-- 中文输入 -->
-                    <td class="px-4 py-3">
-                      <input 
-                        v-model="word.chinese"
-                        type="text"
-                        placeholder="输入中文意思"
-                        lang="zh-Hans"
-                        autocorrect="off"
-                        autocapitalize="off"
-                        spellcheck="false"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                      />
-                    </td>
-                    <!-- 删除按钮 -->
-                    <td class="px-4 py-3 text-center">
                       <button 
-                        @click="deleteRow(index)"
-                        :disabled="isRowCompletelyEmpty(word)"
-                        class="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-100"
+                        @click="handleVoiceClick(word.kana, $event)"
+                        :disabled="isKanaEmpty(word)"
+                        class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded transition-custom font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-accent/10"
+                        title="朗读假名"
                       >
-                        <i class="fa fa-trash"></i>
+                        <i class="fa fa-volume-up"></i>
                       </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </div>
+                  </td>
+                  <!-- 日文原文输入 -->
+                  <td class="px-4 py-3">
+                    <input 
+                      v-model="word.original"
+                      type="text"
+                      placeholder="输入日文原文"
+                      lang="ja"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                    />
+                  </td>
+                  <!-- 中文输入 -->
+                  <td class="px-4 py-3">
+                    <input 
+                      v-model="word.chinese"
+                      type="text"
+                      placeholder="输入中文意思"
+                      lang="zh-Hans"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
+                    />
+                  </td>
+                  <!-- 词类选择 -->
+                  <td class="px-4 py-3">
+                    <select 
+                      v-model="word.word_class"
+                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm bg-white"
+                    >
+                      <option value="">请选择</option>
+                      <option 
+                        v-for="wc in WORD_CLASSES" 
+                        :key="wc.key" 
+                        :value="wc.key"
+                      >
+                        {{ wc.labelZh }}
+                      </option>
+                    </select>
+                  </td>
+                  <!-- 删除按钮 -->
+                  <td class="px-4 py-3 text-center">
+                    <button 
+                      @click="deleteRow(index)"
+                      :disabled="isRowCompletelyEmpty(word)"
+                      class="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-100"
+                    >
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             </div>
 
             <!-- 无数据提示 -->
@@ -224,6 +241,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { WORD_CLASSES } from '../constants/wordClasses';
 import * as api from '../services/api.js';
 import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
@@ -237,7 +255,7 @@ const DRAFT_KEY = 'add-words-table-draft-v1';
 const DEFAULT_ROW_COUNT = 30;
 
 const createEmptyRows = (count = DEFAULT_ROW_COUNT) =>
-  Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '' }));
+  Array.from({ length: count }, () => ({ chinese: '', original: '', kana: '', word_class: '' }));
 
 const words = ref(createEmptyRows());
 const recentWords = ref([]);
@@ -300,7 +318,8 @@ const restoreDraftFromLocal = () => {
       .map(item => ({
         chinese: (item?.chinese || '').toString(),
         original: (item?.original || '').toString(),
-        kana: (item?.kana || '').toString()
+        kana: (item?.kana || '').toString(),
+        word_class: (item?.word_class || '').toString()
       }))
       .filter(item => item.chinese || item.original || item.kana);
 
@@ -325,22 +344,23 @@ const isKanaEmpty = (word) => {
 const isRowCompletelyEmpty = (word) => {
   return (!word?.chinese || word.chinese.trim() === '') &&
     (!word?.original || word.original.trim() === '') &&
-    (!word?.kana || word.kana.trim() === '');
+    (!word?.kana || word.kana.trim() === '') &&
+    (!word?.word_class || word.word_class.trim() === '');
 };
 
 // 加载示例数据
 const loadSampleData = () => {
   words.value = [
-    { chinese: '日本', original: '日本', kana: 'にほん' },
-    { chinese: '中国', original: '中国', kana: 'ちゅうごく' },
-    { chinese: '学生', original: '学生', kana: 'がくせい' },
-    { chinese: '先生', original: '先生', kana: 'せんせい' },
-    { chinese: '水', original: '水', kana: 'みず' },
-    { chinese: '火', original: '火', kana: 'ひ' },
-    { chinese: '木', original: '木', kana: 'き' },
-    { chinese: '金', original: '金', kana: 'きん' },
-    { chinese: '土', original: '土', kana: 'つち' },
-    { chinese: '日', original: '日', kana: 'ひ' }
+    { chinese: '日本', original: '日本', kana: 'にほん', word_class: 'noun' },
+    { chinese: '中国', original: '中国', kana: 'ちゅうごく', word_class: 'noun' },
+    { chinese: '学生', original: '学生', kana: 'がくせい', word_class: 'noun' },
+    { chinese: '先生', original: '先生', kana: 'せんせい', word_class: 'noun' },
+    { chinese: '水', original: '水', kana: 'みず', word_class: 'noun' },
+    { chinese: '火', original: '火', kana: 'ひ', word_class: 'noun' },
+    { chinese: '木', original: '木', kana: 'き', word_class: 'noun' },
+    { chinese: '金', original: '金', kana: 'きん', word_class: 'noun' },
+    { chinese: '土', original: '土', kana: 'つち', word_class: 'noun' },
+    { chinese: '日', original: '日', kana: 'ひ', word_class: 'noun' }
   ];
 };
 

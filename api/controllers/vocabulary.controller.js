@@ -211,7 +211,7 @@ export async function searchVocabulary(req, res) {
 // 创建单词
 export async function createVocabulary(req, res) {
   try {
-    const { chinese, original, kana, category, difficulty } = req.body;
+    const { chinese, original, kana, category, difficulty, word_class } = req.body;
     
     if (!chinese || !kana) {
       return res.status(400).json({
@@ -222,9 +222,9 @@ export async function createVocabulary(req, res) {
     
     const currentTs = getCurrentTimestamp();
     const result = await db.run(
-      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      chinese, original || null, kana, category || null, difficulty || 1, currentTs, currentTs
+      `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, word_class, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      chinese, original || null, kana, category || null, difficulty || 1, word_class || null, currentTs, currentTs
     );
     
     const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -265,7 +265,7 @@ export async function batchCreateVocabulary(req, res) {
     const skippedWords = [];
     
     for (const word of words) {
-      const { chinese, original, kana, category, difficulty } = word;
+      const { chinese, original, kana, category, difficulty, word_class } = word;
       
       if (!chinese || !kana) continue;
       
@@ -284,9 +284,9 @@ export async function batchCreateVocabulary(req, res) {
         
         const currentTs = getCurrentTimestamp();
         const result = await db.run(
-          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          chinese, original || null, kana, category || null, difficulty || 1, currentTs, currentTs
+          `INSERT INTO vocabulary (chinese, original, kana, category, difficulty, word_class, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          chinese, original || null, kana, category || null, difficulty || 1, word_class || null, currentTs, currentTs
         );
         
         const inserted = await db.get('SELECT * FROM vocabulary WHERE id = ?', result.lastID);
@@ -351,7 +351,7 @@ export async function updateVocabulary(req, res) {
     // Define updatable and read-only fields
     // created_at and updated_at are always excluded (read-only)
     const updatableFields = [
-      'chinese', 'original', 'kana', 'category', 'difficulty',
+      'chinese', 'original', 'kana', 'category', 'difficulty', 'word_class',
       'mastery_level', 'review_count', 'next_review_date'
     ];
 
