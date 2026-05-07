@@ -1,6 +1,6 @@
 /**
  * AI 接口控制器
- * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式)
+ * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式，支持流式和非流式)
  */
 import OpenAI from 'openai';
 
@@ -14,7 +14,42 @@ const openai = new OpenAI({
   baseURL: QWEN_API_URL,
 });
 
-// 生成例句
+// 解析 AI 返回的 JSON 内容
+function parseExamples(assistantMessage) {
+  if (!assistantMessage) {
+    throw new Error('Qwen API 未返回有效内容');
+  }
+
+  let examples;
+  try {
+    examples = JSON.parse(assistantMessage);
+  } catch {
+    const jsonMatch = assistantMessage.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      examples = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('无法解析 Qwen API 返回的内容');
+    }
+  }
+
+  if (!Array.isArray(examples)) {
+    throw new Error('Qwen API 返回格式不正确');
+  }
+
+  examples = examples.map(ex => ({
+    japanese: ex.japanese || ex.jp || '',
+    kana: ex.kana || '',
+    chinese: ex.chinese || ex.cn || ex.zh || '',
+  })).filter(ex => ex.japanese && ex.chinese);
+
+  if (examples.length === 0) {
+    throw new Error('生成的例句无效');
+  }
+
+  return examples;
+}
+
+// 非流式响应
 export async function generateExamples(req, res) {
   try {
     const { word, kana, chinese, wordClass = [] } = req.body;
@@ -77,38 +112,7 @@ export async function generateExamples(req, res) {
     });
 
     const assistantMessage = completion.choices?.[0]?.message?.content;
-
-    if (!assistantMessage) {
-      throw new Error('Qwen API 未返回有效内容');
-    }
-
-    // 提取 JSON 内容
-    let examples;
-    try {
-      examples = JSON.parse(assistantMessage);
-    } catch {
-      const jsonMatch = assistantMessage.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        examples = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('无法解析 Qwen API 返回的内容');
-      }
-    }
-
-    // 验证并格式化返回结果
-    if (!Array.isArray(examples)) {
-      throw new Error('Qwen API 返回格式不正确');
-    }
-
-    examples = examples.map(ex => ({
-      japanese: ex.japanese || ex.jp || '',
-      kana: ex.kana || '',
-      chinese: ex.chinese || ex.cn || ex.zh || '',
-    })).filter(ex => ex.japanese && ex.chinese);
-
-    if (examples.length === 0) {
-      throw new Error('生成的例句无效');
-    }
+    const examples = parseExamples(assistantMessage);
 
     res.json({
       success: true,
@@ -120,5 +124,105 @@ export async function generateExamples(req, res) {
       success: false,
       error: error.message || '生成例句失败，请稍后重试',
     });
+  }
+}
+
+// 流式响应 (Server-Sent Events)
+export async function generateExamplesStream(req, res) {
+  try {
+    const { word, kana, chinese, wordClass = [] } = req.body;
+
+    if (!word && !kana) {
+      return res.status(400).json({
+        success: false,
+        error: '请提供单词或假名'
+      });
+    }
+
+    if (!DASHSCOPE_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: '未配置 DASHSCOPE_API_KEY / QWEN_API_KEY'
+      });
+    }
+
+    // 设置 SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    const systemPrompt = `你是一名专业的日语母语教师。请为用户提供的日语单词生成 3 个自然、实用、符合日本母语者习惯的例句。
+
+要求：
+- 必须是日本人真实会说的自然日语
+- 优先使用最常见、最典型的固定搭配
+- 避免中文直译感
+- 不要生造搭配
+- 不要为了"高级"而故意写得文学化或过于书面
+- 例句要适合日语学习者学习实际用法
+- 尽量覆盖不同使用场景
+- 使用现代日语表达
+- 句子长度适中，不要过长
+- JLPT N3 左右难度
+- 假名必须完整标注
+- 中文翻译自然通顺
+
+返回格式必须严格遵守：
+[
+  {
+    "japanese": "例句",
+    "kana": "全假名标注",
+    "chinese": "中文翻译"
+  }
+]
+
+如果这个词有固定搭配限制，请优先使用最自然、最常见的搭配。`;
+
+    const userPrompt = `请为以下日语单词生成 3 个例句：
+- 日语单词: ${word || kana}
+- 假名: ${kana || word}
+- 中文含义: ${chinese || ''}
+- 词性: ${wordClass.join('、') || ''}`;
+
+    const stream = await openai.chat.completions.create({
+      model: QWEN_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+      stream: true,
+    });
+
+    let fullContent = '';
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content || '';
+      fullContent += delta;
+
+      // 发送增量更新
+      res.write(`data: ${JSON.stringify({ type: 'content', data: delta })}\n\n`);
+
+      // 尝试解析是否有完整的 example
+      try {
+        const examples = parseExamples(fullContent);
+        res.write(`data: ${JSON.stringify({ type: 'examples', data: examples })}\n\n`);
+      } catch (e) {
+        // 继续积累内容
+      }
+    }
+
+    // 发送最终结果
+    const finalExamples = parseExamples(fullContent);
+    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples })}\n\n`);
+    res.end();
+
+  } catch (error) {
+    console.error('生成例句失败:', error);
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`);
+    res.end();
   }
 }

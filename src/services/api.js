@@ -272,11 +272,67 @@ export async function getMistakes(userId = 1, limit = 50) {
 // ==================== AI 相关 API ====================
 
 /**
- * 生成日语例句
+ * 生成日语例句 (非流式)
  */
 export async function generateAiExamples({ word, kana, chinese, wordClass }) {
   return request('/ai/generate-examples', {
     method: 'POST',
     body: JSON.stringify({ word, kana, chinese, wordClass }),
   });
+}
+
+/**
+ * 生成日语例句 (流式 SSE)
+ * @param {Object} params - 单词参数
+ * @param {function} onExamples - 当收到完整例句时的回调
+ * @param {function} onDone - 完成时的回调
+ * @param {function} onError - 错误时的回调
+ */
+export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai/generate-examples/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ word, kana, chinese, wordClass }),
+    });
+
+    if (!response.ok) {
+      throw new Error('流式请求失败');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'examples' && onExamples) {
+              onExamples(data.data);
+            } else if (data.type === 'done' && onDone) {
+              onDone(data.data);
+            } else if (data.type === 'error' && onError) {
+              onError(new Error(data.error));
+            }
+          } catch (e) {
+            // 忽略无效的 JSON
+          }
+        }
+      }
+    }
+  } catch (error) {
+    if (onError) {
+      onError(error);
+    }
+  }
 }
