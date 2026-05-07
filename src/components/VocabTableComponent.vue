@@ -136,7 +136,11 @@
               </div>
             </td>
             <td class="px-3 py-4 table-cell">
-              <div class="text-sm text-gray-600">{{ getWordClassLabel(item.word_class) }}</div>
+              <div 
+                :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(item.word_class)]"
+              >
+                {{ getWordClassLabel(item.word_class) }}
+              </div>
             </td>
             <td class="px-3 py-4 whitespace-nowrap table-cell">
               <button 
@@ -205,7 +209,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { getWordClassLabel } from '../constants/wordClasses';
+import { getWordClassLabel, getWordClassColor } from '../constants/wordClasses';
 import { createMaskText, getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
 
 const props = defineProps({

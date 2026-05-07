@@ -117,7 +117,12 @@
                 />
               </td>
               <td class="px-4 py-3">
-                <span v-if="editingId !== word.id" class="text-gray-700">{{ getWordClassLabel(word.word_class) }}</span>
+                <span 
+                  v-if="editingId !== word.id" 
+                  :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(word.word_class)]"
+                >
+                  {{ getWordClassLabel(word.word_class) }}
+                </span>
                 <select 
                   v-else
                   v-model="editForm.word_class"
@@ -205,7 +210,7 @@ import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
 import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
-import { WORD_CLASSES, getWordClassLabel } from '../constants/wordClasses';
+import { WORD_CLASSES, getWordClassLabel, getWordClassColor } from '../constants/wordClasses';
 import * as api from '../services/api';
 
 const router = useRouter();
