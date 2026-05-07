@@ -4,15 +4,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import initDB, { getDatabaseInfo } from './db.js';
 import { config, getCorsOptions } from './config.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// 从项目根目录加载环境变量
-const envPath = path.join(__dirname, '..', '.env.development');
-dotenv.config({ path: envPath });
+dotenv.config();
 
 import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';

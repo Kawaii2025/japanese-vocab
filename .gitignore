@@ -8,6 +8,11 @@ node_modules/
 .env.neon
 .env.development
 .env.production
+api/.env
+api/.env.local
+api/.env.*.local
+api/.env.development
+api/.env.production
 
 # Build outputs
 dist/
