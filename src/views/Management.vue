@@ -480,7 +480,7 @@ function handleVoiceClick(text, event) {
 }
 
 // 配置：是否使用流式响应（false = 使用非流式）
-const USE_STREAMING_AI = false;
+const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
 
 // AI 例句功能
 const showAiExample = async (word, forceRefresh = false) => {
