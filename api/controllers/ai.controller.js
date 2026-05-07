@@ -13,6 +13,7 @@ const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
 const openai = new OpenAI({
   apiKey: DASHSCOPE_API_KEY,
   baseURL: QWEN_API_URL,
+  timeout: 120000, // 120秒超时，适配更慢的模型
 });
 
 // 缓存辅助函数

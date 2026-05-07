@@ -39,6 +39,13 @@ async function startServer() {
 
   app.use(cors(getCorsOptions()));
   app.use(express.json());
+  
+  // 设置服务器超时为 120 秒（适配更慢的 AI 模型）
+  app.use((req, res, next) => {
+    req.setTimeout(120000);
+    res.setTimeout(120000);
+    next();
+  });
 
   // Root endpoint - health status for preview/monitoring
   app.get('/', (req, res) => {
