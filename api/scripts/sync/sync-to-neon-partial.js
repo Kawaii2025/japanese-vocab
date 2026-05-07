@@ -156,7 +156,7 @@ async function partialSyncToNeon() {
           `SELECT * FROM vocabulary WHERE id IN (${vocabToSync.join(',')}) ORDER BY id`
         );
         const neonFullVocab = await neonPool.query(
-          `SELECT id, chinese, original, kana, category, difficulty, next_review_date, 
+          `SELECT id, chinese, original, kana, category, difficulty, word_class, next_review_date, 
                   review_count, mastery_level, created_at, updated_at FROM vocabulary 
            WHERE id IN (${vocabToSync.join(',')}) ORDER BY id`
         );
@@ -190,14 +190,14 @@ async function partialSyncToNeon() {
         for (const row of sqliteVocabData) {
           await neonPool.query(
             `INSERT INTO vocabulary 
-            (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            (id, chinese, original, kana, category, difficulty, word_class, next_review_date, review_count, mastery_level, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (id) DO UPDATE SET
             chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-            next_review_date = $7, review_count = $8, mastery_level = $9,
-            created_at = $10, updated_at = $11`,
+            word_class = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
+            created_at = $11, updated_at = $12`,
             [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-             toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+             row.word_class, toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
              toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
           );
         }
@@ -300,14 +300,14 @@ async function partialSyncToNeon() {
             for (const row of sqliteMissingVocab) {
               await neonPool.query(
                 `INSERT INTO vocabulary 
-                (id, chinese, original, kana, category, difficulty, next_review_date, review_count, mastery_level, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                (id, chinese, original, kana, category, difficulty, word_class, next_review_date, review_count, mastery_level, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 ON CONFLICT (id) DO UPDATE SET
                 chinese = $2, original = $3, kana = $4, category = $5, difficulty = $6,
-                next_review_date = $7, review_count = $8, mastery_level = $9,
-                created_at = $10, updated_at = $11`,
+                word_class = $7, next_review_date = $8, review_count = $9, mastery_level = $10,
+                created_at = $11, updated_at = $12`,
                 [row.id, row.chinese, row.original, row.kana, row.category, row.difficulty,
-                 toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
+                 row.word_class, toTimestampMs(row.next_review_date), row.review_count, row.mastery_level,
                  toTimestampMs(row.created_at), toTimestampMs(row.updated_at)]
               );
             }
