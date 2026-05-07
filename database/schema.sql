@@ -9,6 +9,7 @@ CREATE TABLE vocabulary (
     kana VARCHAR(255) NOT NULL,              -- 纯假名
     category VARCHAR(100),                   -- 分类（如：基础、进阶等）
     difficulty INTEGER DEFAULT 1,            -- 难度等级 1-5
+    word_class VARCHAR(50),                  -- 词性（如：名词、动词、形容词等）
     next_review_date DATE,                   -- 下次复习日期（基于艾宾浩斯遗忘曲线）
     review_count INTEGER DEFAULT 0,          -- 复习次数
     mastery_level INTEGER DEFAULT 0,         -- 掌握程度 0-5（影响复习间隔）
@@ -92,17 +93,17 @@ CREATE TRIGGER update_vocabulary_sets_updated_at BEFORE UPDATE ON vocabulary_set
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 插入示例数据
-INSERT INTO vocabulary (chinese, original, kana, category, difficulty) VALUES
-('照旧；仍然', '相変わらず', 'あいかわらず', '基础', 2),
-('你好', 'こんにちは', 'こんにちは', '基础', 1),
-('谢谢', 'ありがとう', 'ありがとう', '基础', 1),
-('再见', 'さようなら', 'さようなら', '基础', 1),
-('对不起', 'すみません', 'すみません', '基础', 1),
-('早上好', 'おはよう', 'おはよう', '基础', 1),
-('晚上好', 'こんばんは', 'こんばんは', '基础', 1),
-('是的', 'はい', 'はい', '基础', 1),
-('不是', 'いいえ', 'いいえ', '基础', 1),
-('请', 'ください', 'ください', '基础', 1);
+INSERT INTO vocabulary (chinese, original, kana, category, difficulty, word_class) VALUES
+('照旧；仍然', '相変わらず', 'あいかわらず', '基础', 2, 'adverb'),
+('你好', 'こんにちは', 'こんにちは', '基础', 1, 'noun'),
+('谢谢', 'ありがとう', 'ありがとう', '基础', 1, 'noun'),
+('再见', 'さようなら', 'さようなら', '基础', 1, 'noun'),
+('对不起', 'すみません', 'すみません', '基础', 1, 'noun'),
+('早上好', 'おはよう', 'おはよう', '基础', 1, 'noun'),
+('晚上好', 'こんばんは', 'こんばんは', '基础', 1, 'noun'),
+('是的', 'はい', 'はい', '基础', 1, 'interjection'),
+('不是', 'いいえ', 'いいえ', '基础', 1, 'interjection'),
+('请', 'ください', 'ください', '基础', 1, 'noun');
 
 -- 查看表结构
 -- \d vocabulary

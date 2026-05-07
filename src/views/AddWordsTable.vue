@@ -369,7 +369,8 @@ const addRow = () => {
   words.value.push({
     chinese: '',
     original: '',
-    kana: ''
+    kana: '',
+    word_class: ''
   });
 };
 
@@ -379,7 +380,8 @@ const addMultipleRows = (count) => {
     words.value.push({
       chinese: '',
       original: '',
-      kana: ''
+      kana: '',
+      word_class: ''
     });
   }
 };
