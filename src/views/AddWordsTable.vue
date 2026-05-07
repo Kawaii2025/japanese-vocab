@@ -304,37 +304,76 @@
             <p>{{ aiError }}</p>
           </div>
           <div v-else class="space-y-4">
-            <!-- 例句占位符/显示 -->
-            <div 
-              v-for="(example, index) in aiExamples" 
-              :key="index"
-              class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
-            >
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <template v-if="example.loading">
-                    <div class="space-y-2">
-                      <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
-                      <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
-                      <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
-                    </div>
-                  </template>
-                  <template v-else>
+            <!-- 流式响应模式：打字机效果 + 完成的例句 -->
+            <template v-if="USE_STREAMING_AI">
+              <!-- 已完成的例句 -->
+              <div 
+                v-for="(example, index) in aiExamples" 
+                :key="index"
+                class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
                     <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
                     <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
                     <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
-                  </template>
+                  </div>
+                  <button 
+                    @click="handleVoiceClick(example.kana || example.japanese, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
+                    title="朗读"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
                 </div>
-                <button 
-                  v-if="!example.loading"
-                  @click="handleVoiceClick(example.kana || example.japanese, $event)"
-                  class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
-                  title="朗读"
-                >
-                  <i class="fa fa-volume-up"></i>
-                </button>
               </div>
-            </div>
+              <!-- 打字机效果的原始文本 -->
+              <div v-if="aiLoading && aiTypingText" class="p-4 border border-primary/30 rounded-lg bg-primary/5">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <pre class="text-sm font-mono text-gray-700 whitespace-pre-wrap">{{ aiTypingText }}</pre>
+                  </div>
+                </div>
+              </div>
+              <!-- 初始加载提示 -->
+              <div v-if="aiLoading && !aiExamples.length && !aiTypingText" class="text-center py-8">
+                <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
+                <p class="text-gray-600">正在生成例句...</p>
+              </div>
+            </template>
+            <!-- 非流式模式：占位符骨架屏 -->
+            <template v-else>
+              <div 
+                v-for="(example, index) in aiExamples" 
+                :key="index"
+                class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <template v-if="example.loading">
+                      <div class="space-y-2">
+                        <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                      <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                    </template>
+                  </div>
+                  <button 
+                    v-if="!example.loading"
+                    @click="handleVoiceClick(example.kana || example.japanese, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
+                    title="朗读"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -488,18 +527,27 @@ const isRowCompletelyEmpty = (word) => {
 };
 
 // 配置：是否使用流式响应（false = 使用非流式）
+console.log('🔍 [AddWordsTable] VITE_USE_STREAMING_AI env:', import.meta.env.VITE_USE_STREAMING_AI);
 const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
+console.log('🔍 [AddWordsTable] USE_STREAMING_AI computed:', USE_STREAMING_AI);
 
 // AI 例句功能
 const showAiExample = async (word, forceRefresh = false) => {
   currentAiWord.value = word;
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
-  aiExamples.value = [
-    { japanese: '', kana: '', chinese: '', loading: true },
-    { japanese: '', kana: '', chinese: '', loading: true },
-    { japanese: '', kana: '', chinese: '', loading: true }
-  ];
+  
+  // 根据配置初始化
+  if (USE_STREAMING_AI) {
+    aiExamples.value = []; // 流式响应：初始为空
+  } else {
+    aiExamples.value = [
+      { japanese: '', kana: '', chinese: '', loading: true },
+      { japanese: '', kana: '', chinese: '', loading: true },
+      { japanese: '', kana: '', chinese: '', loading: true }
+    ]; // 非流式：3个占位符
+  }
+  
   aiLoading.value = true;
   aiError.value = null;
   aiIsCached.value = false;
