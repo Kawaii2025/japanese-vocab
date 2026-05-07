@@ -251,11 +251,7 @@
           </button>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
-          <div v-if="aiLoading" class="text-center py-8">
-            <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
-            <p class="text-gray-600">正在生成例句...</p>
-          </div>
-          <div v-else-if="aiError" class="text-center py-8 text-red-600">
+          <div v-if="aiError" class="text-center py-8 text-red-600">
             <i class="fa fa-exclamation-circle text-3xl mb-4"></i>
             <p>{{ aiError }}</p>
           </div>
@@ -280,10 +276,22 @@
                 </button>
               </div>
             </div>
+            <!-- 加载提示，当还在生成时显示 -->
+            <div v-if="aiLoading" class="text-center py-4">
+              <i class="fa fa-spinner fa-spin text-primary mr-2"></i>
+              <span class="text-gray-600">正在生成更多例句...</span>
+            </div>
           </div>
-          <div v-else class="text-center py-8 text-gray-500">
-            <i class="fa fa-book text-3xl mb-4 opacity-30"></i>
-            <p>暂无例句</p>
+          <!-- 初始加载或无内容时的提示 -->
+          <div v-else class="text-center py-8">
+            <div v-if="aiLoading">
+              <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
+              <p class="text-gray-600">正在生成例句...</p>
+            </div>
+            <div v-else>
+              <i class="fa fa-book text-3xl mb-4 opacity-30"></i>
+              <p class="text-gray-500">暂无例句</p>
+            </div>
           </div>
         </div>
       </div>
