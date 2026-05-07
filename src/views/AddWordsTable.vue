@@ -82,10 +82,10 @@
               <thead>
                 <tr class="bg-gray-100 border-b-2 border-gray-300">
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
-                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">かな</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-24">かな</th>
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">日文</th>
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">中文</th>
-                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">词性</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-52">词性</th>
                   <th class="px-3 py-3 text-center text-sm font-semibold text-gray-700 w-12">操作</th>
                 </tr>
               </thead>
@@ -95,9 +95,9 @@
                   :key="index"
                   class="border-b border-gray-200 hover:bg-blue-50/30 transition-colors"
                 >
-                  <td class="px-4 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
+                  <td class="px-3 py-3 text-sm text-gray-500 font-medium">{{ index + 1 }}</td>
                   <!-- かな输入 + 朗读按钮 -->
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-3">
                     <div class="flex gap-2 items-center">
                       <input 
                         v-model="word.kana"
@@ -120,7 +120,7 @@
                     </div>
                   </td>
                   <!-- 日文原文输入 -->
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-3">
                     <input 
                       v-model="word.original"
                       type="text"
@@ -133,7 +133,7 @@
                     />
                   </td>
                   <!-- 中文输入 -->
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-3">
                     <input 
                       v-model="word.chinese"
                       type="text"
@@ -146,7 +146,7 @@
                     />
                   </td>
                   <!-- 词类选择 -->
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-3">
                     <div class="relative">
                       <button 
                         type="button"
