@@ -23,6 +23,12 @@ function convertQueryPlaceholders(query, params) {
   // Convert SQLite functions to PostgreSQL equivalents
   let pgQuery = query;
 
+  // Handle case where params might be a single array argument
+  let actualParams = params;
+  if (params.length === 1 && Array.isArray(params[0])) {
+    actualParams = params[0];
+  }
+
   // Convert SQLite unixepoch date conversion to PostgreSQL Beijing date.
   // Example: date(created_at / 1000, 'unixepoch', '+8 hours')
   pgQuery = pgQuery.replace(
@@ -48,14 +54,13 @@ function convertQueryPlaceholders(query, params) {
   // Track which params are raw SQL
   const rawSQLParams = {};
   const cleanParams = [];
-  let paramIndex = 1;
   
   // Separate regular params from raw SQL
-  for (let i = 0; i < params.length; i++) {
-    if (params[i] instanceof RawSQL) {
-      rawSQLParams[i] = params[i].sql;
+  for (let i = 0; i < actualParams.length; i++) {
+    if (actualParams[i] instanceof RawSQL) {
+      rawSQLParams[i] = actualParams[i].sql;
     } else {
-      cleanParams.push(params[i]);
+      cleanParams.push(actualParams[i]);
     }
   }
   
@@ -79,7 +84,8 @@ function convertQueryPlaceholders(query, params) {
     original: query, 
     converted: pgQuery, 
     cleanParams,
-    rawParams: rawSQLParams
+    rawParams: rawSQLParams,
+    actualParamsLength: actualParams.length
   });
   return { pgQuery, cleanParams };
 }
