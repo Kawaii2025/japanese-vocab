@@ -4,8 +4,15 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import initDB, { getDatabaseInfo } from './db.js';
 import { config, getCorsOptions } from './config.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// 从项目根目录加载环境变量
+const envPath = path.join(__dirname, '..', '.env.development');
+dotenv.config({ path: envPath });
 
 import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';
@@ -18,8 +25,6 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import * as vocabController from './controllers/vocabulary.controller.js';
 import * as practiceController from './controllers/practice.controller.js';
 import * as statsController from './controllers/stats.controller.js';
-
-dotenv.config();
 
 const app = express();
 let db = null;

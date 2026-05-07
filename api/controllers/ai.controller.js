@@ -2,10 +2,6 @@
  * AI 接口控制器
  * 调用 Qwen API 生成日语例句
  */
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const QWEN_API_KEY = process.env.QWEN_API_KEY;
 const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
