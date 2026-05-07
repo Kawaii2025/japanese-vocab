@@ -1,10 +1,18 @@
 /**
  * AI 接口控制器
- * 调用 Qwen API 生成日语例句
+ * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式)
  */
-const QWEN_API_KEY = process.env.QWEN_API_KEY;
-const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+import OpenAI from 'openai';
+
+const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY;
+const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
+
+// 初始化 OpenAI 客户端
+const openai = new OpenAI({
+  apiKey: DASHSCOPE_API_KEY,
+  baseURL: QWEN_API_URL,
+});
 
 // 生成例句
 export async function generateExamples(req, res) {
@@ -18,10 +26,10 @@ export async function generateExamples(req, res) {
       });
     }
 
-    if (!QWEN_API_KEY) {
+    if (!DASHSCOPE_API_KEY) {
       return res.status(500).json({
         success: false,
-        error: '未配置 Qwen API 密钥'
+        error: '未配置 DASHSCOPE_API_KEY / QWEN_API_KEY'
       });
     }
 
@@ -58,31 +66,17 @@ export async function generateExamples(req, res) {
 - 中文含义: ${chinese || ''}
 - 词性: ${wordClass.join('、') || ''}`;
 
-    const response = await fetch(QWEN_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${QWEN_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: QWEN_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
+    const completion = await openai.chat.completions.create({
+      model: QWEN_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Qwen API Error:', errorData);
-      throw new Error(errorData.message || `Qwen API 调用失败 (${response.status})`);
-    }
-
-    const data = await response.json();
-    const assistantMessage = data.choices?.[0]?.message?.content;
+    const assistantMessage = completion.choices?.[0]?.message?.content;
 
     if (!assistantMessage) {
       throw new Error('Qwen API 未返回有效内容');
@@ -91,10 +85,8 @@ export async function generateExamples(req, res) {
     // 提取 JSON 内容
     let examples;
     try {
-      // 尝试直接解析
       examples = JSON.parse(assistantMessage);
     } catch {
-      // 尝试提取 JSON 部分
       const jsonMatch = assistantMessage.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         examples = JSON.parse(jsonMatch[0]);
@@ -108,7 +100,6 @@ export async function generateExamples(req, res) {
       throw new Error('Qwen API 返回格式不正确');
     }
 
-    // 确保每个例句都有必需的字段
     examples = examples.map(ex => ({
       japanese: ex.japanese || ex.jp || '',
       kana: ex.kana || '',
