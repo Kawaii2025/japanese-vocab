@@ -767,6 +767,15 @@ npm run preview
 - 错误处理
 - 数据库操作
 
+#### [docs/WORD_CLASS_GUIDE.md](./docs/WORD_CLASS_GUIDE.md) - 词性 (Word Class) 指南
+**用途**: 了解如何使用和扩展单词分类功能  
+**包含内容**:
+- 6种词性定义（名词、副词、イ形容词、ナ形容词、自动词、他动词）
+- 数据存储格式（JSON数组）
+- 前端组件实现
+- 后端 API 控制器帮助函数
+- 同步到 Neon 的实现
+
 #### [SQLITE_MIGRATION.md](./SQLITE_MIGRATION.md) - SQLite 迁移技术指南
 **用途**: 数据库实现细节  
 **包含内容**:
