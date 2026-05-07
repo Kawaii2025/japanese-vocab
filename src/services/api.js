@@ -288,15 +288,16 @@ export async function generateAiExamples({ word, kana, chinese, wordClass }) {
  * @param {function} onDone - 完成时的回调
  * @param {function} onError - 错误时的回调
  * @param {function} onText - 收到原始文本更新时的回调
+ * @param {boolean} forceRefresh - 是否强制刷新（忽略缓存）
  */
-export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText) {
+export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText, forceRefresh = false) {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/generate-examples/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ word, kana, chinese, wordClass }),
+      body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh }),
     });
 
     if (!response.ok) {
@@ -326,7 +327,7 @@ export async function generateAiExamplesStream({ word, kana, chinese, wordClass 
             } else if (data.type === 'examples' && onExamples) {
               onExamples(data.data);
             } else if (data.type === 'done' && onDone) {
-              onDone(data.data);
+              onDone(data.data, data.cached);
             } else if (data.type === 'error' && onError) {
               onError(new Error(data.error));
             }

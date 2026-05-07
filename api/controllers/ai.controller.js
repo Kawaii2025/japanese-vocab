@@ -3,6 +3,7 @@
  * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式，支持流式和非流式)
  */
 import OpenAI from 'openai';
+import getDB from '../db.js';
 
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY;
 const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -13,6 +14,80 @@ const openai = new OpenAI({
   apiKey: DASHSCOPE_API_KEY,
   baseURL: QWEN_API_URL,
 });
+
+// 缓存辅助函数
+async function getCachedExamples(word, kana, chinese, wordClass) {
+  const db = await getDB();
+  const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
+  const cacheKeyOriginal = word || '';
+  const cacheKeyKana = kana || '';
+  const cacheKeyChinese = chinese || '';
+  const cacheKeyWordClass = wc;
+  
+  const result = await db.get(
+    `SELECT examples_json FROM ai_examples_cache 
+     WHERE COALESCE(original, '') = ? 
+     AND kana = ? 
+     AND chinese = ? 
+     AND COALESCE(word_class, '') = ?`,
+    [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+  );
+  
+  if (result && result.examples_json) {
+    try {
+      return JSON.parse(result.examples_json);
+    } catch (e) {
+      console.warn('缓存解析失败:', e);
+      return null;
+    }
+  }
+  return null;
+}
+
+async function saveCachedExamples(word, kana, chinese, wordClass, examples) {
+  try {
+    const db = await getDB();
+    const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
+    const cacheKeyOriginal = word || '';
+    const cacheKeyKana = kana || '';
+    const cacheKeyChinese = chinese || '';
+    const cacheKeyWordClass = wc;
+    const examplesJson = JSON.stringify(examples);
+    
+    await db.run(
+      `INSERT OR REPLACE INTO ai_examples_cache 
+       (original, kana, chinese, word_class, examples_json) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass, examplesJson]
+    );
+    console.log('AI 例句已缓存');
+  } catch (e) {
+    console.warn('缓存保存失败:', e);
+  }
+}
+
+async function clearCachedExamples(word, kana, chinese, wordClass) {
+  try {
+    const db = await getDB();
+    const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
+    const cacheKeyOriginal = word || '';
+    const cacheKeyKana = kana || '';
+    const cacheKeyChinese = chinese || '';
+    const cacheKeyWordClass = wc;
+    
+    await db.run(
+      `DELETE FROM ai_examples_cache 
+       WHERE COALESCE(original, '') = ? 
+       AND kana = ? 
+       AND chinese = ? 
+       AND COALESCE(word_class, '') = ?`,
+      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+    );
+    console.log('AI 缓存已清除');
+  } catch (e) {
+    console.warn('缓存清除失败:', e);
+  }
+}
 
 // 从字符串中提取所有完整的 JSON 对象
 function extractCompleteExamples(text) {
@@ -164,7 +239,7 @@ export async function generateExamples(req, res) {
 // 流式响应 (Server-Sent Events) - 发送原始文本流
 export async function generateExamplesStream(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [] } = req.body;
+    const { word, kana, chinese, wordClass = [], forceRefresh = false } = req.body;
 
     if (!word && !kana) {
       return res.status(400).json({
@@ -186,6 +261,36 @@ export async function generateExamplesStream(req, res) {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     });
+
+    // 检查缓存（除非强制刷新）
+    if (!forceRefresh) {
+      const cached = await getCachedExamples(word, kana, chinese, wordClass);
+      if (cached) {
+        console.log('使用缓存的 AI 例句');
+        // 直接发送缓存结果，模拟流式效果
+        let displayText = JSON.stringify(cached, null, 2);
+        let currentPos = 0;
+        
+        // 模拟打字机效果
+        const simulateStream = setInterval(() => {
+          if (currentPos < displayText.length) {
+            const chunkSize = Math.min(5, displayText.length - currentPos);
+            currentPos += chunkSize;
+            res.write(`data: ${JSON.stringify({ type: 'text', data: displayText.substring(0, currentPos) })}\n\n`);
+          } else {
+            clearInterval(simulateStream);
+            res.write(`data: ${JSON.stringify({ type: 'done', data: cached, cached: true })}\n\n`);
+            res.end();
+          }
+        }, 20);
+        return;
+      }
+    }
+
+    // 如果强制刷新，先清除旧缓存
+    if (forceRefresh) {
+      await clearCachedExamples(word, kana, chinese, wordClass);
+    }
 
     const systemPrompt = `你是一名专业的日语母语教师。请为用户提供的日语单词生成 3 个自然、实用、符合日本母语者习惯的例句。
 
@@ -243,7 +348,9 @@ export async function generateExamplesStream(req, res) {
 
     // 发送最终结果
     const finalExamples = parseExamples(fullContent);
-    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples })}\n\n`);
+    // 保存到缓存
+    await saveCachedExamples(word, kana, chinese, wordClass, finalExamples);
+    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false })}\n\n`);
     res.end();
 
   } catch (error) {

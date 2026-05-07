@@ -115,16 +115,19 @@ async function syncToNeon() {
     const neonVocabBefore = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
     const neonUsersBefore = await neonPool.query('SELECT COUNT(*) as count FROM users');
     const neonPracticeBefore = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+    const neonAiCacheBefore = await neonPool.query('SELECT COUNT(*) as count FROM ai_examples_cache');
 
     const sqliteVocab = await sqliteDb.all('SELECT COUNT(*) as count FROM vocabulary');
     const sqliteUsers = await sqliteDb.all('SELECT COUNT(*) as count FROM users');
     const sqlitePractice = await sqliteDb.all('SELECT COUNT(*) as count FROM practice_records');
+    const sqliteAiCache = await sqliteDb.all('SELECT COUNT(*) as count FROM ai_examples_cache');
 
     console.log('📈 Data counts:');
     console.log(`   SQLite → Neon`);
     console.log(`   Vocabulary: ${sqliteVocab[0].count} → ${neonVocabBefore.rows[0].count}`);
     console.log(`   Users: ${sqliteUsers[0].count} → ${neonUsersBefore.rows[0].count}`);
-    console.log(`   Practice Records: ${sqlitePractice[0].count} → ${neonPracticeBefore.rows[0].count}\n`);
+    console.log(`   Practice Records: ${sqlitePractice[0].count} → ${neonPracticeBefore.rows[0].count}`);
+    console.log(`   AI Cache: ${sqliteAiCache[0].count} → ${neonAiCacheBefore.rows[0].count}\n`);
 
     const finalConfirm = await askConfirmation('Proceed with sync? (y/n): ');
     if (!finalConfirm) {
@@ -225,10 +228,45 @@ async function syncToNeon() {
       if (audit) await audit.recordError(0, 'practice_records', err.message, err.code);
     }
 
+    // Sync AI cache
+    let aiCacheSynced = 0;
+    let aiCacheFailed = 0;
+    try {
+      console.log('🔄 Syncing AI cache...');
+      const aiCacheData = await sqliteDb.all('SELECT * FROM ai_examples_cache ORDER BY id');
+      
+      for (const row of aiCacheData) {
+        try {
+          await neonPool.query(
+            `INSERT INTO ai_examples_cache 
+            (id, original, kana, chinese, word_class, examples_json, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE SET
+            original = $2, kana = $3, chinese = $4, word_class = $5, 
+            examples_json = $6, created_at = $7`,
+            [row.id, row.original, row.kana, row.chinese, row.word_class, row.examples_json, row.created_at]
+          );
+          aiCacheSynced++;
+        } catch (err) {
+          aiCacheFailed++;
+          if (audit) await audit.recordError(row.id, 'ai_examples_cache', err.message, err.code);
+        }
+      }
+      console.log(`   ✅ ${aiCacheSynced}/${aiCacheData.length} AI cache items synced`);
+    } catch (err) {
+      console.log('   ⚠️  AI cache sync encountered an issue:');
+      logSyncError(err, 'AI cache table sync failed (continuing)', {
+        table: 'ai_examples_cache',
+        operation: 'full sync all AI cache'
+      });
+      if (audit) await audit.recordError(0, 'ai_examples_cache', err.message, err.code);
+    }
+
     // Get counts after sync
     const neonVocabAfter = await neonPool.query('SELECT COUNT(*) as count FROM vocabulary');
     const neonUsersAfter = await neonPool.query('SELECT COUNT(*) as count FROM users');
     const neonPracticeAfter = await neonPool.query('SELECT COUNT(*) as count FROM practice_records');
+    const neonAiCacheAfter = await neonPool.query('SELECT COUNT(*) as count FROM ai_examples_cache');
 
     await ensureVocabularyReadableView(neonPool);
     console.log('🪟 Ensured view: vocabulary_readable');
@@ -238,39 +276,45 @@ async function syncToNeon() {
       await audit.updateProgress({
         vocabulary: { succeeded: vocabSynced, failed: vocabFailed },
         users: { succeeded: usersSynced, failed: usersFailed },
-        practice_records: { succeeded: practiceSynced, failed: practiceFailed }
+        practice_records: { succeeded: practiceSynced, failed: practiceFailed },
+        ai_examples_cache: { succeeded: aiCacheSynced, failed: aiCacheFailed }
       });
     }
 
     const expectedVocabCount = Number(sqliteVocab[0].count);
     const expectedUsersCount = Number(sqliteUsers[0].count);
     const expectedPracticeCount = Number(sqlitePractice[0].count);
+    const expectedAiCacheCount = Number(sqliteAiCache[0].count);
     const actualVocabCount = Number(neonVocabAfter.rows[0].count);
     const actualUsersCount = Number(neonUsersAfter.rows[0].count);
     const actualPracticeCount = Number(neonPracticeAfter.rows[0].count);
+    const actualAiCacheCount = Number(neonAiCacheAfter.rows[0].count);
 
     console.log('\n✅ Sync complete!');
     console.log('📊 Data verification:');
     console.log(`   Vocabulary: ${neonVocabBefore.rows[0].count} → ${actualVocabCount} (expected: ${expectedVocabCount}) ${actualVocabCount === expectedVocabCount ? '✅' : '⚠️'}`);
     console.log(`   Users: ${neonUsersBefore.rows[0].count} → ${actualUsersCount} (expected: ${expectedUsersCount}) ${actualUsersCount === expectedUsersCount ? '✅' : '⚠️'}`);
     console.log(`   Practice Records: ${neonPracticeBefore.rows[0].count} → ${actualPracticeCount} (expected: ${expectedPracticeCount}) ${actualPracticeCount === expectedPracticeCount ? '✅' : '⚠️'}`);
+    console.log(`   AI Cache: ${neonAiCacheBefore.rows[0].count} → ${actualAiCacheCount} (expected: ${expectedAiCacheCount}) ${actualAiCacheCount === expectedAiCacheCount ? '✅' : '⚠️'}`);
 
     const vocabMatch = actualVocabCount === expectedVocabCount;
     const usersMatch = actualUsersCount === expectedUsersCount;
     const practiceMatch = actualPracticeCount === expectedPracticeCount;
+    const aiCacheMatch = actualAiCacheCount === expectedAiCacheCount;
 
-    if (vocabMatch && usersMatch && practiceMatch) {
+    if (vocabMatch && usersMatch && practiceMatch && aiCacheMatch) {
       console.log('\n✅ Full verification PASSED - All counts match SQLite exactly!\n');
     } else {
       console.log('\n⚠️  Verification WARNING - Counts do not match SQLite:\n');
       if (!vocabMatch) console.log(`   • Vocabulary: expected ${expectedVocabCount}, got ${actualVocabCount}`);
       if (!usersMatch) console.log(`   • Users: expected ${expectedUsersCount}, got ${actualUsersCount}`);
       if (!practiceMatch) console.log(`   • Practice Records: expected ${expectedPracticeCount}, got ${actualPracticeCount}`);
+      if (!aiCacheMatch) console.log(`   • AI Cache: expected ${expectedAiCacheCount}, got ${actualAiCacheCount}`);
       console.log('');
     }
 
     // ✨ Mark audit as completed
-    const totalFailed = vocabFailed + usersFailed + practiceFailed;
+    const totalFailed = vocabFailed + usersFailed + practiceFailed + aiCacheFailed;
     if (audit) await audit.completeWithFailures(totalFailed);
 
     await neonPool.end();

@@ -212,6 +212,22 @@ export async function initializeSQLite() {
       CREATE INDEX IF NOT EXISTS idx_unfamiliar_words_user ON unfamiliar_words(user_id);
     `);
 
+    // Create ai_examples_cache table for caching AI generated examples
+    await sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS ai_examples_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original TEXT,
+        kana TEXT NOT NULL,
+        chinese TEXT NOT NULL,
+        word_class TEXT,
+        examples_json TEXT NOT NULL,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(COALESCE(original, ''), kana, chinese, COALESCE(word_class, ''))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup ON ai_examples_cache(COALESCE(original, ''), kana);
+    `);
+
     console.log('✅ SQLite schema initialized');
   } catch (err) {
     console.error('❌ SQLite initialization error:', err.message);
@@ -298,6 +314,22 @@ export async function initializeNeon() {
       );
 
       CREATE INDEX IF NOT EXISTS idx_unfamiliar_words_user ON unfamiliar_words(user_id);
+    `);
+
+    // Create ai_examples_cache table for caching AI generated examples
+    await neonPool.query(`
+      CREATE TABLE IF NOT EXISTS ai_examples_cache (
+        id SERIAL PRIMARY KEY,
+        original TEXT,
+        kana TEXT NOT NULL,
+        chinese TEXT NOT NULL,
+        word_class TEXT,
+        examples_json TEXT NOT NULL,
+        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        UNIQUE((COALESCE(original, '')), kana, chinese, COALESCE(word_class, ''))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup ON ai_examples_cache((COALESCE(original, '')), kana);
     `);
 
     console.log('✅ Neon PostgreSQL schema initialized');

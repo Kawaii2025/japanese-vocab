@@ -275,13 +275,28 @@
     <div v-if="showAiModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeAiModal">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <div class="flex items-center justify-between p-4 border-b">
-          <h3 class="text-lg font-semibold flex items-center">
-            <i class="fa fa-lightbulb-o text-yellow-500 mr-2"></i>
-            AI 例句 - {{ currentAiWord?.original || currentAiWord?.kana }}
-          </h3>
-          <button @click="closeAiModal" class="text-gray-500 hover:text-gray-700">
-            <i class="fa fa-times text-xl"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-lightbulb-o text-yellow-500 mr-2"></i>
+              AI 例句 - {{ currentAiWord?.original || currentAiWord?.kana }}
+            </h3>
+            <span v-if="aiIsCached && !aiLoading" class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              <i class="fa fa-check-circle mr-1"></i>缓存
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              v-if="!aiLoading && aiExamples.length > 0"
+              @click="showAiExample(currentAiWord, true)"
+              class="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded text-sm font-medium transition-colors"
+              title="重新生成"
+            >
+              <i class="fa fa-refresh mr-1"></i>重新生成
+            </button>
+            <button @click="closeAiModal" class="text-gray-500 hover:text-gray-700">
+              <i class="fa fa-times text-xl"></i>
+            </button>
+          </div>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
           <div v-if="aiError" class="text-center py-8 text-red-600">
@@ -370,6 +385,7 @@ const aiExamples = ref([]);
 const aiLoading = ref(false);
 const aiError = ref(null);
 const aiTypingText = ref(''); // 打字机效果显示的文本
+const aiIsCached = ref(false); // 是否使用了缓存
 
 function toggleDropdown(index) {
   openDropdownIndex.value = openDropdownIndex.value === index ? null : index;
@@ -475,7 +491,7 @@ const isRowCompletelyEmpty = (word) => {
 };
 
 // AI 例句功能 (流式 - 打字机效果)
-const showAiExample = async (word) => {
+const showAiExample = async (word, forceRefresh = false) => {
   currentAiWord.value = word;
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
@@ -483,6 +499,7 @@ const showAiExample = async (word) => {
   aiLoading.value = true;
   aiError.value = null;
   aiTypingText.value = ''; // 初始化打字机文本
+  aiIsCached.value = false;
   
   let fullText = '';
   let typingInterval = null;
@@ -533,11 +550,12 @@ const showAiExample = async (word) => {
         wordClass: word.word_class || [],
       },
       null, // onExamples 不再使用
-      (finalExamples) => {
+      (finalExamples, cached) => {
         // 完成时
         aiExamples.value = [...finalExamples];
         aiLoading.value = false;
         aiTypingText.value = ''; // 完成后清空打字机文本
+        aiIsCached.value = cached || false;
         if (typingInterval) clearInterval(typingInterval);
       },
       (error) => {
@@ -555,7 +573,8 @@ const showAiExample = async (word) => {
         if (!typingInterval) {
           startTyping();
         }
-      }
+      },
+      forceRefresh
     );
   } catch (error) {
     aiError.value = error.message || '生成例句失败，请稍后重试';
