@@ -221,9 +221,11 @@ export async function initializeSQLite() {
         chinese TEXT NOT NULL,
         word_class TEXT,
         examples_json TEXT NOT NULL,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        UNIQUE(COALESCE(original, ''), kana, chinese, COALESCE(word_class, ''))
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
       );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_examples_cache_unique 
+      ON ai_examples_cache(COALESCE(original, ''), kana, chinese, COALESCE(word_class, ''));
 
       CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup ON ai_examples_cache(COALESCE(original, ''), kana);
     `);
