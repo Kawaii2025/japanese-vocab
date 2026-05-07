@@ -1,0 +1,86 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "App Start",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "source ~/.nvm/nvm.sh && npm run dev"],
+      "cwd": "${workspaceFolder}",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*VITE.*",
+          "endsPattern": "^.*ready in.*"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "API Start",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "cd ${workspaceFolder}/api && source ~/.nvm/nvm.sh && npm run dev"],
+      "cwd": "${workspaceFolder}",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Server.*",
+          "endsPattern": "^.*listening.*"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Both App + API Start",
+      "type": "shell",
+      "command": "echo",
+      "args": ["Starting both app and api..."],
+      "isBackground": false,
+      "dependsOn": ["App Start", "API Start"],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Sync Vocab to Neon (Partial)",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "cd ${workspaceFolder}/api && source ~/.nvm/nvm.sh && npm run sync-vocab-only-partial"],
+      "cwd": "${workspaceFolder}",
+      "isBackground": false,
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    }
+  ]
+}
