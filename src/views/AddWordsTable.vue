@@ -85,7 +85,7 @@
                   <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">かな</th>
                   <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">日文</th>
                   <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">中文</th>
-                  <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-32">词性</th>
+                  <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 w-1/5">词性</th>
                   <th class="px-2 py-3 text-center text-sm font-semibold text-gray-700 w-10">操作</th>
                 </tr>
               </thead>
