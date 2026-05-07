@@ -284,11 +284,12 @@ export async function generateAiExamples({ word, kana, chinese, wordClass }) {
 /**
  * 生成日语例句 (流式 SSE)
  * @param {Object} params - 单词参数
- * @param {function} onExamples - 当收到完整例句时的回调
+ * @param {function} onExamples - 当收到完整例句时的回调 (可选，保留兼容性)
  * @param {function} onDone - 完成时的回调
  * @param {function} onError - 错误时的回调
+ * @param {function} onText - 收到原始文本更新时的回调
  */
-export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError) {
+export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText) {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/generate-examples/stream`, {
       method: 'POST',
@@ -320,7 +321,9 @@ export async function generateAiExamplesStream({ word, kana, chinese, wordClass 
           try {
             const data = JSON.parse(line.slice(6));
 
-            if (data.type === 'examples' && onExamples) {
+            if (data.type === 'text' && onText) {
+              onText(data.data);
+            } else if (data.type === 'examples' && onExamples) {
               onExamples(data.data);
             } else if (data.type === 'done' && onDone) {
               onDone(data.data);

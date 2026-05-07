@@ -255,7 +255,8 @@
             <i class="fa fa-exclamation-circle text-3xl mb-4"></i>
             <p>{{ aiError }}</p>
           </div>
-          <div v-else-if="aiExamples.length > 0" class="space-y-4">
+          <div v-else class="space-y-4">
+            <!-- 已完成的例句 -->
             <div 
               v-for="(example, index) in aiExamples" 
               :key="index"
@@ -276,21 +277,18 @@
                 </button>
               </div>
             </div>
-            <!-- 加载提示，当还在生成时显示 -->
-            <div v-if="aiLoading" class="text-center py-4">
-              <i class="fa fa-spinner fa-spin text-primary mr-2"></i>
-              <span class="text-gray-600">正在生成更多例句...</span>
+            <!-- 打字机效果的原始文本 -->
+            <div v-if="aiLoading && aiTypingText" class="p-4 border border-primary/30 rounded-lg bg-primary/5">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <pre class="text-sm font-mono text-gray-700 whitespace-pre-wrap">{{ aiTypingText }}</pre>
+                </div>
+              </div>
             </div>
-          </div>
-          <!-- 初始加载或无内容时的提示 -->
-          <div v-else class="text-center py-8">
-            <div v-if="aiLoading">
+            <!-- 初始加载提示 -->
+            <div v-if="aiLoading && !aiExamples.length && !aiTypingText" class="text-center py-8">
               <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
               <p class="text-gray-600">正在生成例句...</p>
-            </div>
-            <div v-else>
-              <i class="fa fa-book text-3xl mb-4 opacity-30"></i>
-              <p class="text-gray-500">暂无例句</p>
             </div>
           </div>
         </div>
@@ -336,6 +334,7 @@ const currentAiWord = ref(null);
 const aiExamples = ref([]);
 const aiLoading = ref(false);
 const aiError = ref(null);
+const aiTypingText = ref('');
 
 const pagination = ref({
   total: 0,
@@ -467,16 +466,56 @@ function handleVoiceClick(text, event) {
   readJapanese(text);
 }
 
-// AI 例句功能 (流式)
+// AI 例句功能 (流式 - 打字机效果)
 const showAiExample = async (word) => {
   currentAiWord.value = word;
   showAiModal.value = true;
-  // 禁用背景滚动
   document.body.style.overflow = 'hidden';
   aiExamples.value = [];
   aiLoading.value = true;
   aiError.value = null;
-
+  aiTypingText.value = ''; // 初始化打字机文本
+  
+  let fullText = '';
+  let typingInterval = null;
+  
+  // 尝试从文本中解析已完成的例句
+  const extractExamples = (text) => {
+    try {
+      // 找到第一个 [ 和最后一个 ]
+      const startIndex = text.indexOf('[');
+      const endIndex = text.lastIndexOf(']');
+      
+      if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+        const jsonStr = text.substring(startIndex, endIndex + 1);
+        const parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map(ex => ({
+              japanese: ex.japanese || ex.jp || '',
+              kana: ex.kana || '',
+              chinese: ex.chinese || ex.cn || ex.zh || '',
+            }))
+            .filter(ex => ex.japanese && ex.kana && ex.chinese);
+        }
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+    return [];
+  };
+  
+  // 打字机效果函数
+  const startTyping = () => {
+    if (typingInterval) clearInterval(typingInterval);
+    
+    typingInterval = setInterval(() => {
+      if (aiTypingText.value.length < fullText.length) {
+        aiTypingText.value = fullText.substring(0, aiTypingText.value.length + 1);
+      }
+    }, 30); // 30ms 每个字符，打字机速度
+  };
+  
   try {
     await api.generateAiExamplesStream(
       {
@@ -485,24 +524,35 @@ const showAiExample = async (word) => {
         chinese: word.chinese,
         wordClass: normalizeWordClasses(word.word_class),
       },
-      (examples) => {
-        // 使用更明确的方式更新，确保 Vue 检测到变化
-        aiExamples.value = [...examples];
-      },
+      null, // onExamples 不再使用
       (finalExamples) => {
-        // 使用展开运算符确保响应式更新
+        // 完成时
         aiExamples.value = [...finalExamples];
         aiLoading.value = false;
+        aiTypingText.value = ''; // 完成后清空打字机文本
+        if (typingInterval) clearInterval(typingInterval);
       },
       (error) => {
         aiError.value = error.message || '生成例句失败，请稍后重试';
         aiLoading.value = false;
+        if (typingInterval) clearInterval(typingInterval);
         console.error('AI 例句生成失败:', error);
+      },
+      (rawText) => {
+        // 收到原始文本更新
+        fullText = rawText;
+        // 尝试解析已完成的例句
+        aiExamples.value = extractExamples(rawText);
+        // 启动打字机
+        if (!typingInterval) {
+          startTyping();
+        }
       }
     );
   } catch (error) {
     aiError.value = error.message || '生成例句失败，请稍后重试';
     aiLoading.value = false;
+    if (typingInterval) clearInterval(typingInterval);
     console.error('AI 例句生成失败:', error);
   }
 };

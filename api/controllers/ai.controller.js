@@ -161,7 +161,7 @@ export async function generateExamples(req, res) {
   }
 }
 
-// 流式响应 (Server-Sent Events)
+// 流式响应 (Server-Sent Events) - 发送原始文本流
 export async function generateExamplesStream(req, res) {
   try {
     const { word, kana, chinese, wordClass = [] } = req.body;
@@ -232,18 +232,13 @@ export async function generateExamplesStream(req, res) {
     });
 
     let fullContent = '';
-    let lastSentExamplesCount = 0;
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content || '';
       fullContent += delta;
-
-      // 提取完整的对象
-      const examples = extractCompleteExamples(fullContent);
-      if (examples.length > lastSentExamplesCount) {
-        lastSentExamplesCount = examples.length;
-        res.write(`data: ${JSON.stringify({ type: 'examples', data: examples })}\n\n`);
-      }
+      
+      // 发送原始文本流
+      res.write(`data: ${JSON.stringify({ type: 'text', data: fullContent })}\n\n`);
     }
 
     // 发送最终结果
