@@ -279,6 +279,7 @@ export async function generateAiExamples({ word, kana, chinese, wordClass, force
   return request('/ai/generate-examples', {
     method: 'POST',
     body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh, disableCache }),
+    timeout: 120000, // AI 请求 120 秒超时
   });
 }
 
@@ -294,13 +295,19 @@ export async function generateAiExamples({ word, kana, chinese, wordClass, force
 export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText, forceRefresh = false) {
   try {
     const disableCache = import.meta.env.VITE_DISABLE_AI_CACHE === 'true';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 秒超时
+    
     const response = await fetch(`${API_BASE_URL}/ai/generate-examples/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ word, kana, chinese, wordClass, forceRefresh, disableCache }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error('流式请求失败');
