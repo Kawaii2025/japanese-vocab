@@ -63,13 +63,13 @@
         <table class="w-full">
           <thead class="bg-gray-100 border-b">
             <tr class="text-left">
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-36">日语</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-32">假名</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-36">中文</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-32">英文</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-48">词性</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 min-w-32">添加时间</th>
-              <th class="px-4 py-3 text-sm font-semibold text-gray-700 w-32">操作</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">日语</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">假名</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">中文</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">英文</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">词性</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">添加时间</th>
+              <th class="px-4 py-3 text-sm font-semibold text-gray-700">操作</th>
             </tr>
           </thead>
           <tbody>
