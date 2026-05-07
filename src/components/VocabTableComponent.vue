@@ -140,9 +140,9 @@
                 <span 
                   v-for="cls in normalizeWordClasses(item.word_class)" 
                   :key="cls"
-                  :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(cls)]"
+                  :class="['inline-block px-2 py-1 rounded text-xs font-medium', getWordClassColor(cls)]"
                 >
-                  {{ getWordClassLabel(cls) }}
+                  {{ getWordClassShort([cls])[0] }}
                 </span>
                 <span v-if="normalizeWordClasses(item.word_class).length === 0" class="text-gray-400 text-sm">-</span>
               </div>
@@ -214,7 +214,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { getWordClassLabel, getWordClassColor, normalizeWordClasses } from '../constants/wordClasses';
+import { getWordClassLabel, getWordClassColor, getWordClassShort, normalizeWordClasses } from '../constants/wordClasses';
 import { createMaskText, getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
 
 const props = defineProps({

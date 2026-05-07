@@ -157,9 +157,9 @@
                           <span 
                             v-for="cls in word.word_class" 
                             :key="cls"
-                            :class="['inline-block px-2 py-0.5 rounded-full text-xs', getWordClassColor(cls)]"
+                            :class="['inline-block px-2 py-1 rounded text-xs', getWordClassColor(cls)]"
                           >
-                            {{ getWordClassLabel(cls) }}
+                            {{ getWordClassShort([cls])[0] }}
                           </span>
                           <span v-if="word.word_class.length === 0" class="text-gray-400">请选择</span>
                         </div>
@@ -180,7 +180,7 @@
                             :checked="word.word_class.includes(wc.key)"
                             class="rounded pointer-events-none"
                           />
-                          <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
+                          <span :class="['inline-block px-2 py-1 rounded text-xs', wc.color]">{{ wc.short }} - {{ wc.label_zh }}</span>
                         </div>
                       </div>
                     </div>
@@ -265,7 +265,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { WORD_CLASSES, normalizeWordClasses, getWordClassLabel, getWordClassColor } from '../constants/wordClasses';
+import { WORD_CLASSES, normalizeWordClasses, getWordClassLabel, getWordClassColor, getWordClassShort } from '../constants/wordClasses';
 import * as api from '../services/api.js';
 import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';

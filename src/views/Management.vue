@@ -121,9 +121,9 @@
                   <span 
                     v-for="cls in normalizeWordClasses(word.word_class)" 
                     :key="cls"
-                    :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getWordClassColor(cls)]"
+                    :class="['inline-block px-2 py-1 rounded text-xs font-medium', getWordClassColor(cls)]"
                   >
-                    {{ getWordClassLabel(cls) }}
+                    {{ getWordClassShort([cls])[0] }}
                   </span>
                   <span v-if="normalizeWordClasses(word.word_class).length === 0" class="text-gray-400 text-sm">-</span>
                 </div>
@@ -137,9 +137,9 @@
                       <span 
                         v-for="cls in editForm.word_class" 
                         :key="cls"
-                        :class="['inline-block px-2 py-0.5 rounded-full text-xs', getWordClassColor(cls)]"
+                        :class="['inline-block px-2 py-1 rounded text-xs', getWordClassColor(cls)]"
                       >
-                        {{ getWordClassLabel(cls) }}
+                        {{ getWordClassShort([cls])[0] }}
                       </span>
                       <span v-if="editForm.word_class.length === 0" class="text-gray-400">请选择</span>
                     </div>
@@ -160,7 +160,7 @@
                         :checked="editForm.word_class.includes(wc.key)"
                         class="rounded pointer-events-none"
                       />
-                      <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
+                      <span :class="['inline-block px-2 py-1 rounded text-xs', wc.color]">{{ wc.short }} - {{ wc.label_zh }}</span>
                     </div>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
 import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
-import { WORD_CLASSES, getWordClassLabel, getWordClassColor, normalizeWordClasses } from '../constants/wordClasses';
+import { WORD_CLASSES, getWordClassLabel, getWordClassColor, getWordClassShort, normalizeWordClasses } from '../constants/wordClasses';
 import * as api from '../services/api';
 
 function handleClickOutside(event) {
