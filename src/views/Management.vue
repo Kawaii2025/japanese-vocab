@@ -127,20 +127,43 @@
                   </span>
                   <span v-if="normalizeWordClasses(word.word_class).length === 0" class="text-gray-400 text-sm">-</span>
                 </div>
-                <select 
-                  v-else
-                  v-model="editForm.word_class"
-                  multiple
-                  class="w-full px-2 py-1 border border-gray-300 rounded"
-                >
-                  <option 
-                    v-for="wc in WORD_CLASSES" 
-                    :key="wc.key" 
-                    :value="wc.key"
+                <div v-else class="relative">
+                  <button 
+                    type="button"
+                    @click="toggleDropdown(word.id)"
+                    class="w-full px-3 py-2 text-left border border-gray-300 rounded bg-white flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    {{ wc.labelZh }}
-                  </option>
-                </select>
+                    <div class="flex flex-wrap gap-1">
+                      <span 
+                        v-for="cls in editForm.word_class" 
+                        :key="cls"
+                        :class="['inline-block px-2 py-0.5 rounded-full text-xs', getWordClassColor(cls)]"
+                      >
+                        {{ getWordClassLabel(cls) }}
+                      </span>
+                      <span v-if="editForm.word_class.length === 0" class="text-gray-400">请选择</span>
+                    </div>
+                    <i class="fa fa-chevron-down text-xs text-gray-400 ml-2"></i>
+                  </button>
+                  <div 
+                    v-if="openDropdownId === word.id"
+                    class="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg z-10"
+                  >
+                    <div 
+                      v-for="wc in WORD_CLASSES" 
+                      :key="wc.key"
+                      @click="toggleWordClass(editForm.word_class, wc.key)"
+                      class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100"
+                    >
+                      <input 
+                        type="checkbox"
+                        :checked="editForm.word_class.includes(wc.key)"
+                        class="rounded pointer-events-none"
+                      />
+                      <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
+                    </div>
+                  </div>
+                </div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ formatDate(word.created_at) }}
@@ -210,13 +233,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
 import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { WORD_CLASSES, getWordClassLabel, getWordClassColor, normalizeWordClasses } from '../constants/wordClasses';
 import * as api from '../services/api';
+
+function handleClickOutside(event) {
+  if (openDropdownId.value && !event.target.closest('.relative')) {
+    openDropdownId.value = null;
+  }
+}
 
 const router = useRouter();
 const toast = useToast();
@@ -228,6 +257,7 @@ const loading = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
 const editForm = ref({});
+const openDropdownId = ref(null);
 
 const pagination = ref({
   total: 0,
@@ -237,6 +267,19 @@ const pagination = ref({
   hasNext: false,
   hasPrev: false
 });
+
+function toggleDropdown(id) {
+  openDropdownId.value = openDropdownId.value === id ? null : id;
+}
+
+function toggleWordClass(wordClassesArray, key) {
+  const index = wordClassesArray.indexOf(key);
+  if (index === -1) {
+    wordClassesArray.push(key);
+  } else {
+    wordClassesArray.splice(index, 1);
+  }
+}
 
 // 加载单词列表
 async function loadVocabulary(page = 1) {
@@ -412,6 +455,11 @@ function goBack() {
 // 初始化
 onMounted(() => {
   loadVocabulary();
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
 });
 </script>
 

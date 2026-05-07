@@ -147,19 +147,43 @@
                   </td>
                   <!-- 词类选择 -->
                   <td class="px-4 py-3">
-                    <select 
-                      v-model="word.word_class"
-                      multiple
-                      class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent text-sm"
-                    >
-                      <option 
-                        v-for="wc in WORD_CLASSES" 
-                        :key="wc.key" 
-                        :value="wc.key"
+                    <div class="relative">
+                      <button 
+                        type="button"
+                        @click="toggleDropdown(index)"
+                        class="w-full px-3 py-2 text-left border border-gray-300 rounded bg-white flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                       >
-                        {{ wc.labelZh }}
-                      </option>
-                    </select>
+                        <div class="flex flex-wrap gap-1">
+                          <span 
+                            v-for="cls in word.word_class" 
+                            :key="cls"
+                            :class="['inline-block px-2 py-0.5 rounded-full text-xs', getWordClassColor(cls)]"
+                          >
+                            {{ getWordClassLabel(cls) }}
+                          </span>
+                          <span v-if="word.word_class.length === 0" class="text-gray-400">请选择</span>
+                        </div>
+                        <i class="fa fa-chevron-down text-xs text-gray-400 ml-2"></i>
+                      </button>
+                      <div 
+                        v-if="openDropdownIndex === index"
+                        class="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg z-10"
+                      >
+                        <div 
+                          v-for="wc in WORD_CLASSES" 
+                          :key="wc.key"
+                          @click="toggleWordClass(word.word_class, wc.key)"
+                          class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100"
+                        >
+                          <input 
+                            type="checkbox"
+                            :checked="word.word_class.includes(wc.key)"
+                            class="rounded pointer-events-none"
+                          />
+                          <span :class="['inline-block px-2 py-0.5 rounded text-xs', wc.color]">{{ wc.labelZh }}</span>
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <!-- 删除按钮 -->
                   <td class="px-4 py-3 text-center">
@@ -239,13 +263,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { WORD_CLASSES, normalizeWordClasses } from '../constants/wordClasses';
+import { WORD_CLASSES, normalizeWordClasses, getWordClassLabel, getWordClassColor } from '../constants/wordClasses';
 import * as api from '../services/api.js';
 import { readJapanese } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
 import { useConfirm } from '../composables/useConfirm.js';
+
+function handleClickOutside(event) {
+  if (openDropdownIndex.value !== null && !event.target.closest('.relative')) {
+    openDropdownIndex.value = null;
+  }
+}
 
 const router = useRouter();
 const toast = useToast();
@@ -260,6 +290,20 @@ const createEmptyRows = (count = DEFAULT_ROW_COUNT) =>
 const words = ref(createEmptyRows());
 const recentWords = ref([]);
 const loading = ref(false);
+const openDropdownIndex = ref(null);
+
+function toggleDropdown(index) {
+  openDropdownIndex.value = openDropdownIndex.value === index ? null : index;
+}
+
+function toggleWordClass(wordClassesArray, key) {
+  const index = wordClassesArray.indexOf(key);
+  if (index === -1) {
+    wordClassesArray.push(key);
+  } else {
+    wordClassesArray.splice(index, 1);
+  }
+}
 
 // 计算有效单词数
 const validWordCount = computed(() => {
@@ -474,6 +518,11 @@ const saveAll = async () => {
 onMounted(() => {
   restoreDraftFromLocal();
   loadRecentWords();
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
 });
 
 watch(words, () => {
