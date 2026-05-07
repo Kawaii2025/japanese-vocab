@@ -82,11 +82,11 @@
               <thead>
                 <tr class="bg-gray-100 border-b-2 border-gray-300">
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 w-12">#</th>
-                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-24">かな</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-28">かな</th>
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">日文</th>
                   <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-32">中文</th>
-                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-52">词性</th>
-                  <th class="px-3 py-3 text-center text-sm font-semibold text-gray-700 w-12">操作</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-700 min-w-40">词性</th>
+                  <th class="px-3 py-3 text-center text-sm font-semibold text-gray-700 w-14">操作</th>
                 </tr>
               </thead>
               <tbody>
