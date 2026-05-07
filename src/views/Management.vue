@@ -172,6 +172,14 @@
                 <div class="flex gap-2">
                   <button 
                     v-if="editingId !== word.id"
+                    @click="showAiExample(word)"
+                    class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-custom"
+                    title="AI例句"
+                  >
+                    <i class="fa fa-lightbulb-o"></i>
+                  </button>
+                  <button 
+                    v-if="editingId !== word.id"
                     @click="startEdit(word)"
                     class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm transition-custom"
                   >
@@ -229,6 +237,57 @@
         </div>
       </div>
     </div>
+
+    <!-- AI例句弹窗 -->
+    <div v-if="showAiModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeAiModal">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+          <h3 class="text-lg font-semibold flex items-center">
+            <i class="fa fa-lightbulb-o text-yellow-500 mr-2"></i>
+            AI 例句 - {{ currentAiWord?.original || currentAiWord?.kana }}
+          </h3>
+          <button @click="closeAiModal" class="text-gray-500 hover:text-gray-700">
+            <i class="fa fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="aiLoading" class="text-center py-8">
+            <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
+            <p class="text-gray-600">正在生成例句...</p>
+          </div>
+          <div v-else-if="aiError" class="text-center py-8 text-red-600">
+            <i class="fa fa-exclamation-circle text-3xl mb-4"></i>
+            <p>{{ aiError }}</p>
+          </div>
+          <div v-else-if="aiExamples.length > 0" class="space-y-4">
+            <div 
+              v-for="(example, index) in aiExamples" 
+              :key="index"
+              class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
+            >
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                  <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                  <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                </div>
+                <button 
+                  @click="handleVoiceClick(example.kana || example.japanese, $event)"
+                  class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
+                  title="朗读"
+                >
+                  <i class="fa fa-volume-up"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-gray-500">
+            <i class="fa fa-book text-3xl mb-4 opacity-30"></i>
+            <p>暂无例句</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -240,10 +299,14 @@ import { useDateFilter } from '../composables/useDateFilter';
 import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { WORD_CLASSES, getWordClassLabel, getWordClassColor, getWordClassShort, normalizeWordClasses } from '../constants/wordClasses';
 import * as api from '../services/api';
+import { readJapanese } from '../utils/helpers';
 
 function handleClickOutside(event) {
   if (openDropdownId.value && !event.target.closest('.relative')) {
     openDropdownId.value = null;
+  }
+  if (showAiModal.value && !event.target.closest('.bg-white')) {
+    closeAiModal();
   }
 }
 
@@ -258,6 +321,13 @@ const saving = ref(false);
 const editingId = ref(null);
 const editForm = ref({});
 const openDropdownId = ref(null);
+
+// AI 例句相关
+const showAiModal = ref(false);
+const currentAiWord = ref(null);
+const aiExamples = ref([]);
+const aiLoading = ref(false);
+const aiError = ref(null);
 
 const pagination = ref({
   total: 0,
@@ -382,6 +452,60 @@ function cancelEdit() {
   editingId.value = null;
   editForm.value = {};
 }
+
+// 朗读功能
+function handleVoiceClick(text, event) {
+  if (!text) return;
+  readJapanese(text);
+}
+
+// AI 例句功能
+const showAiExample = async (word) => {
+  currentAiWord.value = word;
+  showAiModal.value = true;
+  aiExamples.value = [];
+  aiLoading.value = true;
+  aiError.value = null;
+
+  try {
+    // TODO: 这里调用真实的 AI API 生成例句
+    // 暂时使用模拟数据
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 模拟生成的例句
+    const mockExamples = [
+      {
+        japanese: word.original || word.kana,
+        kana: word.kana,
+        chinese: word.chinese
+      },
+      {
+        japanese: `${word.original || word.kana}を使って文を作りましょう。`,
+        kana: `${word.kana}をつかってぶんをつくりましょう。`,
+        chinese: `让我们用"${word.chinese}"造个句子吧。`
+      },
+      {
+        japanese: `私は毎日${word.original || word.kana}を使います。`,
+        kana: `わたしはまいにち${word.kana}をつかいます。`,
+        chinese: `我每天都使用"${word.chinese}"。`
+      }
+    ];
+    
+    aiExamples.value = mockExamples;
+  } catch (error) {
+    aiError.value = '生成例句失败，请稍后重试';
+    console.error('AI 例句生成失败:', error);
+  } finally {
+    aiLoading.value = false;
+  }
+};
+
+const closeAiModal = () => {
+  showAiModal.value = false;
+  currentAiWord.value = null;
+  aiExamples.value = [];
+  aiError.value = null;
+};
 
 // 保存编辑
 async function saveEdit(id) {
