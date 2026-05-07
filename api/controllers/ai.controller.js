@@ -224,7 +224,7 @@ function parseExamples(assistantMessage) {
 // 非流式响应
 export async function generateExamples(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [] } = req.body;
+    const { word, kana, chinese, wordClass = [], forceRefresh = false } = req.body;
 
     if (!word && !kana) {
       return res.status(400).json({
@@ -238,6 +238,21 @@ export async function generateExamples(req, res) {
         success: false,
         error: '未配置 DASHSCOPE_API_KEY / QWEN_API_KEY'
       });
+    }
+
+    // 检查缓存（除非强制刷新）
+    if (!forceRefresh) {
+      const cached = await getCachedExamples(word, kana, chinese, wordClass);
+      if (cached) {
+        console.log('使用缓存的 AI 例句');
+        return res.json({
+          success: true,
+          data: {
+            examples: cached,
+            cached: true
+          }
+        });
+      }
     }
 
     const systemPrompt = `你是一名专业的日语母语教师。请为用户提供的日语单词生成 3 个自然、实用、符合日本母语者习惯的例句。
@@ -285,10 +300,16 @@ export async function generateExamples(req, res) {
 
     const assistantMessage = completion.choices?.[0]?.message?.content;
     const examples = parseExamples(assistantMessage);
+    
+    // 保存到缓存
+    await saveCachedExamples(word, kana, chinese, wordClass, examples);
 
     res.json({
       success: true,
-      data: examples,
+      data: {
+        examples: examples,
+        cached: false
+      }
     });
   } catch (error) {
     console.error('生成例句失败:', error);

@@ -271,7 +271,7 @@
             <p>{{ aiError }}</p>
           </div>
           <div v-else class="space-y-4">
-            <!-- 已完成的例句 -->
+            <!-- 例句占位符/显示 -->
             <div 
               v-for="(example, index) in aiExamples" 
               :key="index"
@@ -279,11 +279,21 @@
             >
               <div class="flex items-start justify-between">
                 <div class="flex-1">
-                  <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
-                  <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
-                  <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                  <template v-if="example.loading">
+                    <div class="space-y-2">
+                      <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                      <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                      <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                    <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                  </template>
                 </div>
                 <button 
+                  v-if="!example.loading"
                   @click="handleVoiceClick(example.kana || example.japanese, $event)"
                   class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
                   title="朗读"
@@ -291,19 +301,6 @@
                   <i class="fa fa-volume-up"></i>
                 </button>
               </div>
-            </div>
-            <!-- 打字机效果的原始文本 -->
-            <div v-if="aiLoading && aiTypingText" class="p-4 border border-primary/30 rounded-lg bg-primary/5">
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <pre class="text-sm font-mono text-gray-700 whitespace-pre-wrap">{{ aiTypingText }}</pre>
-                </div>
-              </div>
-            </div>
-            <!-- 初始加载提示 -->
-            <div v-if="aiLoading && !aiExamples.length && !aiTypingText" class="text-center py-8">
-              <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
-              <p class="text-gray-600">正在生成例句...</p>
             </div>
           </div>
         </div>
@@ -482,97 +479,136 @@ function handleVoiceClick(text, event) {
   readJapanese(text);
 }
 
-// AI 例句功能 (流式 - 打字机效果)
+// 配置：是否使用流式响应（false = 使用非流式）
+const USE_STREAMING_AI = false;
+
+// AI 例句功能
 const showAiExample = async (word, forceRefresh = false) => {
   currentAiWord.value = word;
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
-  aiExamples.value = [];
+  aiExamples.value = [
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true }
+  ];
   aiLoading.value = true;
   aiError.value = null;
-  aiTypingText.value = ''; // 初始化打字机文本
   aiIsCached.value = false;
   
-  let fullText = '';
-  let typingInterval = null;
-  
-  // 尝试从文本中解析已完成的例句
-  const extractExamples = (text) => {
-    try {
-      // 找到第一个 [ 和最后一个 ]
-      const startIndex = text.indexOf('[');
-      const endIndex = text.lastIndexOf(']');
-      
-      if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
-        const jsonStr = text.substring(startIndex, endIndex + 1);
-        const parsed = JSON.parse(jsonStr);
-        if (Array.isArray(parsed)) {
-          return parsed
-            .map(ex => ({
-              japanese: ex.japanese || ex.jp || '',
-              kana: ex.kana || '',
-              chinese: ex.chinese || ex.cn || ex.zh || '',
-            }))
-            .filter(ex => ex.japanese && ex.kana && ex.chinese);
-        }
-      }
-    } catch (e) {
-      // 忽略解析错误
-    }
-    return [];
-  };
-  
-  // 打字机效果函数
-  const startTyping = () => {
-    if (typingInterval) clearInterval(typingInterval);
+  if (USE_STREAMING_AI) {
+    // ========== 流式响应逻辑（保留但默认关闭） ==========
+    let fullText = '';
+    let typingInterval = null;
+    aiTypingText.value = ''; // 初始化打字机文本
     
-    typingInterval = setInterval(() => {
-      if (aiTypingText.value.length < fullText.length) {
-        aiTypingText.value = fullText.substring(0, aiTypingText.value.length + 1);
+    // 尝试从文本中解析已完成的例句
+    const extractExamples = (text) => {
+      try {
+        // 找到第一个 [ 和最后一个 ]
+        const startIndex = text.indexOf('[');
+        const endIndex = text.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          const jsonStr = text.substring(startIndex, endIndex + 1);
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) {
+            const result = parsed
+              .map(ex => ({
+                japanese: ex.japanese || ex.jp || '',
+                kana: ex.kana || '',
+                chinese: ex.chinese || ex.cn || ex.zh || '',
+              }))
+              .filter(ex => ex.japanese && ex.kana && ex.chinese);
+            
+            // 确保有3个占位符
+            while (result.length < 3) {
+              result.push({ japanese: '', kana: '', chinese: '', loading: true });
+            }
+            return result;
+          }
+        }
+      } catch (e) {
+        // 忽略解析错误
       }
-    }, 30); // 30ms 每个字符，打字机速度
-  };
-  
-  try {
-    await api.generateAiExamplesStream(
-      {
+      return [
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true }
+      ];
+    };
+    
+    // 打字机效果函数
+    const startTyping = () => {
+      if (typingInterval) clearInterval(typingInterval);
+      
+      typingInterval = setInterval(() => {
+        if (aiTypingText.value.length < fullText.length) {
+          aiTypingText.value = fullText.substring(0, aiTypingText.value.length + 1);
+        }
+      }, 30); // 30ms 每个字符，打字机速度
+    };
+    
+    try {
+      await api.generateAiExamplesStream(
+        {
+          word: word.original,
+          kana: word.kana,
+          chinese: word.chinese,
+          wordClass: normalizeWordClasses(word.word_class),
+        },
+        null, // onExamples 不再使用
+        (finalExamples, cached) => {
+          // 完成时
+          aiExamples.value = [...finalExamples];
+          aiLoading.value = false;
+          aiTypingText.value = ''; // 完成后清空打字机文本
+          aiIsCached.value = cached || false;
+          if (typingInterval) clearInterval(typingInterval);
+        },
+        (error) => {
+          aiError.value = error.message || '生成例句失败，请稍后重试';
+          aiLoading.value = false;
+          if (typingInterval) clearInterval(typingInterval);
+          console.error('AI 例句生成失败:', error);
+        },
+        (rawText) => {
+          // 收到原始文本更新
+          fullText = rawText;
+          // 尝试解析已完成的例句
+          aiExamples.value = extractExamples(rawText);
+          // 启动打字机
+          if (!typingInterval) {
+            startTyping();
+          }
+        },
+        forceRefresh
+      );
+    } catch (error) {
+      aiError.value = error.message || '生成例句失败，请稍后重试';
+      aiLoading.value = false;
+      if (typingInterval) clearInterval(typingInterval);
+      console.error('AI 例句生成失败:', error);
+    }
+  } else {
+    // ========== 非流式响应逻辑（默认使用） ==========
+    try {
+      const response = await api.generateAiExamples({
         word: word.original,
         kana: word.kana,
         chinese: word.chinese,
         wordClass: normalizeWordClasses(word.word_class),
-      },
-      null, // onExamples 不再使用
-      (finalExamples, cached) => {
-        // 完成时
-        aiExamples.value = [...finalExamples];
-        aiLoading.value = false;
-        aiTypingText.value = ''; // 完成后清空打字机文本
-        aiIsCached.value = cached || false;
-        if (typingInterval) clearInterval(typingInterval);
-      },
-      (error) => {
-        aiError.value = error.message || '生成例句失败，请稍后重试';
-        aiLoading.value = false;
-        if (typingInterval) clearInterval(typingInterval);
-        console.error('AI 例句生成失败:', error);
-      },
-      (rawText) => {
-        // 收到原始文本更新
-        fullText = rawText;
-        // 尝试解析已完成的例句
-        aiExamples.value = extractExamples(rawText);
-        // 启动打字机
-        if (!typingInterval) {
-          startTyping();
-        }
-      },
-      forceRefresh
-    );
-  } catch (error) {
-    aiError.value = error.message || '生成例句失败，请稍后重试';
-    aiLoading.value = false;
-    if (typingInterval) clearInterval(typingInterval);
-    console.error('AI 例句生成失败:', error);
+        forceRefresh
+      });
+      
+      aiExamples.value = response.data?.examples || [];
+      aiIsCached.value = response.data?.cached || false;
+      aiLoading.value = false;
+    } catch (error) {
+      aiError.value = error.message || '生成例句失败，请稍后重试';
+      aiLoading.value = false;
+      console.error('AI 例句生成失败:', error);
+    }
   }
 };
 
