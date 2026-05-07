@@ -160,7 +160,7 @@
                         :checked="editForm.word_class.includes(wc.key)"
                         class="rounded pointer-events-none"
                       />
-                      <span :class="['inline-block px-2 py-1 rounded text-xs', wc.color]">{{ wc.short }} - {{ wc.label_zh }}</span>
+                      <span :class="['inline-block px-2 py-1 rounded text-xs', wc.color]">{{ wc.short }}</span>
                     </div>
                   </div>
                 </div>
