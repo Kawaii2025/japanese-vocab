@@ -486,12 +486,12 @@ const showAiExample = async (word) => {
         wordClass: normalizeWordClasses(word.word_class),
       },
       (examples) => {
-        // 收到部分或完整例句时更新
-        aiExamples.value = examples;
+        // 使用更明确的方式更新，确保 Vue 检测到变化
+        aiExamples.value = [...examples];
       },
       (finalExamples) => {
-        // 完成时更新
-        aiExamples.value = finalExamples;
+        // 使用展开运算符确保响应式更新
+        aiExamples.value = [...finalExamples];
         aiLoading.value = false;
       },
       (error) => {

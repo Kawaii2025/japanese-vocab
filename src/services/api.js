@@ -304,19 +304,22 @@ export async function generateAiExamplesStream({ word, kana, chinese, wordClass 
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n\n');
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      // 保留最后一个可能不完整的行
+      buffer = lines.pop() || '';
 
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
-            
+
             if (data.type === 'examples' && onExamples) {
               onExamples(data.data);
             } else if (data.type === 'done' && onDone) {
