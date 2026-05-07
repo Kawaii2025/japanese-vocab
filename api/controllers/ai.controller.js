@@ -3,7 +3,7 @@
  * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式，支持流式和非流式)
  */
 import OpenAI from 'openai';
-import getDB from '../db.js';
+import getDB, { getDatabaseInfo } from '../db.js';
 
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY;
 const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -18,20 +18,35 @@ const openai = new OpenAI({
 // 缓存辅助函数
 async function getCachedExamples(word, kana, chinese, wordClass) {
   const db = await getDB();
+  const dbInfo = getDatabaseInfo();
   const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
-  const cacheKeyOriginal = word || '';
-  const cacheKeyKana = kana || '';
-  const cacheKeyChinese = chinese || '';
-  const cacheKeyWordClass = wc;
+  const cacheKeyOriginal = word || null;
+  const cacheKeyKana = kana;
+  const cacheKeyChinese = chinese;
+  const cacheKeyWordClass = wc || null;
   
-  const result = await db.get(
-    `SELECT examples_json FROM ai_examples_cache 
-     WHERE COALESCE(original, '') = ? 
-     AND kana = ? 
-     AND chinese = ? 
-     AND COALESCE(word_class, '') = ?`,
-    [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
-  );
+  let result;
+  if (dbInfo.isNeon) {
+    // PostgreSQL 版本 - 使用 IS NULL 和 = 来匹配
+    result = await db.get(
+      `SELECT examples_json FROM ai_examples_cache 
+       WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
+       AND kana = $2 
+       AND chinese = $3 
+       AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)`,
+      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+    );
+  } else {
+    // SQLite 版本
+    result = await db.get(
+      `SELECT examples_json FROM ai_examples_cache 
+       WHERE COALESCE(original, '') = COALESCE(?, '') 
+       AND kana = ? 
+       AND chinese = ? 
+       AND COALESCE(word_class, '') = COALESCE(?, '')`,
+      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+    );
+  }
   
   if (result && result.examples_json) {
     try {
@@ -47,19 +62,53 @@ async function getCachedExamples(word, kana, chinese, wordClass) {
 async function saveCachedExamples(word, kana, chinese, wordClass, examples) {
   try {
     const db = await getDB();
+    const dbInfo = getDatabaseInfo();
     const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
-    const cacheKeyOriginal = word || '';
-    const cacheKeyKana = kana || '';
-    const cacheKeyChinese = chinese || '';
-    const cacheKeyWordClass = wc;
+    const cacheKeyOriginal = word || null;
+    const cacheKeyKana = kana;
+    const cacheKeyChinese = chinese;
+    const cacheKeyWordClass = wc || null;
     const examplesJson = JSON.stringify(examples);
+    const now = Math.floor(Date.now() / 1000);
     
-    await db.run(
-      `INSERT OR REPLACE INTO ai_examples_cache 
-       (original, kana, chinese, word_class, examples_json) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass, examplesJson]
-    );
+    if (dbInfo.isNeon) {
+      // PostgreSQL 版本 - 使用 ON CONFLICT，不使用表达式索引
+      // 先检查是否存在
+      const existing = await db.get(
+        `SELECT id FROM ai_examples_cache 
+         WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
+         AND kana = $2 
+         AND chinese = $3 
+         AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+      );
+      
+      if (existing) {
+        // 更新已存在的
+        await db.run(
+          `UPDATE ai_examples_cache 
+           SET examples_json = $2, created_at = $3
+           WHERE id = $1`,
+          [existing.id, examplesJson, now * 1000]
+        );
+      } else {
+        // 插入新的
+        await db.run(
+          `INSERT INTO ai_examples_cache 
+           (original, kana, chinese, word_class, examples_json, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass, examplesJson, now * 1000]
+        );
+      }
+    } else {
+      // SQLite 版本 - 使用 INSERT OR REPLACE
+      await db.run(
+        `INSERT OR REPLACE INTO ai_examples_cache 
+         (original, kana, chinese, word_class, examples_json, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass, examplesJson, now]
+      );
+    }
     console.log('AI 例句已缓存');
   } catch (e) {
     console.warn('缓存保存失败:', e);
@@ -69,20 +118,34 @@ async function saveCachedExamples(word, kana, chinese, wordClass, examples) {
 async function clearCachedExamples(word, kana, chinese, wordClass) {
   try {
     const db = await getDB();
+    const dbInfo = getDatabaseInfo();
     const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
-    const cacheKeyOriginal = word || '';
-    const cacheKeyKana = kana || '';
-    const cacheKeyChinese = chinese || '';
-    const cacheKeyWordClass = wc;
+    const cacheKeyOriginal = word || null;
+    const cacheKeyKana = kana;
+    const cacheKeyChinese = chinese;
+    const cacheKeyWordClass = wc || null;
     
-    await db.run(
-      `DELETE FROM ai_examples_cache 
-       WHERE COALESCE(original, '') = ? 
-       AND kana = ? 
-       AND chinese = ? 
-       AND COALESCE(word_class, '') = ?`,
-      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
-    );
+    if (dbInfo.isNeon) {
+      // PostgreSQL 版本
+      await db.run(
+        `DELETE FROM ai_examples_cache 
+         WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
+         AND kana = $2 
+         AND chinese = $3 
+         AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+      );
+    } else {
+      // SQLite 版本
+      await db.run(
+        `DELETE FROM ai_examples_cache 
+         WHERE COALESCE(original, '') = COALESCE(?, '') 
+         AND kana = ? 
+         AND chinese = ? 
+         AND COALESCE(word_class, '') = COALESCE(?, '')`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+      );
+    }
     console.log('AI 缓存已清除');
   } catch (e) {
     console.warn('缓存清除失败:', e);
