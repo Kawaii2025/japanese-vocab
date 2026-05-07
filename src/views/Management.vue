@@ -467,7 +467,7 @@ function handleVoiceClick(text, event) {
   readJapanese(text);
 }
 
-// AI 例句功能
+// AI 例句功能 (流式)
 const showAiExample = async (word) => {
   currentAiWord.value = word;
   showAiModal.value = true;
@@ -478,19 +478,32 @@ const showAiExample = async (word) => {
   aiError.value = null;
 
   try {
-    const response = await api.generateAiExamples({
-      word: word.original,
-      kana: word.kana,
-      chinese: word.chinese,
-      wordClass: normalizeWordClasses(word.word_class),
-    });
-    
-    aiExamples.value = response.data;
+    await api.generateAiExamplesStream(
+      {
+        word: word.original,
+        kana: word.kana,
+        chinese: word.chinese,
+        wordClass: normalizeWordClasses(word.word_class),
+      },
+      (examples) => {
+        // 收到部分或完整例句时更新
+        aiExamples.value = examples;
+      },
+      (finalExamples) => {
+        // 完成时更新
+        aiExamples.value = finalExamples;
+        aiLoading.value = false;
+      },
+      (error) => {
+        aiError.value = error.message || '生成例句失败，请稍后重试';
+        aiLoading.value = false;
+        console.error('AI 例句生成失败:', error);
+      }
+    );
   } catch (error) {
     aiError.value = error.message || '生成例句失败，请稍后重试';
-    console.error('AI 例句生成失败:', error);
-  } finally {
     aiLoading.value = false;
+    console.error('AI 例句生成失败:', error);
   }
 };
 

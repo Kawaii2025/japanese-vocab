@@ -14,39 +14,78 @@ const openai = new OpenAI({
   baseURL: QWEN_API_URL,
 });
 
-// 解析 AI 返回的 JSON 内容
-function parseExamples(assistantMessage) {
+// 尝试解析 JSON，容忍不完整内容
+function parsePartialJSON(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    let temp = text;
+    // 尝试补全缺失的闭合括号
+    for (let i = temp.length - 1; i >= 0; i--) {
+      const char = temp[i];
+      if (char === '}' || char === ']') {
+        temp = temp.substring(0, i + 1);
+        try {
+          return JSON.parse(temp);
+        } catch (err) {
+          continue;
+        }
+      }
+    }
+    return null;
+  }
+}
+
+// 解析 AI 返回的内容，即使不完整
+function parseExamples(assistantMessage, allowPartial = false) {
   if (!assistantMessage) {
+    if (allowPartial) return [];
     throw new Error('Qwen API 未返回有效内容');
   }
 
   let examples;
   try {
+    // 尝试直接解析完整内容
     examples = JSON.parse(assistantMessage);
   } catch {
-    const jsonMatch = assistantMessage.match(/\[[\s\S]*\]/);
+    // 尝试用正则提取数组
+    const jsonMatch = assistantMessage.match(/\[[\s\S]*?\]/);
     if (jsonMatch) {
-      examples = JSON.parse(jsonMatch[0]);
+      try {
+        examples = JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        if (allowPartial) {
+          // 尝试修复不完整数组
+          const partialExamples = parsePartialJSON(jsonMatch[0] + ']');
+          if (Array.isArray(partialExamples)) {
+            examples = partialExamples;
+          } else {
+            return [];
+          }
+        } else {
+          throw new Error('无法解析 Qwen API 返回的内容');
+        }
+      }
+    } else if (allowPartial) {
+      return [];
     } else {
       throw new Error('无法解析 Qwen API 返回的内容');
     }
   }
 
   if (!Array.isArray(examples)) {
+    if (allowPartial) return [];
     throw new Error('Qwen API 返回格式不正确');
   }
 
-  examples = examples.map(ex => ({
-    japanese: ex.japanese || ex.jp || '',
-    kana: ex.kana || '',
-    chinese: ex.chinese || ex.cn || ex.zh || '',
-  })).filter(ex => ex.japanese && ex.chinese);
-
-  if (examples.length === 0) {
-    throw new Error('生成的例句无效');
-  }
-
-  return examples;
+  // 过滤出完整的例子
+  return examples
+    .map(ex => ({
+      japanese: ex.japanese || ex.jp || '',
+      kana: ex.kana || '',
+      chinese: ex.chinese || ex.cn || ex.zh || '',
+    }))
+    .filter(ex => ex.japanese && ex.kana && ex.chinese);
 }
 
 // 非流式响应
@@ -198,20 +237,17 @@ export async function generateExamplesStream(req, res) {
     });
 
     let fullContent = '';
+    let lastSentExamplesCount = 0;
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content || '';
       fullContent += delta;
 
-      // 发送增量更新
-      res.write(`data: ${JSON.stringify({ type: 'content', data: delta })}\n\n`);
-
-      // 尝试解析是否有完整的 example
-      try {
-        const examples = parseExamples(fullContent);
+      // 尝试解析，允许部分
+      const examples = parseExamples(fullContent, true);
+      if (examples.length > lastSentExamplesCount) {
+        lastSentExamplesCount = examples.length;
         res.write(`data: ${JSON.stringify({ type: 'examples', data: examples })}\n\n`);
-      } catch (e) {
-        // 继续积累内容
       }
     }
 
