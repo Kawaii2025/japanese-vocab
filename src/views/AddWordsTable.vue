@@ -471,6 +471,8 @@ const isRowCompletelyEmpty = (word) => {
 const showAiExample = async (word) => {
   currentAiWord.value = word;
   showAiModal.value = true;
+  // 禁用背景滚动
+  document.body.style.overflow = 'hidden';
   aiExamples.value = [];
   aiLoading.value = true;
   aiError.value = null;
@@ -494,6 +496,8 @@ const showAiExample = async (word) => {
 
 const closeAiModal = () => {
   showAiModal.value = false;
+  // 恢复背景滚动
+  document.body.style.overflow = 'auto';
   currentAiWord.value = null;
   aiExamples.value = [];
   aiError.value = null;
@@ -630,6 +634,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  // 组件卸载时恢复滚动
+  document.body.style.overflow = 'auto';
 });
 
 watch(words, () => {
