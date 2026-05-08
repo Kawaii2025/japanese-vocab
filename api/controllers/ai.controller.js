@@ -351,11 +351,15 @@ export async function generateExamplesStream(req, res) {
       'Connection': 'keep-alive',
     });
 
+    // 发送连接成功消息
+    res.write(`data: ${JSON.stringify({ type: 'status', data: '正在连接AI...' })}\n\n`);
+
     // 检查缓存（除非强制刷新或禁用缓存）
     if (!forceRefresh && !disableCache) {
       const cached = await getCachedExamples(word, kana, chinese, wordClass);
       if (cached) {
         console.log('使用缓存的 AI 例句');
+        res.write(`data: ${JSON.stringify({ type: 'status', data: '加载缓存内容...' })}\n\n`);
         // 直接发送缓存结果，模拟流式效果
         let displayText = JSON.stringify(cached, null, 2);
         let currentPos = 0;
@@ -380,6 +384,9 @@ export async function generateExamplesStream(req, res) {
     if (forceRefresh && !disableCache) {
       await clearCachedExamples(word, kana, chinese, wordClass);
     }
+
+    // 发送正在生成的状态
+    res.write(`data: ${JSON.stringify({ type: 'status', data: '正在生成例句...' })}\n\n`);
 
     const systemPrompt = `你是一名专业的日语母语教师。请为用户提供的日语单词生成 3 个自然、实用、符合日本母语者习惯的例句。
 

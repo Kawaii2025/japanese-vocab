@@ -290,9 +290,10 @@ export async function generateAiExamples({ word, kana, chinese, wordClass, force
  * @param {function} onDone - 完成时的回调
  * @param {function} onError - 错误时的回调
  * @param {function} onText - 收到原始文本更新时的回调
+ * @param {function} onStatus - 收到状态更新时的回调
  * @param {boolean} forceRefresh - 是否强制刷新（忽略缓存）
  */
-export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText, forceRefresh = false) {
+export async function generateAiExamplesStream({ word, kana, chinese, wordClass }, onExamples, onDone, onError, onText, onStatus, forceRefresh = false) {
   try {
     const disableCache = import.meta.env.VITE_DISABLE_AI_CACHE === 'true';
     const controller = new AbortController();
@@ -331,7 +332,9 @@ export async function generateAiExamplesStream({ word, kana, chinese, wordClass 
           try {
             const data = JSON.parse(line.slice(6));
 
-            if (data.type === 'text' && onText) {
+            if (data.type === 'status' && onStatus) {
+              onStatus(data.data);
+            } else if (data.type === 'text' && onText) {
               onText(data.data);
             } else if (data.type === 'examples' && onExamples) {
               onExamples(data.data);

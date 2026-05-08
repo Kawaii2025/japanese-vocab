@@ -274,6 +274,12 @@
             <p>{{ aiError }}</p>
           </div>
           <div v-else class="space-y-4">
+            <!-- 状态提示 -->
+            <div v-if="aiStatus" class="flex items-center justify-center gap-2 text-gray-600">
+              <i class="fa fa-spinner fa-spin"></i>
+              <span>{{ aiStatus }}</span>
+            </div>
+            
             <!-- 流式响应模式：打字机效果 + 完成的例句 -->
             <template v-if="USE_STREAMING_AI">
               <!-- 已完成的例句 -->
@@ -284,11 +290,21 @@
               >
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
-                    <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
-                    <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
-                    <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                    <template v-if="example.loading">
+                      <div class="space-y-2">
+                        <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                      <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                    </template>
                   </div>
                   <button 
+                    v-if="!example.loading"
                     @click="handleVoiceClick(example.kana || example.japanese, $event)"
                     class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
                     title="朗读"
@@ -304,11 +320,6 @@
                     <pre class="text-sm font-mono text-gray-700 whitespace-pre-wrap">{{ aiTypingText }}</pre>
                   </div>
                 </div>
-              </div>
-              <!-- 初始加载提示 -->
-              <div v-if="aiLoading && !aiExamples.length && !aiTypingText" class="text-center py-8">
-                <i class="fa fa-spinner fa-spin text-3xl text-primary mb-4"></i>
-                <p class="text-gray-600">正在生成例句...</p>
               </div>
             </template>
             <!-- 非流式模式：占位符骨架屏 -->
@@ -391,6 +402,7 @@ const aiError = ref(null);
 const aiTypingText = ref('');
 const aiIsCached = ref(false); // 是否使用了缓存
 const aiModel = ref(null); // 当前使用的AI模型
+const aiStatus = ref(''); // 状态提示文本
 
 const pagination = ref({
   total: 0,
@@ -533,26 +545,24 @@ const showAiExample = async (word, forceRefresh = false) => {
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
   
-  // 根据配置初始化
-  if (USE_STREAMING_AI) {
-    aiExamples.value = []; // 流式响应：初始为空
-  } else {
-    aiExamples.value = [
-      { japanese: '', kana: '', chinese: '', loading: true },
-      { japanese: '', kana: '', chinese: '', loading: true },
-      { japanese: '', kana: '', chinese: '', loading: true }
-    ]; // 非流式：3个占位符
-  }
+  // 初始化：无论是否流式，都先显示骨架屏
+  aiExamples.value = [
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true }
+  ];
   
   aiLoading.value = true;
   aiError.value = null;
   aiIsCached.value = false;
+  aiStatus.value = '正在初始化...';
+  aiModel.value = null;
+  aiTypingText.value = '';
   
   if (USE_STREAMING_AI) {
-    // ========== 流式响应逻辑（保留但默认关闭） ==========
+    // ========== 流式响应逻辑 ==========
     let fullText = '';
     let typingInterval = null;
-    aiTypingText.value = ''; // 初始化打字机文本
     
     // 尝试从文本中解析已完成的例句
     const extractExamples = (text) => {
@@ -617,11 +627,13 @@ const showAiExample = async (word, forceRefresh = false) => {
           aiTypingText.value = ''; // 完成后清空打字机文本
           aiIsCached.value = cached || false;
           aiModel.value = model || null;
+          aiStatus.value = '';
           if (typingInterval) clearInterval(typingInterval);
         },
         (error) => {
           aiError.value = error.message || '生成例句失败，请稍后重试';
           aiLoading.value = false;
+          aiStatus.value = '';
           if (typingInterval) clearInterval(typingInterval);
           console.error('AI 例句生成失败:', error);
         },
@@ -635,16 +647,22 @@ const showAiExample = async (word, forceRefresh = false) => {
             startTyping();
           }
         },
+        (status) => {
+          // 收到状态更新
+          aiStatus.value = status;
+        },
         forceRefresh
       );
     } catch (error) {
       aiError.value = error.message || '生成例句失败，请稍后重试';
       aiLoading.value = false;
+      aiStatus.value = '';
       if (typingInterval) clearInterval(typingInterval);
       console.error('AI 例句生成失败:', error);
     }
   } else {
-    // ========== 非流式响应逻辑（默认使用） ==========
+    // ========== 非流式响应逻辑 ==========
+    aiStatus.value = '正在生成例句...';
     try {
       const response = await api.generateAiExamples({
         word: word.original,
@@ -658,9 +676,11 @@ const showAiExample = async (word, forceRefresh = false) => {
       aiIsCached.value = response.data?.cached || false;
       aiModel.value = response.data?.model || null;
       aiLoading.value = false;
+      aiStatus.value = '';
     } catch (error) {
       aiError.value = error.message || '生成例句失败，请稍后重试';
       aiLoading.value = false;
+      aiStatus.value = '';
       console.error('AI 例句生成失败:', error);
     }
   }
@@ -676,6 +696,7 @@ const closeAiModal = () => {
   aiIsCached.value = false;
   aiModel.value = null;
   aiTypingText.value = '';
+  aiStatus.value = '';
 };
 
 // 保存编辑
