@@ -20,6 +20,22 @@ export function wrapRawSQL(value) {
 }
 
 function convertQueryPlaceholders(query, params) {
+  // Check if query is already in PostgreSQL format (contains $1, $2, etc.)
+  if (/\$\d+/.test(query)) {
+    // Already PostgreSQL format, just need to handle params correctly
+    let actualParams = params;
+    if (params.length === 1 && Array.isArray(params[0])) {
+      actualParams = params[0];
+    }
+    
+    console.log('🔄 Query already PostgreSQL format:', { 
+      original: query, 
+      cleanParams: actualParams
+    });
+    
+    return { pgQuery: query, cleanParams: actualParams };
+  }
+  
   // Convert SQLite functions to PostgreSQL equivalents
   let pgQuery = query;
 
