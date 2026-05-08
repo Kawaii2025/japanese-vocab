@@ -9,6 +9,10 @@ import { config, getCorsOptions } from './config.js';
 
 dotenv.config();
 
+// 获取 AI 模型配置
+const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
+const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
+
 import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';
 import statsRoutes from './routes/stats.routes.js';
@@ -129,6 +133,12 @@ async function startServer() {
   const server = app.listen(config.server.port, () => {
     console.log(`\n🚀 服务器启动成功！`);
     console.log(`   本机访问: http://localhost:${config.server.port}\n`);
+    
+    // 显示 AI 模型配置
+    console.log(`🤖 AI 配置：`);
+    console.log(`   模型: ${QWEN_MODEL}`);
+    console.log(`   API Key: ${DASHSCOPE_API_KEY ? '✅ 已配置' : '⚠️ 未配置'}\n`);
+    
     console.log(`可用的端点：`);
     console.log(`  - GET    /api/vocabulary          获取所有单词`);
     console.log(`  - GET    /api/vocabulary/:id      获取单个单词`);
@@ -139,6 +149,8 @@ async function startServer() {
     console.log(`  - GET    /api/stats               获取统计信息`);
     console.log(`  - POST   /api/sync/push-to-neon   推送到Neon`);
     console.log(`  - POST   /api/sync/pull-from-neon 从Neon拉取`);
+    console.log(`  - POST   /api/ai/generate-examples      生成例句（非流式）`);
+    console.log(`  - POST   /api/ai/generate-examples/stream 生成例句（流式）`);
     console.log(`  - GET    /health                  健康检查\n`);
   });
 
