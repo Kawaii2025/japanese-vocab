@@ -68,6 +68,10 @@ async function startServer() {
       message: 'Japanese Vocab API is running',
       status: 'healthy',
       database: dbInfo.type,
+      ai: {
+        provider: AI_PROVIDER,
+        model: currentModel
+      },
       endpoints: {
         health: '/health',
         api_health: '/api/health',
@@ -92,6 +96,10 @@ async function startServer() {
       success: true,
       message: 'API 运行正常',
       database: dbInfo.type,
+      ai: {
+        provider: AI_PROVIDER,
+        model: currentModel
+      },
       timestamp: new Date().toISOString()
     });
   });
@@ -108,13 +116,21 @@ async function startServer() {
           connected: true,
           type: dbInfo.type,
           serverTime: result.now
+        },
+        ai: {
+          provider: AI_PROVIDER,
+          model: currentModel
         }
       });
     } catch (error) {
       res.status(503).json({
         success: false,
         message: '数据库连接失败',
-        error: error.message
+        error: error.message,
+        ai: {
+          provider: AI_PROVIDER,
+          model: currentModel
+        }
       });
     }
   });
