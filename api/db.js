@@ -110,6 +110,17 @@ export async function initializeDatabase() {
   }
 }
 
+// Track critical initialization errors
+let criticalError = null;
+
+export function hasCriticalError() {
+  return criticalError !== null;
+}
+
+export function getCriticalError() {
+  return criticalError;
+}
+
 // Initialize SQLite schema if needed
 export async function initializeSQLite() {
   try {
@@ -340,14 +351,22 @@ export async function initializeNeon() {
     } catch (err) {
       if (!err.message.includes('already exists')) {
         console.warn('⚠️ 创建唯一索引失败:', err.message);
+        // This is non-critical, don't set as critical error
       }
     }
     
     // Create lookup index
-    await neonPool.query(`
-      CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup 
-      ON ai_examples_cache ((COALESCE(original, '')), kana);
-    `);
+    try {
+      await neonPool.query(`
+        CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup 
+        ON ai_examples_cache ((COALESCE(original, '')), kana);
+      `);
+    } catch (err) {
+      if (!err.message.includes('already exists')) {
+        console.warn('⚠️ 创建查找索引失败:', err.message);
+        // This is non-critical, don't set as critical error
+      }
+    }
 
     console.log('✅ Neon PostgreSQL schema initialized');
   } catch (err) {
@@ -355,8 +374,32 @@ export async function initializeNeon() {
       console.log('✅ Neon PostgreSQL schema already exists');
     } else {
       console.error('❌ Neon initialization error:', err.message);
+      // Only set as critical error if we fail to create essential tables
+      // Check if the error is about creating a core table (not just indexes)
+      const isCoreTableError = err.message.includes('CREATE TABLE') && 
+        !err.message.includes('IF NOT EXISTS');
+      
+      if (isCoreTableError) {
+        criticalError = {
+          message: 'Database initialization failed',
+          error: err.message
+        };
+      }
     }
   }
+}
+
+// Middleware to check for critical errors before handling requests
+export function criticalErrorMiddleware(req, res, next) {
+  if (hasCriticalError()) {
+    const error = getCriticalError();
+    return res.status(500).json({
+      error: 'Service Unavailable',
+      message: error.message,
+      details: error.error
+    });
+  }
+  next();
 }
 
 // Graceful shutdown

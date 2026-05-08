@@ -4,6 +4,13 @@
 
 本文档是对日语单词学习项目中异常处理流程的全面复盘和分析。
 
+## 更新记录
+
+### 2026-05-08: Critical Error Middleware Added
+- Added critical error tracking and middleware
+- Distinguished between critical (core table failure) and non-critical (index failure) errors
+- API now returns 500 errors with details when critical errors occur
+
 ---
 
 ## 1. AI Controller (ai.controller.js) 分析
@@ -193,10 +200,71 @@ router.post('/generate-examples/stream', asyncHandler(generateExamplesStream));
 
 ---
 
-## 9. 相关文件
+## 10. Critical Error Handling (db.js)
+
+### Overview
+
+Added a critical error tracking system to distinguish between:
+- **Critical Errors**: Failure to create core tables (would break the app)
+- **Non-Critical Errors**: Failure to create indexes (performance impact only)
+
+### Functions
+
+```javascript
+// Track critical initialization errors
+let criticalError = null;
+
+export function hasCriticalError() {
+  return criticalError !== null;
+}
+
+export function getCriticalError() {
+  return criticalError;
+}
+```
+
+### Middleware
+
+```javascript
+export function criticalErrorMiddleware(req, res, next) {
+  if (hasCriticalError()) {
+    const error = getCriticalError();
+    return res.status(500).json({
+      error: 'Service Unavailable',
+      message: error.message,
+      details: error.error
+    });
+  }
+  next();
+}
+```
+
+### Error Classification
+
+| Error Type | Behavior | API Response |
+|-----------|---------|--------------|
+| Core Table Creation Failure | Sets criticalError | 500 Service Unavailable |
+| Index Creation Failure | Warns only | Normal operation |
+| Connection Failure | Throws at startup | Server doesn't start |
+
+### Usage in server.js
+
+The middleware is added before all routes:
+
+```javascript
+import { criticalErrorMiddleware } from './db.js';
+
+// ...
+
+app.use(criticalErrorMiddleware);  // First middleware
+app.use('/api/vocabulary', vocabularyRoutes);
+```
+
+## 11. 相关文件
 
 - `api/controllers/ai.controller.js` - AI 控制器，包含主要的异常处理逻辑
 - `api/utils/neon-wrapper.js` - 数据库包装层，处理查询转换和异常
 - `api/middleware/errorHandler.js` - 全局错误处理中间件
+- `api/db.js` - 数据库初始化和 critical error 处理
 - `api/server.js` - 服务器主文件
 - `api/routes/ai.routes.js` - AI 路由文件

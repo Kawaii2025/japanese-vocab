@@ -4,7 +4,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import initDB, { getDatabaseInfo } from './db.js';
+import initDB, { getDatabaseInfo, criticalErrorMiddleware } from './db.js';
 import { config, getCorsOptions } from './config.js';
 
 dotenv.config();
@@ -43,6 +43,9 @@ async function startServer() {
 
   app.use(cors(getCorsOptions()));
   app.use(express.json());
+  
+  // Check for critical initialization errors
+  app.use(criticalErrorMiddleware);
   
   // 设置服务器超时为 120 秒（适配更慢的 AI 模型）
   app.use((req, res, next) => {
