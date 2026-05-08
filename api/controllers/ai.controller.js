@@ -18,46 +18,51 @@ const openai = new OpenAI({
 
 // 缓存辅助函数
 async function getCachedExamples(word, kana, chinese, wordClass) {
-  const db = await getDB();
-  const dbInfo = getDatabaseInfo();
-  const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
-  const cacheKeyOriginal = word || null;
-  const cacheKeyKana = kana;
-  const cacheKeyChinese = chinese;
-  const cacheKeyWordClass = wc || null;
-  
-  let result;
-  if (dbInfo.isNeon) {
-    // PostgreSQL 版本 - 使用 IS NULL 和 = 来匹配
-    result = await db.get(
-      `SELECT examples_json FROM ai_examples_cache 
-       WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
-       AND kana = $2 
-       AND chinese = $3 
-       AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)`,
-      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
-    );
-  } else {
-    // SQLite 版本
-    result = await db.get(
-      `SELECT examples_json FROM ai_examples_cache 
-       WHERE COALESCE(original, '') = COALESCE(?, '') 
-       AND kana = ? 
-       AND chinese = ? 
-       AND COALESCE(word_class, '') = COALESCE(?, '')`,
-      [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
-    );
-  }
-  
-  if (result && result.examples_json) {
-    try {
-      return JSON.parse(result.examples_json);
-    } catch (e) {
-      console.warn('缓存解析失败:', e);
-      return null;
+  try {
+    const db = await getDB();
+    const dbInfo = getDatabaseInfo();
+    const wc = Array.isArray(wordClass) ? wordClass.join(',') : (wordClass || '');
+    const cacheKeyOriginal = word || null;
+    const cacheKeyKana = kana;
+    const cacheKeyChinese = chinese;
+    const cacheKeyWordClass = wc || null;
+    
+    let result;
+    if (dbInfo.isNeon) {
+      // PostgreSQL 版本 - 使用 IS NULL 和 = 来匹配
+      result = await db.get(
+        `SELECT examples_json FROM ai_examples_cache 
+         WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
+         AND kana = $2 
+         AND chinese = $3 
+         AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+      );
+    } else {
+      // SQLite 版本
+      result = await db.get(
+        `SELECT examples_json FROM ai_examples_cache 
+         WHERE COALESCE(original, '') = COALESCE(?, '') 
+         AND kana = ? 
+         AND chinese = ? 
+         AND COALESCE(word_class, '') = COALESCE(?, '')`,
+        [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+      );
     }
+    
+    if (result && result.examples_json) {
+      try {
+        return JSON.parse(result.examples_json);
+      } catch (e) {
+        console.warn('缓存解析失败:', e);
+        return null;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.warn('缓存读取失败:', e);
+    return null;
   }
-  return null;
 }
 
 async function saveCachedExamples(word, kana, chinese, wordClass, examples) {
