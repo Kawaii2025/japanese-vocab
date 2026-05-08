@@ -1,18 +1,32 @@
 /**
  * AI 接口控制器
- * 调用 Qwen API 生成日语例句 (OpenAI 兼容模式，支持流式和非流式)
+ * 调用 AI API 生成日语例句 (OpenAI 兼容模式，支持 Qwen 和豆包，支持流式和非流式)
  */
 import OpenAI from 'openai';
 import getDB, { getDatabaseInfo } from '../db.js';
 
+// 支持的 AI 提供商
+const AI_PROVIDER = process.env.AI_PROVIDER || 'qwen'; // 'qwen' or 'doubao'
+
+// 千问配置
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY;
 const QWEN_API_URL = process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
 
+// 豆包配置
+const ARK_API_KEY = process.env.ARK_API_KEY || DASHSCOPE_API_KEY;
+const DOUBAO_API_URL = process.env.DOUBAO_API_URL || 'https://ark.cn-beijing.volces.com/api/v3';
+const DOUBAO_MODEL = process.env.DOUBAO_MODEL || 'doubao-seed-2-0-lite-260428';
+
+// 根据配置选择参数
+const apiKey = AI_PROVIDER === 'doubao' ? ARK_API_KEY : DASHSCOPE_API_KEY;
+const baseURL = AI_PROVIDER === 'doubao' ? DOUBAO_API_URL : QWEN_API_URL;
+const modelName = AI_PROVIDER === 'doubao' ? DOUBAO_MODEL : QWEN_MODEL;
+
 // 初始化 OpenAI 客户端
 const openai = new OpenAI({
-  apiKey: DASHSCOPE_API_KEY,
-  baseURL: QWEN_API_URL,
+  apiKey: apiKey,
+  baseURL: baseURL,
   timeout: 120000, // 120秒超时，适配更慢的模型
 });
 
@@ -239,10 +253,11 @@ export async function generateExamples(req, res) {
       });
     }
 
-    if (!DASHSCOPE_API_KEY) {
+    if (!apiKey) {
+      const envKey = AI_PROVIDER === 'doubao' ? 'ARK_API_KEY' : 'DASHSCOPE_API_KEY / QWEN_API_KEY';
       return res.status(500).json({
         success: false,
-        error: '未配置 DASHSCOPE_API_KEY / QWEN_API_KEY'
+        error: `未配置 ${envKey}`
       });
     }
 
@@ -256,7 +271,7 @@ export async function generateExamples(req, res) {
           data: {
             examples: cached,
             cached: true,
-            model: QWEN_MODEL
+            model: modelName
           }
         });
       }
@@ -296,7 +311,7 @@ export async function generateExamples(req, res) {
 - 词性: ${wordClass.join('、') || ''}`;
 
     const completion = await openai.chat.completions.create({
-      model: QWEN_MODEL,
+      model: modelName,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -318,7 +333,7 @@ export async function generateExamples(req, res) {
       data: {
         examples: examples,
         cached: false,
-        model: QWEN_MODEL
+        model: modelName
       }
     });
   } catch (error) {
@@ -342,10 +357,11 @@ export async function generateExamplesStream(req, res) {
       });
     }
 
-    if (!DASHSCOPE_API_KEY) {
+    if (!apiKey) {
+      const envKey = AI_PROVIDER === 'doubao' ? 'ARK_API_KEY' : 'DASHSCOPE_API_KEY / QWEN_API_KEY';
       return res.status(500).json({
         success: false,
-        error: '未配置 DASHSCOPE_API_KEY / QWEN_API_KEY'
+        error: `未配置 ${envKey}`
       });
     }
 
@@ -377,7 +393,7 @@ export async function generateExamplesStream(req, res) {
             res.write(`data: ${JSON.stringify({ type: 'text', data: displayText.substring(0, currentPos) })}\n\n`);
           } else {
             clearInterval(simulateStream);
-            res.write(`data: ${JSON.stringify({ type: 'done', data: cached, cached: true, model: QWEN_MODEL })}\n\n`);
+            res.write(`data: ${JSON.stringify({ type: 'done', data: cached, cached: true, model: modelName })}\n\n`);
             res.end();
           }
         }, 20);
@@ -427,7 +443,7 @@ export async function generateExamplesStream(req, res) {
 - 词性: ${wordClass.join('、') || ''}`;
 
     const stream = await openai.chat.completions.create({
-      model: QWEN_MODEL,
+      model: modelName,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -453,7 +469,7 @@ export async function generateExamplesStream(req, res) {
     if (!disableCache) {
       await saveCachedExamples(word, kana, chinese, wordClass, finalExamples);
     }
-    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false, model: QWEN_MODEL })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false, model: modelName })}\n\n`);
     res.end();
 
   } catch (error) {

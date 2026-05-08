@@ -10,8 +10,14 @@ import { config, getCorsOptions } from './config.js';
 dotenv.config();
 
 // 获取 AI 模型配置
+const AI_PROVIDER = process.env.AI_PROVIDER || 'qwen';
 const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-plus';
+const DOUBAO_MODEL = process.env.DOUBAO_MODEL || 'doubao-seed-2-0-lite-260428';
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
+const ARK_API_KEY = process.env.ARK_API_KEY;
+
+const currentModel = AI_PROVIDER === 'doubao' ? DOUBAO_MODEL : QWEN_MODEL;
+const currentApiKey = AI_PROVIDER === 'doubao' ? ARK_API_KEY : DASHSCOPE_API_KEY;
 
 import vocabularyRoutes from './routes/vocabulary.routes.js';
 import practiceRoutes from './routes/practice.routes.js';
@@ -139,8 +145,10 @@ async function startServer() {
     
     // 显示 AI 模型配置
     console.log(`🤖 AI 配置：`);
-    console.log(`   模型: ${QWEN_MODEL}`);
-    console.log(`   API Key: ${DASHSCOPE_API_KEY ? '✅ 已配置' : '⚠️ 未配置'}\n`);
+    console.log(`   提供商: ${AI_PROVIDER === 'doubao' ? '豆包' : '千问'}`);
+    console.log(`   模型: ${currentModel}`);
+    const apiKeyStatus = currentApiKey ? '✅ 已配置' : '⚠️ 未配置';
+    console.log(`   API Key: ${apiKeyStatus}\n`);
     
     console.log(`可用的端点：`);
     console.log(`  - GET    /api/vocabulary          获取所有单词`);
