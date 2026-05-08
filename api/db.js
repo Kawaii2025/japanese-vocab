@@ -327,11 +327,26 @@ export async function initializeNeon() {
         chinese TEXT NOT NULL,
         word_class TEXT,
         examples_json TEXT NOT NULL,
-        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        UNIQUE((COALESCE(original, '')), kana, chinese, COALESCE(word_class, ''))
+        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
       );
-
-      CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup ON ai_examples_cache((COALESCE(original, '')), kana);
+    `);
+    
+    // Create unique index separately (PostgreSQL requires this for functional indexes)
+    try {
+      await neonPool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_examples_cache_unique 
+        ON ai_examples_cache ((COALESCE(original, '')), kana, chinese, COALESCE(word_class, ''));
+      `);
+    } catch (err) {
+      if (!err.message.includes('already exists')) {
+        console.warn('⚠️ 创建唯一索引失败:', err.message);
+      }
+    }
+    
+    // Create lookup index
+    await neonPool.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_examples_cache_lookup 
+      ON ai_examples_cache ((COALESCE(original, '')), kana);
     `);
 
     console.log('✅ Neon PostgreSQL schema initialized');
