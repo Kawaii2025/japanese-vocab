@@ -250,7 +250,8 @@ export async function generateExamples(req, res) {
           success: true,
           data: {
             examples: cached,
-            cached: true
+            cached: true,
+            model: QWEN_MODEL
           }
         });
       }
@@ -311,7 +312,8 @@ export async function generateExamples(req, res) {
       success: true,
       data: {
         examples: examples,
-        cached: false
+        cached: false,
+        model: QWEN_MODEL
       }
     });
   } catch (error) {
@@ -366,7 +368,7 @@ export async function generateExamplesStream(req, res) {
             res.write(`data: ${JSON.stringify({ type: 'text', data: displayText.substring(0, currentPos) })}\n\n`);
           } else {
             clearInterval(simulateStream);
-            res.write(`data: ${JSON.stringify({ type: 'done', data: cached, cached: true })}\n\n`);
+            res.write(`data: ${JSON.stringify({ type: 'done', data: cached, cached: true, model: QWEN_MODEL })}\n\n`);
             res.end();
           }
         }, 20);
@@ -439,7 +441,7 @@ export async function generateExamplesStream(req, res) {
     if (!disableCache) {
       await saveCachedExamples(word, kana, chinese, wordClass, finalExamples);
     }
-    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'done', data: finalExamples, cached: false, model: QWEN_MODEL })}\n\n`);
     res.end();
 
   } catch (error) {

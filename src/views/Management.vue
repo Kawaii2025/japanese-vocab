@@ -250,6 +250,9 @@
             <span v-if="aiIsCached && !aiLoading" class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
               <i class="fa fa-check-circle mr-1"></i>缓存
             </span>
+            <span v-if="aiModel" class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+              <i class="fa fa-robot mr-1"></i>{{ aiModel }}
+            </span>
           </div>
           <div class="flex items-center gap-2">
             <button 
@@ -387,6 +390,7 @@ const aiLoading = ref(false);
 const aiError = ref(null);
 const aiTypingText = ref('');
 const aiIsCached = ref(false); // 是否使用了缓存
+const aiModel = ref(null); // 当前使用的AI模型
 
 const pagination = ref({
   total: 0,
@@ -606,12 +610,13 @@ const showAiExample = async (word, forceRefresh = false) => {
           wordClass: normalizeWordClasses(word.word_class),
         },
         null, // onExamples 不再使用
-        (finalExamples, cached) => {
+        (finalExamples, cached, model) => {
           // 完成时
           aiExamples.value = [...finalExamples];
           aiLoading.value = false;
           aiTypingText.value = ''; // 完成后清空打字机文本
           aiIsCached.value = cached || false;
+          aiModel.value = model || null;
           if (typingInterval) clearInterval(typingInterval);
         },
         (error) => {
@@ -651,6 +656,7 @@ const showAiExample = async (word, forceRefresh = false) => {
       
       aiExamples.value = response.data?.examples || [];
       aiIsCached.value = response.data?.cached || false;
+      aiModel.value = response.data?.model || null;
       aiLoading.value = false;
     } catch (error) {
       aiError.value = error.message || '生成例句失败，请稍后重试';
@@ -667,6 +673,9 @@ const closeAiModal = () => {
   currentAiWord.value = null;
   aiExamples.value = [];
   aiError.value = null;
+  aiIsCached.value = false;
+  aiModel.value = null;
+  aiTypingText.value = '';
 };
 
 // 保存编辑

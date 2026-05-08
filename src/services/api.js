@@ -336,7 +336,7 @@ export async function generateAiExamplesStream({ word, kana, chinese, wordClass 
             } else if (data.type === 'examples' && onExamples) {
               onExamples(data.data);
             } else if (data.type === 'done' && onDone) {
-              onDone(data.data, data.cached);
+              onDone(data.data, data.cached, data.model);
             } else if (data.type === 'error' && onError) {
               onError(new Error(data.error));
             }
