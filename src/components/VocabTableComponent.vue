@@ -190,7 +190,7 @@
             <td class="px-3 py-4 whitespace-nowrap text-sm table-cell">
               <div class="flex items-center gap-2">
                 <button 
-                  @click="emit('showAiExample', vocabularyList[index], $event)"
+                  @click="emit('showAiExample', vocabularyList[index])"
                   class="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom"
                   title="生成AI例句"
                 >

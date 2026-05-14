@@ -253,16 +253,25 @@
                 :key="word.id"
                 class="relative bg-gray-50 p-3 rounded border border-gray-200 hover:border-primary/50 transition-colors"
               >
-                <button
-                  @click="handleVoiceClick(word.kana, $event)"
-                  class="absolute right-3 top-3 flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded transition-custom"
-                  title="朗读假名"
-                >
-                  <i class="fa fa-volume-up"></i>
-                </button>
+                <div class="absolute right-3 top-3 flex items-center gap-2">
+                  <button
+                    @click="showAiExample(word)"
+                    class="flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded transition-custom"
+                    title="生成AI例句"
+                  >
+                    <i class="fa fa-lightbulb-o"></i>
+                  </button>
+                  <button
+                    @click="handleVoiceClick(word.kana, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded transition-custom"
+                    title="朗读假名"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
+                </div>
                 <p class="font-medium text-sm text-dark truncate">{{ word.original }}</p>
                 <p class="text-xs text-gray-600 mt-1">{{ word.chinese }}</p>
-                <p class="text-xs text-gray-500 mt-1 pr-10 truncate">{{ word.kana }}</p>
+                <p class="text-xs text-gray-500 mt-1 pr-20 truncate">{{ word.kana }}</p>
                 <p class="text-xs text-gray-400 mt-2">{{ formatTime(word.created_at) }}</p>
               </div>
             </div>

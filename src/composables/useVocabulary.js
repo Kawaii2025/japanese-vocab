@@ -284,7 +284,8 @@ export function useVocabulary() {
         original: word.original || '',
         kana: word.kana,
         category: word.category || '',
-        difficulty: word.difficulty || 1
+        difficulty: word.difficulty || 1,
+        word_class: word.word_class
       }));
       
       initVocabulary(words);
@@ -330,7 +331,8 @@ export function useVocabulary() {
         original: word.original || '',
         kana: word.kana,
         category: word.category || '',
-        difficulty: word.difficulty || 1
+        difficulty: word.difficulty || 1,
+        word_class: word.word_class
       }));
       
       initVocabulary(words);
@@ -360,7 +362,8 @@ export function useVocabulary() {
         category: word.category || '',
         difficulty: word.difficulty || 1,
         mastery_level: word.mastery_level,
-        next_review_date: word.next_review_date
+        next_review_date: word.next_review_date,
+        word_class: word.word_class
       }));
       
       initVocabulary(words);

@@ -453,7 +453,7 @@ async function filterByDate() {
     const response = await api.getVocabularyByDate(selectedDate.value);
     
     if (response.data && response.data.length > 0) {
-      // 更新词汇列表 - 使用正确的初始化方式
+      // 更新词汇列表 - 使用正确的初始化方式，确保 word_class 被正确传递
       initVocabulary(response.data);
       // Reset diff HTML list
       diffHtmlList.value = new Array(response.data.length).fill('');

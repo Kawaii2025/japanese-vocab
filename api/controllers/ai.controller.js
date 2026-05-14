@@ -41,6 +41,16 @@ async function getCachedExamples(word, kana, chinese, wordClass) {
     const cacheKeyChinese = chinese;
     const cacheKeyWordClass = wc || null;
     
+    console.log('🔍 查询缓存:', {
+      original: cacheKeyOriginal,
+      kana: cacheKeyKana,
+      chinese: cacheKeyChinese,
+      wordClass: wordClass,
+      wordClassProcessed: cacheKeyWordClass,
+      wordClassType: typeof wordClass,
+      wordClassIsArray: Array.isArray(wordClass)
+    });
+    
     let result;
     if (dbInfo.isNeon) {
       // PostgreSQL 版本 - 使用 IS NULL 和 = 来匹配
@@ -64,14 +74,24 @@ async function getCachedExamples(word, kana, chinese, wordClass) {
       );
     }
     
+    console.log('📊 数据库查询结果:', result);
+    
+    // 先查询一下数据库中所有的缓存，看看有什么
+    if (!result) {
+      const allResults = await db.all('SELECT * FROM ai_examples_cache LIMIT 10');
+      console.log('📚 数据库中现有缓存:', allResults);
+    }
+    
     if (result && result.examples_json) {
       try {
+        console.log('✅ 缓存命中');
         return JSON.parse(result.examples_json);
       } catch (e) {
         console.warn('缓存解析失败:', e);
         return null;
       }
     }
+    console.log('❌ 缓存未命中');
     return null;
   } catch (e) {
     console.warn('缓存读取失败:', e);
@@ -88,6 +108,16 @@ async function saveCachedExamples(word, kana, chinese, wordClass, examples) {
     const cacheKeyKana = kana;
     const cacheKeyChinese = chinese;
     const cacheKeyWordClass = wc || null;
+    
+    console.log('💾 保存缓存:', {
+      original: cacheKeyOriginal,
+      kana: cacheKeyKana,
+      chinese: cacheKeyChinese,
+      wordClass: wordClass,
+      wordClassProcessed: cacheKeyWordClass,
+      wordClassType: typeof wordClass,
+      wordClassIsArray: Array.isArray(wordClass)
+    });
     const examplesJson = JSON.stringify(examples);
     const now = Math.floor(Date.now() / 1000);
     
@@ -244,7 +274,10 @@ function parseExamples(assistantMessage) {
 // 非流式响应
 export async function generateExamples(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
+    let { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
+    
+    // 确保 forceRefresh 是布尔值
+    forceRefresh = !!forceRefresh;
 
     if (!word && !kana) {
       return res.status(400).json({
@@ -348,7 +381,11 @@ export async function generateExamples(req, res) {
 // 流式响应 (Server-Sent Events) - 发送原始文本流
 export async function generateExamplesStream(req, res) {
   try {
-    const { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
+    let { word, kana, chinese, wordClass = [], forceRefresh = false, disableCache = false } = req.body;
+    console.log('📥 收到请求:', { word, kana, chinese, wordClass, forceRefresh, disableCache });
+    
+    // 确保 forceRefresh 是布尔值
+    forceRefresh = !!forceRefresh;
 
     if (!word && !kana) {
       return res.status(400).json({
