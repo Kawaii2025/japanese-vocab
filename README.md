@@ -1,6 +1,11 @@
 # 日语单词记忆练习 - Vue 3 + API 版本
 
 [![Deploy to GitHub Pages](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml/badge.svg)](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/deploy.yml)
+[![Tests](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/test.yml/badge.svg)](https://github.com/Kawaii2025/japanese-vocab/actions/workflows/test.yml)
+
+## 📋 Tests
+
+- [View Test Report](https://kawaii2025.github.io/japanese-vocab/test-report/)
 
 ## 🗄️ 数据库架构（最新更新）
 
