@@ -50,6 +50,21 @@
             <span v-if="todayReviewCount > 0" class="absolute top-0 right-0 -mt-2 -mr-2 bg-white text-orange-500 text-xs rounded-full h-5 w-5 flex items-center justify-center border border-orange-300 shadow">{{ todayReviewCount }}</span>
           </button>
           
+          <!-- AI预生成开关 -->
+          <div class="flex items-center gap-2 ml-2">
+            <label class="text-sm text-gray-600">
+              <input 
+                type="checkbox" 
+                v-model="enablePreCache"
+                class="mr-1"
+              />
+              预生成AI例句
+            </label>
+            <span v-if="preCachingInProgress" class="text-xs text-blue-500">
+              <i class="fa fa-spinner fa-spin mr-1"></i>预生成中...
+            </span>
+          </div>
+          
           <!-- 日期筛选组件 - 放在右边 -->
           <div class="ml-auto">
             <DateFilterComponent 
@@ -409,6 +424,11 @@ const aiIsCached = ref(false);
 const aiModel = ref(null);
 const aiStatus = ref('');
 
+// AI 预生成相关
+const enablePreCache = ref(true); // 是否启用预生成
+const preCachedWordIds = ref(new Set()); // 已预生成的单词ID集合
+const preCachingInProgress = ref(false); // 是否正在预生成中
+
 // 配置：是否使用流式响应
 const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
 
@@ -470,6 +490,9 @@ async function filterByDate() {
       const dateObj = new Date(selectedDate.value);
       const dateStr = dateObj.toLocaleDateString('zh-CN');
       toast.success(`找到 ${response.data.length} 个单词（${dateStr}）`);
+      
+      // 静默预生成筛选结果的AI例句
+      setTimeout(() => preCacheCurrentPageAiExamples(), 500);
     } else {
       initVocabulary([]);
       diffHtmlList.value = [];
@@ -517,6 +540,9 @@ async function clearFilter() {
     // Reset diff HTML list
     diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success('已清空日期筛选，显示所有单词');
+    
+    // 静默预生成所有单词的AI例句
+    setTimeout(() => preCacheCurrentPageAiExamples(), 500);
   } catch (error) {
     console.error('清空筛选失败:', error);
     toast.error('清空失败: ' + error.message);
@@ -535,6 +561,9 @@ async function loadPage(page) {
     // Reset diff HTML list for new page
     diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success(`已加载第 ${page} 页`);
+    
+    // 静默预生成新页面的AI例句
+    setTimeout(() => preCacheCurrentPageAiExamples(), 500);
   } catch (err) {
     toast.error('加载失败: ' + err.message);
   }
@@ -553,6 +582,9 @@ async function loadRandomPractice() {
     // Reset diff HTML list
     diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success('已加载20个随机单词');
+    
+    // 静默预生成随机单词的AI例句
+    setTimeout(() => preCacheCurrentPageAiExamples(), 500);
   } catch (err) {
     toast.error('加载失败: ' + err.message);
   }
@@ -570,6 +602,9 @@ async function loadTodayReview() {
     } else {
       toast.success(`已加载${response.total}个待复习单词`);
     }
+    
+    // 静默预生成今日复习单词的AI例句
+    setTimeout(() => preCacheCurrentPageAiExamples(), 500);
   } catch (err) {
     toast.error('加载失败: ' + err.message);
   }
@@ -632,6 +667,9 @@ onMounted(async () => {
     // Initialize diff HTML list
     diffHtmlList.value = new Array(vocabularyList.value.length).fill('');
     toast.success(`已加载 ${response.data.length} 个单词`);
+    
+    // 静默预生成当前页面的AI例句
+    setTimeout(() => preCacheCurrentPageAiExamples(), 1000);
     
     // 加载今日复习数量
     loadTodayReviewCount();
@@ -938,6 +976,73 @@ const closeAiModal = () => {
   aiTypingText.value = '';
   aiStatus.value = '';
 };
+
+// ========== AI 预生成功能 ==========
+
+// 静默预生成单个单词的AI例句
+async function preCacheAiExample(word) {
+  // 检查是否已预生成过
+  if (preCachedWordIds.value.has(word.id)) {
+    return;
+  }
+  
+  try {
+    // 使用非流式API静默调用（不显示UI，只保存到缓存）
+    await api.generateAiExamples({
+      word: word.original,
+      kana: word.kana,
+      chinese: word.chinese,
+      wordClass: word.word_class || [],
+      forceRefresh: false
+    });
+    
+    // 标记为已预生成
+    preCachedWordIds.value.add(word.id);
+  } catch (error) {
+    // 预生成失败不影响用户体验，只记录日志
+    console.debug(`预生成 ${word.original || word.kana} 的AI例句失败:`, error.message);
+  }
+}
+
+// 批量预生成当前页面单词的AI例句
+async function preCacheCurrentPageAiExamples() {
+  if (!enablePreCache.value || preCachingInProgress.value || vocabularyList.value.length === 0) {
+    return;
+  }
+  
+  preCachingInProgress.value = true;
+  console.log(`开始预生成当前页面 ${vocabularyList.value.length} 个单词的AI例句...`);
+  
+  try {
+    // 逐个预生成，避免并发过多
+    let cachedCount = 0;
+    let pregeneratedCount = 0;
+    
+    for (const word of vocabularyList.value) {
+      if (preCachedWordIds.value.has(word.id)) {
+        cachedCount++;
+        continue;
+      }
+      
+      // 预生成这个单词
+      await preCacheAiExample(word);
+      pregeneratedCount++;
+      
+      // 简单节流，避免请求过快
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    if (pregeneratedCount > 0) {
+      console.log(`AI例句预生成完成: ${cachedCount} 个已有缓存，${pregeneratedCount} 个新生成`);
+    } else if (cachedCount > 0) {
+      console.log(`AI例句预生成完成: 全部 ${cachedCount} 个已有缓存`);
+    }
+  } catch (error) {
+    console.error('AI例句预生成过程出错:', error);
+  } finally {
+    preCachingInProgress.value = false;
+  }
+}
 </script>
 
 <style scoped>
