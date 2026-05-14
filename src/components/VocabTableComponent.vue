@@ -188,22 +188,31 @@
             </td>
             <!-- 操作列 -->
             <td class="px-3 py-4 whitespace-nowrap text-sm table-cell">
-              <button 
-                v-if="!practiceResults[index].practiced || isEditing[index]"
-                @click="handleCheck(index)"
-                class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom"
-                title="检查答案"
-              >
-                <i class="fa fa-check"></i>
-              </button>
-              <button 
-                v-else
-                @click="handleEdit(index, $event)"
-                class="edit-btn bg-edit hover:bg-edit/90 text-white px-3 py-1 rounded transition-custom"
-                title="重新编辑答案"
-              >
-                <i class="fa fa-pencil"></i>
-              </button>
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="emit('showAiExample', vocabularyList[index], $event)"
+                  class="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom"
+                  title="生成AI例句"
+                >
+                  <i class="fa fa-lightbulb-o"></i>
+                </button>
+                <button 
+                  v-if="!practiceResults[index].practiced || isEditing[index]"
+                  @click="handleCheck(index)"
+                  class="check-btn bg-secondary hover:bg-secondary/90 text-white px-3 py-1 rounded transition-custom"
+                  title="检查答案"
+                >
+                  <i class="fa fa-check"></i>
+                </button>
+                <button 
+                  v-else
+                  @click="handleEdit(index, $event)"
+                  class="edit-btn bg-edit hover:bg-edit/90 text-white px-3 py-1 rounded transition-custom"
+                  title="重新编辑答案"
+                >
+                  <i class="fa fa-pencil"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -255,7 +264,7 @@ const props = defineProps({
 const emit = defineEmits([
   'shuffle', 'toggleKana', 'toggleOriginal', 'exportUnfinished', 
   'exportCombined', 'checkAnswer', 'enableEditing', 
-  'toggleRowOriginal', 'toggleRowKana'
+  'toggleRowOriginal', 'toggleRowKana', 'showAiExample'
 ]);
 
 const localInputs = ref([]);

@@ -66,25 +66,26 @@
         <template v-if="vocabularyList.length > 0">
           <!-- 之前的操作按钮区（现在只用于显示下方内容） -->
           <VocabTableComponent 
-            ref="vocabTableRef"
-            :vocabularyList="vocabularyList"
-            :practiceResults="practiceResults"
-            :rowVisibility="rowVisibility"
-            :kanaHidden="kanaHidden"
-            :originalHidden="originalHidden"
-            :hasOriginalText="hasOriginalText"
-            :activeMistakes="activeMistakes"
-            :diffHtmlList="diffHtmlList"
-            @shuffle="handleShuffle"
-            @toggleKana="handleToggleKana"
-            @toggleOriginal="handleToggleOriginal"
-            @exportUnfinished="handleExportUnfinished"
-            @exportCombined="handleExportCombined"
-            @checkAnswer="handleCheckAnswer"
-            @enableEditing="handleEnableEditing"
-            @toggleRowOriginal="handleToggleRowOriginal"
-            @toggleRowKana="handleToggleRowKana"
-          />
+              ref="vocabTableRef"
+              :vocabularyList="vocabularyList"
+              :practiceResults="practiceResults"
+              :rowVisibility="rowVisibility"
+              :kanaHidden="kanaHidden"
+              :originalHidden="originalHidden"
+              :hasOriginalText="hasOriginalText"
+              :activeMistakes="activeMistakes"
+              :diffHtmlList="diffHtmlList"
+              @shuffle="handleShuffle"
+              @toggleKana="handleToggleKana"
+              @toggleOriginal="handleToggleOriginal"
+              @exportUnfinished="handleExportUnfinished"
+              @exportCombined="handleExportCombined"
+              @checkAnswer="handleCheckAnswer"
+              @enableEditing="handleEnableEditing"
+              @toggleRowOriginal="handleToggleRowOriginal"
+              @toggleRowKana="handleToggleRowKana"
+              @showAiExample="showAiExample"
+            />
           <!-- 分页控件（表格下方） -->
           <div v-if="pagination.total > 0" class="pagination-container mt-8">
             <div class="pagination-info">
@@ -200,11 +201,133 @@
         <p>日语单词记忆练习工具 | 支持智能表格解析</p>
       </footer>
     </div>
+    
+    <!-- AI例句弹窗 -->
+    <div v-if="showAiModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeAiModal">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-lightbulb-o text-yellow-500 mr-2"></i>
+              AI 例句 - {{ currentAiWord?.original || currentAiWord?.kana }}
+            </h3>
+            <span v-if="aiIsCached && !aiLoading" class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              <i class="fa fa-check-circle mr-1"></i>缓存
+            </span>
+            <span v-if="aiModel" class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+              <i class="fa fa-robot mr-1"></i>{{ aiModel }}
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              v-if="!aiLoading && aiExamples.length > 0"
+              @click="showAiExample(currentAiWord, true)"
+              class="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded text-sm font-medium transition-colors"
+              title="重新生成"
+            >
+              <i class="fa fa-refresh mr-1"></i>重新生成
+            </button>
+            <button @click="closeAiModal" class="text-gray-500 hover:text-gray-700">
+              <i class="fa fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="aiError" class="text-center py-8 text-red-600">
+            <i class="fa fa-exclamation-circle text-3xl mb-4"></i>
+            <p>{{ aiError }}</p>
+          </div>
+          <div v-else class="space-y-4">
+            <!-- 状态提示 -->
+            <div v-if="aiStatus" class="flex items-center justify-center gap-2 text-gray-600">
+              <i class="fa fa-spinner fa-spin"></i>
+              <span>{{ aiStatus }}</span>
+            </div>
+            
+            <!-- 流式响应模式：打字机效果 + 完成的例句 -->
+            <template v-if="USE_STREAMING_AI">
+              <!-- 已完成的例句 -->
+              <div 
+                v-for="(example, index) in aiExamples" 
+                :key="index"
+                class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <template v-if="example.loading">
+                      <div class="space-y-2">
+                        <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                      <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                    </template>
+                  </div>
+                  <button 
+                    v-if="!example.loading"
+                    @click="handleVoiceClick(example.kana || example.japanese, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
+                    title="朗读"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- 打字机效果的原始文本 -->
+              <div v-if="aiLoading && aiTypingText" class="p-4 border border-primary/30 rounded-lg bg-primary/5">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <pre class="text-sm font-mono text-gray-700 whitespace-pre-wrap">{{ aiTypingText }}</pre>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <!-- 非流式模式：占位符骨架屏 -->
+            <template v-else>
+              <div 
+                v-for="(example, index) in aiExamples" 
+                :key="index"
+                class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <template v-if="example.loading">
+                      <div class="space-y-2">
+                        <div class="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
+                      <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
+                    </template>
+                  </div>
+                  <button 
+                    v-if="!example.loading"
+                    @click="handleVoiceClick(example.kana || example.japanese, $event)"
+                    class="flex-shrink-0 bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 rounded ml-4 transition-custom"
+                    title="朗读"
+                  >
+                    <i class="fa fa-volume-up"></i>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderComponent from '../components/HeaderComponent.vue';
 import VocabTableComponent from '../components/VocabTableComponent.vue';
@@ -215,7 +338,7 @@ import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { useVocabulary } from '../composables/useVocabulary';
 import { useToast } from '../composables/useToast';
 import { useConfirm } from '../composables/useConfirm';
-import { getDiff, generateDiffHtml } from '../utils/helpers';
+import { getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
 import * as api from '../services/api.js';
 
 const router = useRouter();
@@ -274,6 +397,20 @@ const pagination = ref({
 });
 
 const pageSize = ref(20);
+
+// AI 例句相关
+const showAiModal = ref(false);
+const currentAiWord = ref(null);
+const aiExamples = ref([]);
+const aiLoading = ref(false);
+const aiError = ref(null);
+const aiTypingText = ref('');
+const aiIsCached = ref(false);
+const aiModel = ref(null);
+const aiStatus = ref('');
+
+// 配置：是否使用流式响应
+const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
 
 // 错误对比 HTML 列表
 const diffHtmlList = ref([]);
@@ -484,6 +621,7 @@ async function loadMistakesFromAPI() {
 onMounted(async () => {
   console.log('Practice.vue mounted, loading vocabulary...');
   initializeDate();  // 初始化日期选择器为今天
+  document.addEventListener('click', handleClickOutside);
   try {
     const response = await loadVocabularyFromAPI({ 
       page: 1, 
@@ -501,6 +639,12 @@ onMounted(async () => {
     console.error('无法连接到API服务器:', err);
     toast.error('无法连接到服务器，请检查后端是否启动');
   }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+  // 恢复背景滚动
+  document.body.style.overflow = 'auto';
 });
 
 // 加载今日复习数量（不显示单词，只获取数量）
@@ -629,6 +773,171 @@ function handleClearMistakes() {
   clearMistakes();
   toast.info('已清空错题');
 }
+
+// 点击外部关闭模态框
+function handleClickOutside(event) {
+  if (showAiModal.value && !event.target.closest('.bg-white')) {
+    closeAiModal();
+  }
+}
+
+// 朗读假名
+function handleVoiceClick(kana, event) {
+  readJapanese(kana);
+  if (event?.target?.closest('button')) {
+    event.target.closest('button').classList.add('btn-pulse');
+    setTimeout(() => event.target.closest('button').classList.remove('btn-pulse'), 500);
+  }
+}
+
+// 显示 AI 例句
+const showAiExample = async (word, forceRefresh = false) => {
+  currentAiWord.value = word;
+  showAiModal.value = true;
+  document.body.style.overflow = 'hidden';
+  
+  // 初始化：无论是否流式，都先显示骨架屏
+  aiExamples.value = [
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true },
+    { japanese: '', kana: '', chinese: '', loading: true }
+  ];
+  
+  aiLoading.value = true;
+  aiError.value = null;
+  aiIsCached.value = false;
+  aiStatus.value = '正在初始化...';
+  aiModel.value = null;
+  aiTypingText.value = '';
+  
+  if (USE_STREAMING_AI) {
+    // ========== 流式响应逻辑 ==========
+    let fullText = '';
+    let typingInterval = null;
+    
+    // 尝试从文本中解析已完成的例句
+    const extractExamples = (text) => {
+      try {
+        const startIndex = text.indexOf('[');
+        const endIndex = text.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          const jsonStr = text.substring(startIndex, endIndex + 1);
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) {
+            const result = parsed
+              .map(ex => ({
+                japanese: ex.japanese || ex.jp || '',
+                kana: ex.kana || '',
+                chinese: ex.chinese || ex.cn || ex.zh || '',
+              }))
+              .filter(ex => ex.japanese && ex.kana && ex.chinese);
+            
+            while (result.length < 3) {
+              result.push({ japanese: '', kana: '', chinese: '', loading: true });
+            }
+            return result;
+          }
+        }
+      } catch (e) {
+      }
+      return [
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true }
+      ];
+    };
+    
+    // 打字机效果函数
+    const startTyping = () => {
+      if (typingInterval) clearInterval(typingInterval);
+      
+      typingInterval = setInterval(() => {
+        if (aiTypingText.value.length < fullText.length) {
+          aiTypingText.value = fullText.substring(0, aiTypingText.value.length + 1);
+        }
+      }, 30);
+    };
+    
+    try {
+      await api.generateAiExamplesStream(
+        {
+          word: word.original,
+          kana: word.kana,
+          chinese: word.chinese,
+          wordClass: word.word_class || [],
+        },
+        null,
+        (finalExamples, cached, model) => {
+          aiExamples.value = [...finalExamples];
+          aiLoading.value = false;
+          aiTypingText.value = '';
+          aiIsCached.value = cached || false;
+          aiModel.value = model || null;
+          aiStatus.value = '';
+          if (typingInterval) clearInterval(typingInterval);
+        },
+        (error) => {
+          aiError.value = error.message || '生成例句失败，请稍后重试';
+          aiLoading.value = false;
+          aiStatus.value = '';
+          if (typingInterval) clearInterval(typingInterval);
+        },
+        (rawText) => {
+          fullText = rawText;
+          aiExamples.value = extractExamples(rawText);
+          if (!typingInterval) {
+            startTyping();
+          }
+        },
+        (status) => {
+          aiStatus.value = status;
+        },
+        forceRefresh
+      );
+    } catch (error) {
+      aiError.value = error.message || '生成例句失败，请稍后重试';
+      aiLoading.value = false;
+      aiStatus.value = '';
+      if (typingInterval) clearInterval(typingInterval);
+    }
+  } else {
+    // ========== 非流式响应逻辑 ==========
+    aiStatus.value = '正在生成例句...';
+    try {
+      const response = await api.generateAiExamples({
+        word: word.original,
+        kana: word.kana,
+        chinese: word.chinese,
+        wordClass: word.word_class || [],
+        forceRefresh
+      });
+      
+      aiExamples.value = response.data?.examples || [];
+      aiIsCached.value = response.data?.cached || false;
+      aiModel.value = response.data?.model || null;
+      aiLoading.value = false;
+      aiStatus.value = '';
+    } catch (error) {
+      aiError.value = error.message || '生成例句失败，请稍后重试';
+      aiLoading.value = false;
+      aiStatus.value = '';
+    }
+  }
+};
+
+// 关闭 AI 例句模态框
+const closeAiModal = () => {
+  showAiModal.value = false;
+  document.body.style.overflow = 'auto';
+  currentAiWord.value = null;
+  aiExamples.value = [];
+  aiError.value = null;
+  aiIsCached.value = false;
+  aiModel.value = null;
+  aiTypingText.value = '';
+  aiStatus.value = '';
+};
 </script>
 
 <style scoped>
