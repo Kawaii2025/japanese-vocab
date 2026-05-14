@@ -6,8 +6,67 @@ import { parsePaginationParams, buildPaginationInfo } from '../utils/pagination.
 import { getBeijingCurrentDayStartTimestamp, getCurrentTimestamp } from '../utils/timezone.js';
 import { convertArrayTimestampsToBeijing, convertTimestampsToBeijing } from '../utils/beijing-time.js';
 import { RawSQL, wrapRawSQL } from '../utils/neon-wrapper.js';
+import getDB, { getDatabaseInfo } from '../db.js';
 
 let db = null;
+
+// 批量查询单词是否有 AI 例句缓存
+async function getWordsWithCacheStatus(words) {
+  if (!words || words.length === 0) return [];
+  
+  try {
+    const dbInstance = await getDB();
+    const dbInfo = getDatabaseInfo();
+    
+    // 构建查询条件，同时查询所有单词
+    const cacheStatusMap = {};
+    
+    for (const word of words) {
+      const wc = Array.isArray(word.word_class) ? word.word_class.join(',') : (word.word_class || '');
+      const cacheKeyOriginal = word.original || null;
+      const cacheKeyKana = word.kana;
+      const cacheKeyChinese = word.chinese;
+      const cacheKeyWordClass = wc || null;
+      
+      let result;
+      if (dbInfo.isNeon) {
+        // PostgreSQL 版本
+        result = await dbInstance.get(
+          `SELECT id FROM ai_examples_cache 
+           WHERE (original IS NULL AND $1::text IS NULL OR original = $1)
+           AND kana = $2 
+           AND chinese = $3 
+           AND (word_class IS NULL AND $4::text IS NULL OR word_class = $4)
+           LIMIT 1`,
+          [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+        );
+      } else {
+        // SQLite 版本
+        result = await dbInstance.get(
+          `SELECT id FROM ai_examples_cache 
+           WHERE COALESCE(original, '') = COALESCE(?, '') 
+           AND kana = ? 
+           AND chinese = ? 
+           AND COALESCE(word_class, '') = COALESCE(?, '')
+           LIMIT 1`,
+          [cacheKeyOriginal, cacheKeyKana, cacheKeyChinese, cacheKeyWordClass]
+        );
+      }
+      
+      cacheStatusMap[word.id] = !!result;
+    }
+    
+    // 添加 hasAiExamples 字段
+    return words.map(word => ({
+      ...word,
+      hasAiExamples: cacheStatusMap[word.id] || false
+    }));
+  } catch (e) {
+    console.warn('查询缓存状态失败:', e);
+    // 查询失败时，全部返回 false
+    return words.map(word => ({ ...word, hasAiExamples: false }));
+  }
+}
 
 const BEIJING_DATE_FROM_MS = (field) => `date(${field} / 1000, 'unixepoch', '+8 hours')`;
 
@@ -125,11 +184,14 @@ export async function getAllVocabulary(req, res) {
       word_class: deserializeWordClass(item.word_class)
     }));
     
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithBeijingTime);
+    
     const paginationInfo = buildPaginationInfo(totalCount, pagination.page, pagination.pageSize);
     
     res.json({
       success: true,
-      data: dataWithBeijingTime,
+      data: dataWithCacheStatus,
       pagination: paginationInfo
     });
   } catch (err) {
@@ -189,10 +251,13 @@ export async function getRandomVocabulary(req, res) {
       word_class: deserializeWordClass(item.word_class)
     }));
     
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithBeijingTime);
+    
     res.json({
       success: true,
-      data: dataWithBeijingTime,
-      total: dataWithBeijingTime.length
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -231,9 +296,12 @@ export async function searchVocabulary(req, res) {
       word_class: deserializeWordClass(item.word_class)
     }));
     
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithBeijingTime);
+    
     res.json({
       success: true,
-      data: dataWithBeijingTime,
+      data: dataWithCacheStatus,
       keyword: keyword,
       pagination: paginationInfo
     });
@@ -536,13 +604,18 @@ export async function getTodayVocabulary(req, res) {
       dayEnd
     );
     
+    const dataWithWordClass = result.map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
+    
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithWordClass);
+    
     res.json({
       success: true,
-      data: result.map(item => ({
-        ...item,
-        word_class: deserializeWordClass(item.word_class)
-      })),
-      total: result.length
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -564,13 +637,18 @@ export async function getVocabularyByDate(req, res) {
       `${date}%`
     );
     
+    const dataWithWordClass = result.map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
+    
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithWordClass);
+    
     res.json({
       success: true,
-      data: result.map(item => ({
-        ...item,
-        word_class: deserializeWordClass(item.word_class)
-      })),
-      total: result.length,
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length,
       date: date
     });
   } catch (err) {
@@ -604,13 +682,18 @@ export async function getVocabularyByDateRange(req, res) {
       end
     );
     
+    const dataWithWordClass = result.map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
+    
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithWordClass);
+    
     res.json({
       success: true,
-      data: result.map(item => ({
-        ...item,
-        word_class: deserializeWordClass(item.word_class)
-      })),
-      total: result.length,
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length,
       dateRange: { start, end }
     });
   } catch (err) {
@@ -627,13 +710,18 @@ export async function getTodayReview(req, res) {
       dayStart
     );
     
+    const dataWithWordClass = result.map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
+    
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithWordClass);
+    
     res.json({
       success: true,
-      data: result.map(item => ({
-        ...item,
-        word_class: deserializeWordClass(item.word_class)
-      })),
-      total: result.length
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -739,13 +827,18 @@ export async function getUnfamiliarWords(req, res) {
       ORDER BY uw.marked_at DESC
     `, user_id);
     
+    const dataWithWordClass = result.map(item => ({
+      ...item,
+      word_class: deserializeWordClass(item.word_class)
+    }));
+    
+    // 添加 hasAiExamples 字段
+    const dataWithCacheStatus = await getWordsWithCacheStatus(dataWithWordClass);
+    
     res.json({
       success: true,
-      data: result.map(item => ({
-        ...item,
-        word_class: deserializeWordClass(item.word_class)
-      })),
-      total: result.length
+      data: dataWithCacheStatus,
+      total: dataWithCacheStatus.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

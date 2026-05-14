@@ -323,13 +323,14 @@ export async function generateExamples(req, res) {
 - 使用现代日语表达
 - 句子长度适中，不要过长
 - JLPT N3 左右难度
-- 假名必须完整标注
+- **japanese 字段：使用振假名标注（汉字后面用括号注假名）**，例如：私（わたし）、日本（にほん）
+- **kana 字段：保留全假名标注（用于语音朗读）**
 - 中文翻译自然通顺
 
 返回格式必须严格遵守：
 [
   {
-    "japanese": "例句",
+    "japanese": "例句（带振假名）",
     "kana": "全假名标注",
     "chinese": "中文翻译"
   }
@@ -459,13 +460,14 @@ export async function generateExamplesStream(req, res) {
 - 使用现代日语表达
 - 句子长度适中，不要过长
 - JLPT N3 左右难度
-- 假名必须完整标注
+- **japanese 字段：使用振假名标注（汉字后面用括号注假名）**，例如：私（わたし）、日本（にほん）
+- **kana 字段：保留全假名标注（用于语音朗读）**
 - 中文翻译自然通顺
 
 返回格式必须严格遵守：
 [
   {
-    "japanese": "例句",
+    "japanese": "例句（带振假名）",
     "kana": "全假名标注",
     "chinese": "中文翻译"
   }

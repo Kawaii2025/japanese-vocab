@@ -193,10 +193,16 @@
                   @click="emit('showAiExample', vocabularyList[index])"
                   :class="pendingAiWordIds.has(vocabularyList[index].id) 
                     ? 'px-3 py-1 bg-gray-200 text-gray-500 rounded transition-custom cursor-not-allowed'
-                    : 'px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom'"
-                  :title="pendingAiWordIds.has(vocabularyList[index].id) ? '正在生成AI例句...' : '生成AI例句'"
+                    : (vocabularyList[index].hasAiExamples 
+                      ? 'px-3 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-custom'
+                      : 'px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom')"
+                  :title="pendingAiWordIds.has(vocabularyList[index].id) 
+                    ? '正在生成AI例句...' 
+                    : (vocabularyList[index].hasAiExamples ? '查看AI例句（已缓存）' : '生成AI例句')"
                 >
-                  <i :class="pendingAiWordIds.has(vocabularyList[index].id) ? 'fa fa-spinner fa-spin' : 'fa fa-lightbulb-o'"></i>
+                  <i :class="pendingAiWordIds.has(vocabularyList[index].id) 
+                    ? 'fa fa-spinner fa-spin' 
+                    : (vocabularyList[index].hasAiExamples ? 'fa fa-check-circle' : 'fa fa-lightbulb-o')"></i>
                 </button>
                 <button 
                   v-if="!practiceResults[index].practiced || isEditing[index]"

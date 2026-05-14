@@ -260,10 +260,16 @@
                     @click="showAiExample(word)"
                     :class="pendingAiWordIds.has(word.id)
                       ? 'flex-shrink-0 bg-gray-200 text-gray-500 px-2 py-1 rounded cursor-not-allowed'
-                      : 'flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded transition-custom'"
-                    :title="pendingAiWordIds.has(word.id) ? '正在生成AI例句...' : '生成AI例句'"
+                      : (word.hasAiExamples
+                        ? 'flex-shrink-0 bg-green-100 hover:bg-green-200 text-green-600 px-2 py-1 rounded transition-custom'
+                        : 'flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded transition-custom')"
+                    :title="pendingAiWordIds.has(word.id) 
+                      ? '正在生成AI例句...' 
+                      : (word.hasAiExamples ? '查看AI例句（已缓存）' : '生成AI例句')"
                   >
-                    <i :class="pendingAiWordIds.has(word.id) ? 'fa fa-spinner fa-spin' : 'fa fa-lightbulb-o'"></i>
+                    <i :class="pendingAiWordIds.has(word.id) 
+                      ? 'fa fa-spinner fa-spin' 
+                      : (word.hasAiExamples ? 'fa fa-check-circle' : 'fa fa-lightbulb-o')"></i>
                   </button>
                   <button
                     @click="handleVoiceClick(word.kana, $event)"
@@ -330,7 +336,7 @@
             <template v-if="USE_STREAMING_AI">
               <!-- 已完成的例句 -->
               <div 
-                v-for="(example, index) in aiExamples" 
+                v-for="(example, index) in aiExamplesWithRuby" 
                 :key="index"
                 class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
               >
@@ -344,7 +350,7 @@
                       </div>
                     </template>
                     <template v-else>
-                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-lg font-medium text-dark" v-html="example.japaneseWithRuby"></p>
                       <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
                       <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
                     </template>
@@ -371,7 +377,7 @@
             <!-- 非流式模式：占位符骨架屏 -->
             <template v-else>
               <div 
-                v-for="(example, index) in aiExamples" 
+                v-for="(example, index) in aiExamplesWithRuby" 
                 :key="index"
                 class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
               >
@@ -385,7 +391,7 @@
                       </div>
                     </template>
                     <template v-else>
-                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-lg font-medium text-dark" v-html="example.japaneseWithRuby"></p>
                       <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
                       <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
                     </template>
@@ -413,7 +419,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { WORD_CLASSES, normalizeWordClasses, getWordClassLabel, getWordClassColor, getWordClassShort } from '../constants/wordClasses';
 import * as api from '../services/api.js';
-import { readJapanese } from '../utils/helpers.js';
+import { readJapanese, furiganaToRuby } from '../utils/helpers.js';
 import { useToast } from '../composables/useToast.js';
 import { useConfirm } from '../composables/useConfirm.js';
 
@@ -452,6 +458,14 @@ const aiIsCached = ref(false); // 是否使用了缓存
 const aiModel = ref(null); // 当前使用的AI模型
 const aiStatus = ref(''); // 状态提示文本
 const pendingAiWordIds = ref(new Set()); // 正在进行AI请求的单词ID集合
+
+// 转换 AI 例句为 HTML ruby 标签
+const aiExamplesWithRuby = computed(() => {
+  return aiExamples.value.map(example => ({
+    ...example,
+    japaneseWithRuby: furiganaToRuby(example.japanese)
+  }));
+});
 
 function toggleDropdown(index) {
   openDropdownIndex.value = openDropdownIndex.value === index ? null : index;

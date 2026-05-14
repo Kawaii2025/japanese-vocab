@@ -4,6 +4,23 @@ export function createMaskText(text) {
   return '*'.repeat(text.length);
 }
 
+// 工具函数：日语振假名转换为 HTML ruby 标签
+// 把「汉字（假名）」格式转换成 <ruby>汉字<rt>假名</rt></ruby>
+export function furiganaToRuby(text) {
+  if (!text) return text;
+  
+  // 匹配「汉字（假名）」格式，替换为 <ruby>汉字<rt>假名</rt></ruby>
+  // 正则解释：
+  // ([一-龯]+) - 匹配一个或多个汉字
+  // （         - 匹配中文左括号
+  // ([^）]+)   - 匹配一个或多个非右括号的字符（假名）
+  // ）         - 匹配中文右括号
+  return text.replace(
+    /([一-龯]+)（([^）]+)）/g,
+    '<ruby>$1<rt>$2</rt></ruby>'
+  );
+}
+
 // 工具函数：判断文本是否为中文
 export function isChinese(text) {
   if (!text) return false;

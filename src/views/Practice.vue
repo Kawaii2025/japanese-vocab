@@ -274,7 +274,7 @@
             <template v-if="USE_STREAMING_AI">
               <!-- 已完成的例句 -->
               <div 
-                v-for="(example, index) in aiExamples" 
+                v-for="(example, index) in aiExamplesWithRuby" 
                 :key="index"
                 class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
               >
@@ -288,7 +288,7 @@
                       </div>
                     </template>
                     <template v-else>
-                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-lg font-medium text-dark" v-html="example.japaneseWithRuby"></p>
                       <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
                       <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
                     </template>
@@ -315,7 +315,7 @@
             <!-- 非流式模式：占位符骨架屏 -->
             <template v-else>
               <div 
-                v-for="(example, index) in aiExamples" 
+                v-for="(example, index) in aiExamplesWithRuby" 
                 :key="index"
                 class="p-4 border border-gray-200 rounded-lg hover:border-primary/50 transition-colors"
               >
@@ -329,7 +329,7 @@
                       </div>
                     </template>
                     <template v-else>
-                      <p class="text-lg font-medium text-dark">{{ example.japanese }}</p>
+                      <p class="text-lg font-medium text-dark" v-html="example.japaneseWithRuby"></p>
                       <p class="text-sm text-gray-600 mt-1">{{ example.kana }}</p>
                       <p class="text-sm text-gray-500 mt-2">{{ example.chinese }}</p>
                     </template>
@@ -364,7 +364,7 @@ import DateFilterComponent from '../components/DateFilterComponent.vue';
 import { useVocabulary } from '../composables/useVocabulary';
 import { useToast } from '../composables/useToast';
 import { useConfirm } from '../composables/useConfirm';
-import { getDiff, generateDiffHtml, readJapanese } from '../utils/helpers';
+import { getDiff, generateDiffHtml, readJapanese, furiganaToRuby } from '../utils/helpers';
 import * as api from '../services/api.js';
 
 const router = useRouter();
@@ -434,6 +434,14 @@ const aiTypingText = ref('');
 const aiIsCached = ref(false);
 const aiModel = ref(null);
 const aiStatus = ref('');
+
+// 转换 AI 例句为 HTML ruby 标签
+const aiExamplesWithRuby = computed(() => {
+  return aiExamples.value.map(example => ({
+    ...example,
+    japaneseWithRuby: furiganaToRuby(example.japanese)
+  }));
+});
 
 // AI 预生成相关
 const enablePreCache = ref(true); // 是否启用预生成
