@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+
   pull_request:
     branches:
       - main
@@ -37,11 +38,9 @@ jobs:
       - name: Create index.html
         run: cp html/test-report.html html/index.html
 
-      - name: Deploy test report to gh-pages branch
+      - name: Deploy test report to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./html
-          destination_dir: test-report
-          keep_files: true
