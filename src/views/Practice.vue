@@ -1150,12 +1150,20 @@ async function preCacheCurrentPageAiExamples() {
   
   try {
     // 逐个预生成，避免并发过多
-    let cachedCount = 0;
+    let alreadyCachedCount = 0;
+    let sessionCachedCount = 0;
     let pregeneratedCount = 0;
     
     for (const word of vocabularyList.value) {
+      // 先检查是否已经有AI缓存（从API返回的字段）
+      if (word.hasAiExamples) {
+        alreadyCachedCount++;
+        continue;
+      }
+      
+      // 再检查是否已经在本次会话中预缓存过
       if (preCachedWordIds.value.has(word.id)) {
-        cachedCount++;
+        sessionCachedCount++;
         continue;
       }
       
@@ -1168,9 +1176,9 @@ async function preCacheCurrentPageAiExamples() {
     }
     
     if (pregeneratedCount > 0) {
-      console.log(`AI例句预生成完成: ${cachedCount} 个已有缓存，${pregeneratedCount} 个新生成`);
-    } else if (cachedCount > 0) {
-      console.log(`AI例句预生成完成: 全部 ${cachedCount} 个已有缓存`);
+      console.log(`AI例句预生成完成: ${alreadyCachedCount} 个已有缓存，${sessionCachedCount} 个会话已缓存，${pregeneratedCount} 个新生成`);
+    } else if (alreadyCachedCount + sessionCachedCount > 0) {
+      console.log(`AI例句预生成完成: 全部 ${alreadyCachedCount + sessionCachedCount} 个已有缓存`);
     }
   } catch (error) {
     console.error('AI例句预生成过程出错:', error);
