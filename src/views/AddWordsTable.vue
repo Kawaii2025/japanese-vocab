@@ -281,7 +281,7 @@
     </div>
 
     <!-- AI例句弹窗 -->
-    <div v-if="showAiModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeAiModal">
+    <div v-if="showAiModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <div class="flex items-center justify-between p-4 border-b">
           <div class="flex items-center gap-2">
@@ -299,7 +299,7 @@
           <div class="flex items-center gap-2">
             <button 
               v-if="!aiLoading && aiExamples.length > 0"
-              @click="showAiExample(currentAiWord, true)"
+              @click.stop="showAiExample(currentAiWord, true)"
               class="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded text-sm font-medium transition-colors"
               title="重新生成"
             >
@@ -552,9 +552,7 @@ const isRowCompletelyEmpty = (word) => {
 };
 
 // 配置：是否使用流式响应（false = 使用非流式）
-console.log('🔍 [AddWordsTable] VITE_USE_STREAMING_AI env:', import.meta.env.VITE_USE_STREAMING_AI);
 const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
-console.log('🔍 [AddWordsTable] USE_STREAMING_AI computed:', USE_STREAMING_AI);
 
 // AI 例句功能
 const showAiExample = async (word, forceRefresh = false) => {
