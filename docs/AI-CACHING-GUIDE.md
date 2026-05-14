@@ -3,12 +3,14 @@
 ## 📖 目录
 
 1. [缓存关联机制](#缓存关联机制)
-2. [实际应用场景](#实际应用场景)
-3. [环境变量配置](#环境变量配置)
-4. [模型配置](#模型配置)
-5. [超时配置](#超时配置)
-6. [常见问题](#常见问题)
-7. [最佳实践](#最佳实践)
+2. [请求正确对应性保障](#请求正确对应性保障)
+3. [预生成与用户请求冲突处理](#预生成与用户请求冲突处理)
+4. [实际应用场景](#实际应用场景)
+5. [环境变量配置](#环境变量配置)
+6. [模型配置](#模型配置)
+7. [超时配置](#超时配置)
+8. [常见问题](#常见问题)
+9. [最佳实践](#最佳实践)
 
 ---
 
@@ -57,6 +59,156 @@ async function getCachedExamples(word, kana, chinese, wordClass) {
     AND kana = ?                              // 假名必须相同
     AND chinese = ?                           // 中文必须相同
     AND COALESCE(word_class, '') = COALESCE(?, '') // 词性必须相同
+}
+```
+
+---
+
+## 请求正确对应性保障
+
+### 核心问题
+
+当用户快速点击多个单词的 AI 例句按钮，或者在请求过程中切换单词时，如何确保每个请求的结果正确对应到相应的单词？
+
+### 解决方案
+
+#### 1️⃣ Pending 请求跟踪
+
+使用 Set 数据结构跟踪正在进行的请求：
+
+```javascript
+// Practice.vue
+const pendingAiRequestWordIds = ref(new Set());
+
+// AddWordsTable.vue
+const pendingAiWordIds = ref(new Set());
+```
+
+#### 2️⃣ 关键检查点
+
+在所有回调函数中都进行双重检查：
+
+```javascript
+// 检查 1: 弹窗是否还打开
+if (showAiModal.value) {
+  // 检查 2: 当前显示的单词 ID 是否匹配请求的单词 ID
+  if (currentAiWord.value?.id === word.id) {
+    // 只有两个条件都满足时才更新 UI
+    aiExamples.value = [...finalExamples];
+    aiLoading.value = false;
+  }
+}
+```
+
+#### 3️⃣ 闭包捕获
+
+使用闭包正确捕获每个请求对应的 `word` 对象，确保回调函数引用正确。
+
+### 具体检查点
+
+| 回调类型 | 检查条件 |
+|---------|---------|
+| 流式完成回调 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+| 流式错误回调 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+| 流式文本更新 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+| 流式状态更新 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+| 非流式完成 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+| 非流式错误 | `showAiModal.value && currentAiWord.value?.id === word.id` |
+
+### 防重复请求机制
+
+```javascript
+// showAiExample 函数开头
+if (pendingAiRequestWordIds.value.has(word.id)) {
+  // 如果已经在请求中，只打开弹窗显示 loading，不重复请求
+  currentAiWord.value = word;
+  showAiModal.value = true;
+  // ... 显示 loading 状态
+  return;
+}
+
+// 标记为正在请求中
+pendingAiRequestWordIds.value.add(word.id);
+```
+
+---
+
+## 预生成与用户请求冲突处理
+
+### 核心问题
+
+当后台正在预生成某个单词的 AI 例句时，用户此时点击这个单词的按钮，如何处理冲突？
+
+### 解决方案
+
+#### 1️⃣ 共享的 Pending 跟踪
+
+预生成和用户请求使用同一个 `pendingAiRequestWordIds` Set：
+
+```javascript
+// preCacheAiExample 函数开头
+if (preCachedWordIds.value.has(word.id) || pendingAiRequestWordIds.value.has(word.id)) {
+  // 如果已预生成或正在请求中，跳过
+  return;
+}
+
+// 标记为正在请求中
+pendingAiRequestWordIds.value.add(word.id);
+```
+
+#### 2️⃣ 用户优先策略
+
+- 用户请求总是优先处理
+- 预生成会检查 pending 状态，避免和用户请求冲突
+- 如果用户点击时单词正在预生成中，打开弹窗等待结果
+
+#### 3️⃣ 预生成完成时检查 UI
+
+预生成完成后检查用户是否正在查看这个单词的弹窗：
+
+```javascript
+// 预生成完成后
+preCachedWordIds.value.add(word.id);
+
+// 检查用户是否正在查看这个单词的弹窗
+if (showAiModal.value && currentAiWord.value?.id === word.id) {
+  // 如果是，更新 UI
+  aiExamples.value = response.data?.examples || [];
+  aiIsCached.value = response.data?.cached || false;
+  aiModel.value = response.data?.model || null;
+  aiLoading.value = false;
+  aiStatus.value = '';
+  aiError.value = null;
+}
+```
+
+### 冲突场景处理
+
+| 场景 | 处理方式 |
+|------|---------|
+| 预生成进行中，用户点击这个单词 | 弹窗打开显示 loading，预生成完成时自动更新弹窗内容 |
+| 用户正在查看弹窗，预生成也完成了这个单词 | 预生成完成时检查并更新弹窗 UI |
+| 用户点击时单词不在 pending | 正常发起用户请求，优先处理 |
+| 预生成检查发现单词在 pending | 跳过预生成这个单词 |
+
+### 批量预生成机制
+
+```javascript
+async function preCacheCurrentPageAiExamples() {
+  if (!enablePreCache.value || preCachingInProgress.value) {
+    return;
+  }
+  
+  preCachingInProgress.value = true;
+  
+  // 逐个预生成，避免并发过多
+  for (const word of vocabularyList.value) {
+    await preCacheAiExample(word);
+    // 简单节流
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
+  preCachingInProgress.value = false;
 }
 ```
 
@@ -189,5 +341,7 @@ VITE_DISABLE_AI_CACHE=true
 | 缓存关联依据 | 单词内容（word + kana + chinese + wordClass） |
 | 是否需要数据库 ID | ❌ 不需要 |
 | 单词未保存时能用缓存 | ✅ 可以 |
+| 请求正确对应性 | ✅ 通过 pending 跟踪 + 双重检查保障 |
+| 预生成与用户冲突处理 | ✅ 共享 pending + 用户优先策略 |
 | 切换模型 | 只需要改 `api/.env` 里的 `QWEN_MODEL` |
 | 超时配置 | 全链路 120 秒 |
