@@ -191,10 +191,12 @@
                       <button 
                         @click="showAiExample(word)"
                         :disabled="isRowEmpty(word)"
-                        class="px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-100"
-                        title="生成AI例句"
+                        :class="(word.id && pendingAiWordIds.has(word.id))
+                          ? 'px-3 py-2 bg-gray-200 text-gray-500 rounded transition-colors font-medium text-sm cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-200'
+                          : 'px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-100'"
+                        :title="(word.id && pendingAiWordIds.has(word.id)) ? '正在生成AI例句...' : '生成AI例句'"
                       >
-                        <i class="fa fa-lightbulb-o"></i>
+                        <i :class="(word.id && pendingAiWordIds.has(word.id)) ? 'fa fa-spinner fa-spin' : 'fa fa-lightbulb-o'"></i>
                       </button>
                       <button 
                         @click="deleteRow(index)"
@@ -256,10 +258,12 @@
                 <div class="absolute right-3 top-3 flex items-center gap-2">
                   <button
                     @click="showAiExample(word)"
-                    class="flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded transition-custom"
-                    title="生成AI例句"
+                    :class="pendingAiWordIds.has(word.id)
+                      ? 'flex-shrink-0 bg-gray-200 text-gray-500 px-2 py-1 rounded cursor-not-allowed'
+                      : 'flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded transition-custom'"
+                    :title="pendingAiWordIds.has(word.id) ? '正在生成AI例句...' : '生成AI例句'"
                   >
-                    <i class="fa fa-lightbulb-o"></i>
+                    <i :class="pendingAiWordIds.has(word.id) ? 'fa fa-spinner fa-spin' : 'fa fa-lightbulb-o'"></i>
                   </button>
                   <button
                     @click="handleVoiceClick(word.kana, $event)"
@@ -447,6 +451,7 @@ const aiTypingText = ref(''); // 打字机效果显示的文本
 const aiIsCached = ref(false); // 是否使用了缓存
 const aiModel = ref(null); // 当前使用的AI模型
 const aiStatus = ref(''); // 状态提示文本
+const pendingAiWordIds = ref(new Set()); // 正在进行AI请求的单词ID集合
 
 function toggleDropdown(index) {
   openDropdownIndex.value = openDropdownIndex.value === index ? null : index;
@@ -556,6 +561,34 @@ const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
 
 // AI 例句功能
 const showAiExample = async (word, forceRefresh = false) => {
+  // 如果单词没有 id，不使用 pending 逻辑（新建单词的情况）
+  if (word.id) {
+    // 检查是否已经在请求中
+    if (pendingAiWordIds.value.has(word.id)) {
+      // 如果已经在请求中，只打开弹窗，不重复请求
+      currentAiWord.value = word;
+      showAiModal.value = true;
+      document.body.style.overflow = 'hidden';
+      
+      // 显示加载状态
+      aiExamples.value = [
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true },
+        { japanese: '', kana: '', chinese: '', loading: true }
+      ];
+      aiLoading.value = true;
+      aiError.value = null;
+      aiIsCached.value = false;
+      aiStatus.value = '正在生成例句...';
+      aiModel.value = null;
+      aiTypingText.value = '';
+      return;
+    }
+    
+    // 标记为正在请求中
+    pendingAiWordIds.value.add(word.id);
+  }
+  
   currentAiWord.value = word;
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
@@ -573,6 +606,32 @@ const showAiExample = async (word, forceRefresh = false) => {
   aiStatus.value = '正在初始化...';
   aiModel.value = null;
   aiTypingText.value = '';
+  
+  let finalExamples = [];
+  let cached = false;
+  let model = null;
+  let hasError = false;
+  
+  const finishRequest = () => {
+    // 无论弹窗是否关闭，都清理 pending 标记
+    if (word.id) {
+      pendingAiWordIds.value.delete(word.id);
+    }
+    
+    // 只有弹窗还打开时才更新 UI
+    if (showAiModal.value && currentAiWord.value?.id === word.id) {
+      if (hasError) {
+        // 错误已经处理过了
+      } else {
+        aiExamples.value = [...finalExamples];
+        aiLoading.value = false;
+        aiTypingText.value = '';
+        aiIsCached.value = cached || false;
+        aiModel.value = model || null;
+        aiStatus.value = '';
+      }
+    }
+  };
   
   if (USE_STREAMING_AI) {
     // ========== 流式响应逻辑 ==========
@@ -635,45 +694,65 @@ const showAiExample = async (word, forceRefresh = false) => {
           wordClass: word.word_class || [],
         },
         null, // onExamples 不再使用
-        (finalExamples, cached, model) => {
+        (finalExamplesResult, cachedResult, modelResult) => {
           // 完成时
-          aiExamples.value = [...finalExamples];
-          aiLoading.value = false;
-          aiTypingText.value = ''; // 完成后清空打字机文本
-          aiIsCached.value = cached || false;
-          aiModel.value = model || null;
-          aiStatus.value = '';
+          finalExamples = finalExamplesResult;
+          cached = cachedResult;
+          model = modelResult;
+          
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiExamples.value = [...finalExamples];
+            aiLoading.value = false;
+            aiTypingText.value = ''; // 完成后清空打字机文本
+            aiIsCached.value = cached || false;
+            aiModel.value = model || null;
+            aiStatus.value = '';
+          }
+          
           if (typingInterval) clearInterval(typingInterval);
+          finishRequest();
         },
         (error) => {
-          aiError.value = error.message || '生成例句失败，请稍后重试';
-          aiLoading.value = false;
-          aiStatus.value = '';
+          hasError = true;
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiError.value = error.message || '生成例句失败，请稍后重试';
+            aiLoading.value = false;
+            aiStatus.value = '';
+          }
           if (typingInterval) clearInterval(typingInterval);
           console.error('AI 例句生成失败:', error);
+          finishRequest();
         },
         (rawText) => {
           // 收到原始文本更新
           fullText = rawText;
-          // 尝试解析已完成的例句
-          aiExamples.value = extractExamples(rawText);
-          // 启动打字机
-          if (!typingInterval) {
-            startTyping();
+          // 尝试解析已完成的例句 - 只有弹窗还打开时才更新
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiExamples.value = extractExamples(rawText);
+            // 启动打字机
+            if (!typingInterval) {
+              startTyping();
+            }
           }
         },
         (status) => {
-          // 收到状态更新
-          aiStatus.value = status;
+          // 收到状态更新 - 只有弹窗还打开时才更新
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiStatus.value = status;
+          }
         },
         forceRefresh
       );
     } catch (error) {
-      aiError.value = error.message || '生成例句失败，请稍后重试';
-      aiLoading.value = false;
-      aiStatus.value = '';
+      hasError = true;
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiError.value = error.message || '生成例句失败，请稍后重试';
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
       if (typingInterval) clearInterval(typingInterval);
       console.error('AI 例句生成失败:', error);
+      finishRequest();
     }
   } else {
     // ========== 非流式响应逻辑 ==========
@@ -687,17 +766,27 @@ const showAiExample = async (word, forceRefresh = false) => {
         forceRefresh
       });
       
-      aiExamples.value = response.data?.examples || [];
-      aiIsCached.value = response.data?.cached || false;
-      aiModel.value = response.data?.model || null;
-      aiLoading.value = false;
-      aiStatus.value = '';
+      finalExamples = response.data?.examples || [];
+      cached = response.data?.cached || false;
+      model = response.data?.model || null;
+      
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiExamples.value = finalExamples;
+        aiIsCached.value = cached;
+        aiModel.value = model;
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
     } catch (error) {
-      aiError.value = error.message || '生成例句失败，请稍后重试';
-      aiLoading.value = false;
-      aiStatus.value = '';
+      hasError = true;
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiError.value = error.message || '生成例句失败，请稍后重试';
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
       console.error('AI 例句生成失败:', error);
     }
+    finishRequest();
   }
 };
 

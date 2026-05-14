@@ -191,10 +191,12 @@
               <div class="flex items-center gap-2">
                 <button 
                   @click="emit('showAiExample', vocabularyList[index])"
-                  class="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom"
-                  title="生成AI例句"
+                  :class="pendingAiWordIds.has(vocabularyList[index].id) 
+                    ? 'px-3 py-1 bg-gray-200 text-gray-500 rounded transition-custom cursor-not-allowed'
+                    : 'px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-custom'"
+                  :title="pendingAiWordIds.has(vocabularyList[index].id) ? '正在生成AI例句...' : '生成AI例句'"
                 >
-                  <i class="fa fa-lightbulb-o"></i>
+                  <i :class="pendingAiWordIds.has(vocabularyList[index].id) ? 'fa fa-spinner fa-spin' : 'fa fa-lightbulb-o'"></i>
                 </button>
                 <button 
                   v-if="!practiceResults[index].practiced || isEditing[index]"
@@ -258,6 +260,10 @@ const props = defineProps({
   diffHtmlList: {
     type: Array,
     default: () => []
+  },
+  pendingAiWordIds: {
+    type: Set,
+    default: () => new Set()
   }
 });
 

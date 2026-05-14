@@ -52,14 +52,24 @@
           
           <!-- AI预生成开关 -->
           <div class="flex items-center gap-2 ml-2">
-            <label class="text-sm text-gray-600">
-              <input 
-                type="checkbox" 
-                v-model="enablePreCache"
-                class="mr-1"
+            <label class="text-sm text-gray-600 mr-2">预生成AI例句</label>
+            <button 
+              @click="enablePreCache = !enablePreCache"
+              :class="[
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2',
+                enablePreCache ? 'bg-blue-600' : 'bg-gray-200'
+              ]"
+              type="button"
+              role="switch"
+              :aria-checked="enablePreCache"
+            >
+              <span 
+                :class="[
+                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  enablePreCache ? 'translate-x-5' : 'translate-x-0'
+                ]"
               />
-              预生成AI例句
-            </label>
+            </button>
             <span v-if="preCachingInProgress" class="text-xs text-blue-500">
               <i class="fa fa-spinner fa-spin mr-1"></i>预生成中...
             </span>
@@ -90,6 +100,7 @@
               :hasOriginalText="hasOriginalText"
               :activeMistakes="activeMistakes"
               :diffHtmlList="diffHtmlList"
+              :pendingAiWordIds="pendingAiRequestWordIds"
               @shuffle="handleShuffle"
               @toggleKana="handleToggleKana"
               @toggleOriginal="handleToggleOriginal"
@@ -428,6 +439,7 @@ const aiStatus = ref('');
 const enablePreCache = ref(true); // 是否启用预生成
 const preCachedWordIds = ref(new Set()); // 已预生成的单词ID集合
 const preCachingInProgress = ref(false); // 是否正在预生成中
+const pendingAiRequestWordIds = ref(new Set()); // 正在进行AI请求的单词ID集合
 
 // 配置：是否使用流式响应
 const USE_STREAMING_AI = import.meta.env.VITE_USE_STREAMING_AI === 'true';
@@ -830,6 +842,32 @@ function handleVoiceClick(kana, event) {
 
 // 显示 AI 例句
 const showAiExample = async (word, forceRefresh = false) => {
+  // 用户请求优先：不管是否在预生成，都发起用户请求
+  // 但会先检查是否在 pending（可能是用户自己之前发起的）
+  if (pendingAiRequestWordIds.value.has(word.id)) {
+    // 如果是 pending 状态，只打开弹窗等待，不重复请求
+    currentAiWord.value = word;
+    showAiModal.value = true;
+    document.body.style.overflow = 'hidden';
+    
+    // 显示加载状态
+    aiExamples.value = [
+      { japanese: '', kana: '', chinese: '', loading: true },
+      { japanese: '', kana: '', chinese: '', loading: true },
+      { japanese: '', kana: '', chinese: '', loading: true }
+    ];
+    aiLoading.value = true;
+    aiError.value = null;
+    aiIsCached.value = false;
+    aiStatus.value = '正在生成例句...';
+    aiModel.value = null;
+    aiTypingText.value = '';
+    return;
+  }
+  
+  // 标记为正在请求中（用户请求优先级高于预生成）
+  pendingAiRequestWordIds.value.add(word.id);
+  
   currentAiWord.value = word;
   showAiModal.value = true;
   document.body.style.overflow = 'hidden';
@@ -848,6 +886,31 @@ const showAiExample = async (word, forceRefresh = false) => {
   aiModel.value = null;
   aiTypingText.value = '';
   
+  let finalExamples = [];
+  let cached = false;
+  let model = null;
+  let hasError = false;
+  
+  const finishRequest = () => {
+    // 无论弹窗是否关闭，都清理 pending 标记并保存到预生成缓存
+    preCachedWordIds.value.add(word.id);
+    pendingAiRequestWordIds.value.delete(word.id);
+    
+    // 只有弹窗还打开时才更新 UI
+    if (showAiModal.value && currentAiWord.value?.id === word.id) {
+      if (hasError) {
+        // 错误已经处理过了
+      } else {
+        aiExamples.value = [...finalExamples];
+        aiLoading.value = false;
+        aiTypingText.value = '';
+        aiIsCached.value = cached || false;
+        aiModel.value = model || null;
+        aiStatus.value = '';
+      }
+    }
+  };
+  
   if (USE_STREAMING_AI) {
     // ========== 流式响应逻辑 ==========
     let fullText = '';
@@ -856,6 +919,7 @@ const showAiExample = async (word, forceRefresh = false) => {
     // 尝试从文本中解析已完成的例句
     const extractExamples = (text) => {
       try {
+        // 找到第一个 [ 和最后一个 ]
         const startIndex = text.indexOf('[');
         const endIndex = text.lastIndexOf(']');
         
@@ -871,6 +935,7 @@ const showAiExample = async (word, forceRefresh = false) => {
               }))
               .filter(ex => ex.japanese && ex.kana && ex.chinese);
             
+            // 确保有3个占位符
             while (result.length < 3) {
               result.push({ japanese: '', kana: '', chinese: '', loading: true });
             }
@@ -878,6 +943,7 @@ const showAiExample = async (word, forceRefresh = false) => {
           }
         }
       } catch (e) {
+        // 忽略解析错误
       }
       return [
         { japanese: '', kana: '', chinese: '', loading: true },
@@ -894,7 +960,7 @@ const showAiExample = async (word, forceRefresh = false) => {
         if (aiTypingText.value.length < fullText.length) {
           aiTypingText.value = fullText.substring(0, aiTypingText.value.length + 1);
         }
-      }, 30);
+      }, 30); // 30ms 每个字符，打字机速度
     };
     
     try {
@@ -905,39 +971,66 @@ const showAiExample = async (word, forceRefresh = false) => {
           chinese: word.chinese,
           wordClass: word.word_class || [],
         },
-        null,
-        (finalExamples, cached, model) => {
-          aiExamples.value = [...finalExamples];
-          aiLoading.value = false;
-          aiTypingText.value = '';
-          aiIsCached.value = cached || false;
-          aiModel.value = model || null;
-          aiStatus.value = '';
+        null, // onExamples 不再使用
+        (finalExamplesResult, cachedResult, modelResult) => {
+          // 完成时
+          finalExamples = finalExamplesResult;
+          cached = cachedResult;
+          model = modelResult;
+          
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiExamples.value = [...finalExamples];
+            aiLoading.value = false;
+            aiTypingText.value = ''; // 完成后清空打字机文本
+            aiIsCached.value = cached || false;
+            aiModel.value = model || null;
+            aiStatus.value = '';
+          }
+          
           if (typingInterval) clearInterval(typingInterval);
+          finishRequest();
         },
         (error) => {
-          aiError.value = error.message || '生成例句失败，请稍后重试';
-          aiLoading.value = false;
-          aiStatus.value = '';
+          hasError = true;
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiError.value = error.message || '生成例句失败，请稍后重试';
+            aiLoading.value = false;
+            aiStatus.value = '';
+          }
           if (typingInterval) clearInterval(typingInterval);
+          console.error('AI 例句生成失败:', error);
+          finishRequest();
         },
         (rawText) => {
+          // 收到原始文本更新
           fullText = rawText;
-          aiExamples.value = extractExamples(rawText);
-          if (!typingInterval) {
-            startTyping();
+          // 尝试解析已完成的例句 - 只有弹窗还打开时才更新
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiExamples.value = extractExamples(rawText);
+            // 启动打字机
+            if (!typingInterval) {
+              startTyping();
+            }
           }
         },
         (status) => {
-          aiStatus.value = status;
+          // 收到状态更新 - 只有弹窗还打开时才更新
+          if (showAiModal.value && currentAiWord.value?.id === word.id) {
+            aiStatus.value = status;
+          }
         },
         forceRefresh
       );
     } catch (error) {
-      aiError.value = error.message || '生成例句失败，请稍后重试';
-      aiLoading.value = false;
-      aiStatus.value = '';
+      hasError = true;
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiError.value = error.message || '生成例句失败，请稍后重试';
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
       if (typingInterval) clearInterval(typingInterval);
+      console.error('AI 例句生成失败:', error);
+      finishRequest();
     }
   } else {
     // ========== 非流式响应逻辑 ==========
@@ -951,16 +1044,27 @@ const showAiExample = async (word, forceRefresh = false) => {
         forceRefresh
       });
       
-      aiExamples.value = response.data?.examples || [];
-      aiIsCached.value = response.data?.cached || false;
-      aiModel.value = response.data?.model || null;
-      aiLoading.value = false;
-      aiStatus.value = '';
+      finalExamples = response.data?.examples || [];
+      cached = response.data?.cached || false;
+      model = response.data?.model || null;
+      
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiExamples.value = finalExamples;
+        aiIsCached.value = cached;
+        aiModel.value = model;
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
     } catch (error) {
-      aiError.value = error.message || '生成例句失败，请稍后重试';
-      aiLoading.value = false;
-      aiStatus.value = '';
+      hasError = true;
+      if (showAiModal.value && currentAiWord.value?.id === word.id) {
+        aiError.value = error.message || '生成例句失败，请稍后重试';
+        aiLoading.value = false;
+        aiStatus.value = '';
+      }
+      console.error('AI 例句生成失败:', error);
     }
+    finishRequest();
   }
 };
 
@@ -981,14 +1085,17 @@ const closeAiModal = () => {
 
 // 静默预生成单个单词的AI例句
 async function preCacheAiExample(word) {
-  // 检查是否已预生成过
-  if (preCachedWordIds.value.has(word.id)) {
+  // 检查是否已预生成过或正在请求中
+  if (preCachedWordIds.value.has(word.id) || pendingAiRequestWordIds.value.has(word.id)) {
     return;
   }
   
   try {
+    // 标记为正在请求中
+    pendingAiRequestWordIds.value.add(word.id);
+    
     // 使用非流式API静默调用（不显示UI，只保存到缓存）
-    await api.generateAiExamples({
+    const response = await api.generateAiExamples({
       word: word.original,
       kana: word.kana,
       chinese: word.chinese,
@@ -998,9 +1105,29 @@ async function preCacheAiExample(word) {
     
     // 标记为已预生成
     preCachedWordIds.value.add(word.id);
+    
+    // 检查用户是否正在查看这个单词的弹窗，如果是，更新UI
+    if (showAiModal.value && currentAiWord.value?.id === word.id) {
+      aiExamples.value = response.data?.examples || [];
+      aiIsCached.value = response.data?.cached || false;
+      aiModel.value = response.data?.model || null;
+      aiLoading.value = false;
+      aiStatus.value = '';
+      aiError.value = null;
+    }
   } catch (error) {
     // 预生成失败不影响用户体验，只记录日志
     console.debug(`预生成 ${word.original || word.kana} 的AI例句失败:`, error.message);
+    
+    // 如果用户正在查看这个单词的弹窗，显示错误
+    if (showAiModal.value && currentAiWord.value?.id === word.id) {
+      aiError.value = error.message || '生成例句失败，请稍后重试';
+      aiLoading.value = false;
+      aiStatus.value = '';
+    }
+  } finally {
+    // 清理pending标记
+    pendingAiRequestWordIds.value.delete(word.id);
   }
 }
 
